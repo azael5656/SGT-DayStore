@@ -1,0 +1,41 @@
+services:
+  # Exponer puertos de BD al host para desarrollo local
+  postgres:
+    ports:
+      - "5432:5432"
+
+  mongo:
+    ports:
+      - "27017:27017"
+
+  redis:
+    ports:
+      - "6379:6379"
+
+  # Hot-reload para backend-negocio
+  backend-negocio:
+    build:
+      context: ./backend-negocio
+      dockerfile: Dockerfile
+      target: builder
+    command: npm run start:dev
+    volumes:
+      - ./backend-negocio:/app
+      - /app/node_modules
+    ports:
+      - "${NEGOCIO_PORT:-3001}:3001"
+      - "9229:9229"
+
+  # Hot-reload para backend-iot
+  backend-iot:
+    build:
+      context: ./backend-iot
+      dockerfile: Dockerfile
+      target: builder
+    command: npm run start:dev
+    volumes:
+      - ./backend-iot:/app
+      - /app/node_modules
+    ports:
+      - "${IOT_PORT:-3002}:3002"
+      - "9230:9229"

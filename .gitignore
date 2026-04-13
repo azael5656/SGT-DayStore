@@ -1,0 +1,39 @@
+# Dependencias
+node_modules/
+
+# Build
+dist/
+build/
+
+# Variables de entorno
+.env
+.env.local
+.env.*.local
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Coverage
+coverage/
+
+# Docker volumes (locales)
+infra/mosquitto/data/*
+!infra/mosquitto/data/.gitkeep
+infra/mosquitto/log/*
+
+# Certificados TLS
+infra/nginx/ssl/
+
+# Claude Code (tooling local)
+.claude/
