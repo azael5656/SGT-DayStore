@@ -1,0 +1,14 @@
+{
+  "name": "sgt-daystore",
+  "version": "0.1.0",
+  "private": true,
+  "description": "SGT-Daystore: Sistema de gestión de inventario, ventas y seguridad IoT",
+  "scripts": {
+    "install:all": "cd backend-negocio && npm install && cd ../backend-iot && npm install",
+    "build:all": "cd backend-negocio && npm run build && cd ../backend-iot && npm run build",
+    "dev:negocio": "cd backend-negocio && npm run start:dev",
+    "dev:iot": "cd backend-iot && npm run start:dev",
+    "docker:up": "docker compose up --build -d",
+    "docker:down": "docker compose down"
+  }
+}
