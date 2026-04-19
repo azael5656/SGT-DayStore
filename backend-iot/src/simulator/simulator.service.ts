@@ -3,18 +3,26 @@ import { MqttService } from '../mqtt/mqtt.service';
 import { InMemoryStoreService } from '../shared/in-memory-store.service';
 
 /**
- * Lógica de escenarios de demo.
+ * Logica de escenarios de demo, alineada al hardware real de la tienda:
+ *  - DHT22 (temperatura + humedad)
+ *  - 5x MC-38 (puertas)
+ *  - 3x SW-420 (vibracion en vitrinas)
+ *  - PIR HC-SR501 (movimiento)
+ *  - SCT-013-030 (corriente)
+ *  - Buzzer 5V
  *
- * Cada escenario dramático (incendio, forzado) sostiene valores extremos
- * durante ~15 segundos publicando cada 2s, y marca en el store
- * `emergencyUntil` para que MockPublisherService no sobrescriba con
- * lecturas normales mientras dura la emergencia.
+ * Cada escenario dramatico sostiene valores extremos ~15s publicando cada 2s
+ * y marca `emergencyUntil` en el store para que MockPublisher no sobrescriba
+ * con lecturas normales mientras dura la emergencia.
  *
- * El escenario `normal` resetea la emergencia, limpia alertas y publica
- * valores saludables.
+ * Escenarios:
+ *  - incendio: temperatura alta (>=38°C) + humedad baja + buzzer ON
+ *  - forzado: puerta abierta + vibracion en vitrinas + movimiento + buzzer ON
+ *  - corte_luz: corriente = 0 W + buzzer ON
+ *  - normal: limpia alertas, apaga buzzer, valores saludables
  */
 
-export type Escenario = 'incendio' | 'forzado' | 'normal';
+export type Escenario = 'incendio' | 'forzado' | 'corte_luz' | 'normal';
 
 const DURACION_EMERGENCIA_MS = 15_000;
 const INTERVALO_BURST_MS = 2_000;
@@ -39,6 +47,8 @@ export class SimulatorService implements OnModuleDestroy {
         return this.incendio();
       case 'forzado':
         return this.forzado();
+      case 'corte_luz':
+        return this.corteLuz();
       case 'normal':
         return this.normal();
     }
@@ -87,7 +97,7 @@ export class SimulatorService implements OnModuleDestroy {
     const alerta = this.store.pushAlert({
       tipo: 'forzado',
       severidad: 'critica',
-      mensaje: 'Intento de forzado detectado — puerta abierta fuera de horario con movimiento',
+      mensaje: 'Intento de forzado detectado — vibracion + puerta abierta + movimiento',
     });
 
     this.burstTimer = setInterval(() => {
@@ -108,37 +118,98 @@ export class SimulatorService implements OnModuleDestroy {
     };
   }
 
+  private corteLuz() {
+    this.limpiarBurst();
+    const hasta = Date.now() + DURACION_EMERGENCIA_MS;
+    this.store.setEmergencyUntil(hasta);
+
+    this.publicarEmergenciaCorte();
+    const alerta = this.store.pushAlert({
+      tipo: 'corte_luz',
+      severidad: 'critica',
+      mensaje: 'Corte de energia detectado — consumo cayo a 0 W',
+    });
+
+    this.burstTimer = setInterval(() => {
+      if (Date.now() >= hasta) {
+        this.limpiarBurst();
+        return;
+      }
+      this.publicarEmergenciaCorte();
+    }, INTERVALO_BURST_MS);
+
+    this.logger.warn(
+      `⚡ Escenario CORTE DE LUZ lanzado — sostenido ${DURACION_EMERGENCIA_MS / 1000}s (${alerta.id})`,
+    );
+    return {
+      escenario: 'corte_luz',
+      alertaId: alerta.id,
+      duracionSegundos: DURACION_EMERGENCIA_MS / 1000,
+    };
+  }
+
   private normal() {
     this.limpiarBurst();
     this.store.clearEmergency();
 
+    const ts = new Date().toISOString();
     this.publicarLectura({
-      sensorId: 'esp32-temperatura-bodega',
+      sensorId: 'dht22-ambiente',
       tipo: 'temperatura',
       valor: 22,
       unidad: '°C',
-      fecha: new Date().toISOString(),
+      fecha: ts,
     });
     this.publicarLectura({
-      sensorId: 'esp32-puerta-principal',
-      tipo: 'puerta',
-      valor: 0,
-      unidad: 'estado',
-      fecha: new Date().toISOString(),
+      sensorId: 'dht22-ambiente',
+      tipo: 'humedad',
+      valor: 55,
+      unidad: '%',
+      fecha: ts,
+    });
+    const puertas = [
+      'mc38-entrada',
+      'mc38-vitrina-1',
+      'mc38-vitrina-2',
+      'mc38-vitrina-3',
+      'mc38-vitrina-4',
+    ];
+    for (const id of puertas) {
+      this.publicarLectura({
+        sensorId: id,
+        tipo: 'puerta',
+        valor: 0,
+        unidad: 'estado',
+        fecha: ts,
+      });
+    }
+    const vitrinas = [
+      'sw420-vitrina-figuras-1',
+      'sw420-vitrina-figuras-2',
+      'sw420-vitrina-figuras-3',
+    ];
+    for (const id of vitrinas) {
+      this.publicarLectura({
+        sensorId: id,
+        tipo: 'vibracion',
+        valor: 0,
+        unidad: 'evento',
+        fecha: ts,
+      });
+    }
+    this.publicarLectura({
+      sensorId: 'sct013-030-principal',
+      tipo: 'corriente',
+      valor: 280,
+      unidad: 'W',
+      fecha: ts,
     });
     this.publicarLectura({
-      sensorId: 'mq2-humo',
-      tipo: 'gas',
-      valor: 0,
-      unidad: 'alarma',
-      fecha: new Date().toISOString(),
-    });
-    this.publicarLectura({
-      sensorId: 'buzzer-principal',
+      sensorId: 'buzzer-5v-principal',
       tipo: 'buzzer',
       valor: 0,
       unidad: 'estado',
-      fecha: new Date().toISOString(),
+      fecha: ts,
     });
 
     this.store.clearAlerts();
@@ -156,21 +227,22 @@ export class SimulatorService implements OnModuleDestroy {
   private publicarEmergenciaIncendio(temperatura: number): void {
     const ts = new Date().toISOString();
     this.publicarLectura({
-      sensorId: 'esp32-temperatura-bodega',
+      sensorId: 'dht22-ambiente',
       tipo: 'temperatura',
       valor: Math.round(temperatura * 10) / 10,
       unidad: '°C',
       fecha: ts,
     });
+    // El calor reseca el ambiente: la humedad baja.
     this.publicarLectura({
-      sensorId: 'mq2-humo',
-      tipo: 'gas',
-      valor: 1,
-      unidad: 'alarma',
+      sensorId: 'dht22-ambiente',
+      tipo: 'humedad',
+      valor: 25 + Math.round(Math.random() * 5),
+      unidad: '%',
       fecha: ts,
     });
     this.publicarLectura({
-      sensorId: 'buzzer-principal',
+      sensorId: 'buzzer-5v-principal',
       tipo: 'buzzer',
       valor: 1,
       unidad: 'estado',
@@ -181,21 +253,46 @@ export class SimulatorService implements OnModuleDestroy {
   private publicarEmergenciaForzado(): void {
     const ts = new Date().toISOString();
     this.publicarLectura({
-      sensorId: 'esp32-puerta-principal',
+      sensorId: 'mc38-vitrina-2',
       tipo: 'puerta',
       valor: 1,
       unidad: 'estado',
       fecha: ts,
     });
     this.publicarLectura({
-      sensorId: 'pir-entrada',
+      sensorId: 'sw420-vitrina-figuras-1',
+      tipo: 'vibracion',
+      valor: 1,
+      unidad: 'evento',
+      fecha: ts,
+    });
+    this.publicarLectura({
+      sensorId: 'pir-hcsr501-interior',
       tipo: 'movimiento',
       valor: 1,
       unidad: 'evento',
       fecha: ts,
     });
     this.publicarLectura({
-      sensorId: 'buzzer-principal',
+      sensorId: 'buzzer-5v-principal',
+      tipo: 'buzzer',
+      valor: 1,
+      unidad: 'estado',
+      fecha: ts,
+    });
+  }
+
+  private publicarEmergenciaCorte(): void {
+    const ts = new Date().toISOString();
+    this.publicarLectura({
+      sensorId: 'sct013-030-principal',
+      tipo: 'corriente',
+      valor: 0,
+      unidad: 'W',
+      fecha: ts,
+    });
+    this.publicarLectura({
+      sensorId: 'buzzer-5v-principal',
       tipo: 'buzzer',
       valor: 1,
       unidad: 'estado',

@@ -2,7 +2,7 @@ import { BadRequestException, Controller, Param, Post } from '@nestjs/common';
 import { Public } from '../common/decorators/public.decorator';
 import { Escenario, SimulatorService } from './simulator.service';
 
-const ESCENARIOS_VALIDOS: Escenario[] = ['incendio', 'forzado', 'normal'];
+const ESCENARIOS_VALIDOS: Escenario[] = ['incendio', 'forzado', 'corte_luz', 'normal'];
 
 /**
  * Endpoints HTTP para lanzar escenarios de demo desde curl/Postman durante
