@@ -38,5 +38,4 @@ infra/nginx/ssl/
 # Llaves JWT (se generan con infra/scripts/generate-jwt-keys.sh)
 infra/keys/*.pem
 
-# Claude Code (tooling local)
-.claude/
+
