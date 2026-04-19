@@ -1,10 +1,11 @@
-import { Entity } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn } from 'typeorm';
 
 /**
  * Entidad SaleItem - cada producto vendido dentro de una venta.
  *
- * TODO: Definir las columnas:
- *   - id (uuid, PK)
+ * Por ahora solo tiene el id para que TypeORM pueda crear la tabla.
+ *
+ * TODO: Agregar las demas columnas:
  *   - saleId (uuid, FK a sales.id, ManyToOne)
  *   - productId (uuid, FK a products.id)
  *   - cantidad (int, not null)
@@ -13,5 +14,6 @@ import { Entity } from 'typeorm';
  */
 @Entity('sale_items')
 export class SaleItem {
-  // TODO: implementar columnas.
+  @PrimaryGeneratedColumn('uuid')
+  id!: string;
 }

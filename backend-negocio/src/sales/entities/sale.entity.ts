@@ -1,10 +1,11 @@
-import { Entity } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn } from 'typeorm';
 
 /**
  * Entidad Sale - representa una venta hecha en la tienda.
  *
- * TODO: Definir las columnas:
- *   - id (uuid, PK)
+ * Por ahora solo tiene el id para que TypeORM pueda crear la tabla.
+ *
+ * TODO: Agregar las demas columnas:
  *   - userId (uuid, FK a users.id) - quien hizo la venta
  *   - total (decimal(10,2), not null)
  *   - metodoPago (enum 'efectivo' | 'tarjeta' | 'transferencia')
@@ -13,5 +14,6 @@ import { Entity } from 'typeorm';
  */
 @Entity('sales')
 export class Sale {
-  // TODO: implementar columnas.
+  @PrimaryGeneratedColumn('uuid')
+  id!: string;
 }

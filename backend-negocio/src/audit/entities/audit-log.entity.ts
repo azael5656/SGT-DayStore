@@ -1,10 +1,11 @@
-import { Entity } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn } from 'typeorm';
 
 /**
  * Entidad AuditLog - registra cada operacion de escritura hecha en el sistema.
  *
- * TODO: Definir columnas:
- *   - id (uuid, PK)
+ * Por ahora solo tiene el id para que TypeORM pueda crear la tabla.
+ *
+ * TODO: Agregar las demas columnas:
  *   - userId (uuid, nullable) - puede ser null si la accion fue anonima
  *   - userEmail (string) - se guarda copia por si el usuario se elimina
  *   - metodo (string) - POST, PUT, DELETE
@@ -16,5 +17,6 @@ import { Entity } from 'typeorm';
  */
 @Entity('audit_logs')
 export class AuditLog {
-  // TODO: implementar columnas.
+  @PrimaryGeneratedColumn('uuid')
+  id!: string;
 }

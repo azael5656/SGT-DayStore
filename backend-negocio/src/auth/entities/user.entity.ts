@@ -1,10 +1,11 @@
-import { Entity } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn } from 'typeorm';
 
 /**
  * Entidad User - representa un usuario del sistema (dueño o empleado).
  *
- * TODO: Definir las columnas de la tabla:
- *   - id (uuid, PK)
+ * Por ahora solo tiene el id para que TypeORM pueda crear la tabla.
+ *
+ * TODO: Agregar las demas columnas:
  *   - email (string, unique, not null)
  *   - passwordHash (string, not null)
  *   - nombre (string, not null)
@@ -15,5 +16,6 @@ import { Entity } from 'typeorm';
  */
 @Entity('users')
 export class User {
-  // TODO: implementar columnas con @PrimaryGeneratedColumn, @Column, etc.
+  @PrimaryGeneratedColumn('uuid')
+  id!: string;
 }

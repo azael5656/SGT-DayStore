@@ -1,10 +1,11 @@
-import { Entity } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn } from 'typeorm';
 
 /**
  * Entidad Category - agrupa productos (ej. "Bebidas", "Snacks", "Lacteos").
  *
- * TODO: Definir las columnas de la tabla:
- *   - id (uuid, PK)
+ * Por ahora solo tiene el id para que TypeORM pueda crear la tabla.
+ *
+ * TODO: Agregar las demas columnas:
  *   - nombre (string, unique, not null)
  *   - descripcion (string, nullable)
  *   - createdAt (timestamp, auto)
@@ -12,5 +13,6 @@ import { Entity } from 'typeorm';
  */
 @Entity('categories')
 export class Category {
-  // TODO: implementar columnas.
+  @PrimaryGeneratedColumn('uuid')
+  id!: string;
 }
