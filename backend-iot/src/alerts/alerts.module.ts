@@ -1,12 +1,16 @@
 import { Module } from '@nestjs/common';
+import { MongooseModule } from '@nestjs/mongoose';
 import { AlertsController } from './alerts.controller';
 import { AlertsService } from './alerts.service';
+import { Alert, AlertSchema } from './schemas/alert.schema';
 
 /**
- * Modulo de alertas.
- * Gestiona alertas de seguridad generadas por los sensores IoT.
+ * Modulo de alertas generadas por sensores IoT.
  */
 @Module({
+  imports: [
+    MongooseModule.forFeature([{ name: Alert.name, schema: AlertSchema }]),
+  ],
   controllers: [AlertsController],
   providers: [AlertsService],
   exports: [AlertsService],
