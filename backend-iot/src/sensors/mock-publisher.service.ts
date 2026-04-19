@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { MqttService } from '../mqtt/mqtt.service';
+import { InMemoryStoreService } from '../shared/in-memory-store.service';
 
 /**
  * Publicador simulado de lecturas de sensores.
@@ -36,6 +37,7 @@ export class MockPublisherService implements OnModuleInit, OnModuleDestroy {
   constructor(
     private readonly config: ConfigService,
     private readonly mqtt: MqttService,
+    private readonly store: InMemoryStoreService,
   ) {}
 
   onModuleInit(): void {
@@ -116,6 +118,20 @@ export class MockPublisherService implements OnModuleInit, OnModuleDestroy {
   }
 
   private publish(topic: string, payload: Record<string, unknown>): void {
+    // 1) Escribir al store en memoria para que Telemetry/Alerts services
+    //    puedan responder en vivo sin depender del handler MQTT→Mongo
+    //    (que todavía es TODO en mqtt.service.ts).
+    this.store.setReading({
+      sensorId: String(payload.sensorId),
+      tipo: String(payload.tipo),
+      valor: Number(payload.valor),
+      unidad: String(payload.unidad),
+      fecha: String(payload.fecha),
+    });
+
+    // 2) Publicar también por MQTT (así cuando el handler de persistencia
+    //    esté implementado, las lecturas se guardan en Mongo sin tocar
+    //    nada aquí).
     try {
       this.mqtt.publish(topic, JSON.stringify(payload));
     } catch (err) {

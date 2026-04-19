@@ -1,54 +1,59 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
+import { InMemoryStoreService } from '../shared/in-memory-store.service';
 
 /**
  * Servicio de alertas.
- * Gestiona las alertas generadas automaticamente por los sensores.
  *
- * TODO: inyectar @InjectModel(Alert.name). Implementar generarAlerta()
- * que sera llamado desde el handler de MQTT cuando una lectura cruce
- * un umbral definido en StoreConfig.
+ * Estado actual: mientras la persistencia en Mongo sigue como TODO (ver
+ * alert.schema.ts del PR #2), las alertas viven en el InMemoryStoreService.
+ * Las genera el módulo Simulator (endpoints de escenario para demo) o las
+ * generaría el handler real de MQTT cuando detecte umbrales cruzados.
+ *
+ * Si el store está vacío respondemos con una alerta mock para que el móvil
+ * no se rompa en la primera corrida.
+ *
+ * TODO: cuando se implemente @InjectModel(Alert.name), preferir Mongo.
  */
 @Injectable()
 export class AlertsService {
+  constructor(private readonly store: InMemoryStoreService) {}
+
   async findAll() {
-    return [
-      {
-        id: 'mock-alert-1',
-        tipo: 'puerta',
-        severidad: 'media',
-        mensaje: 'Puerta principal abierta fuera de horario',
-        reconocida: false,
-        fecha: new Date().toISOString(),
-      },
-    ];
+    if (!this.store.hasAlerts()) return [this.mockAlert()];
+    return this.store.getAlerts();
   }
 
   async getStats() {
+    const porSeveridad = this.store.contarPorSeveridad();
+    const alertas = this.store.getAlerts();
+    const hoy = new Date().toISOString().slice(0, 10);
     return {
-      totalHoy: 3,
-      sinReconocer: 2,
-      porSeveridad: { baja: 1, media: 1, alta: 1, critica: 0 },
+      totalHoy: alertas.filter((a) => a.fecha.startsWith(hoy)).length,
+      sinReconocer: alertas.filter((a) => !a.reconocida).length,
+      porSeveridad,
     };
   }
 
   async findOne(id: string) {
-    return {
-      id,
-      tipo: 'puerta',
-      severidad: 'media',
-      mensaje: 'Puerta principal abierta fuera de horario',
-      reconocida: false,
-      fecha: new Date().toISOString(),
-    };
+    const alerta = this.store.getAlert(id);
+    if (!alerta) throw new NotFoundException('Alerta no encontrada');
+    return alerta;
   }
 
   async acknowledge(id: string, userId: string) {
-    // TODO: actualizar reconocida=true, reconocidaPor=userId, reconocidaEn=now
+    const alerta = this.store.acknowledgeAlert(id, userId);
+    if (!alerta) throw new NotFoundException('Alerta no encontrada');
+    return alerta;
+  }
+
+  private mockAlert() {
     return {
-      id,
-      reconocida: true,
-      reconocidaPor: userId,
-      reconocidaEn: new Date().toISOString(),
+      id: 'mock-alert-1',
+      tipo: 'puerta',
+      severidad: 'media' as const,
+      mensaje: 'Puerta principal abierta fuera de horario',
+      reconocida: false,
+      fecha: new Date().toISOString(),
     };
   }
 }
