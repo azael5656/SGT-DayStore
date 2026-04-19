@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
+import { MockPublisherService } from './mock-publisher.service';
 import {
   SensorConfig,
   SensorConfigSchema,
@@ -9,6 +10,10 @@ import { SensorsService } from './sensors.service';
 
 /**
  * Modulo de configuracion de sensores IoT.
+ *
+ * MockPublisherService se registra siempre pero solo se activa cuando la
+ * variable de entorno MOCK_SENSORS=true (ver su constructor). En produccion
+ * con ESP32 real basta con no definir la variable para dejarlo inerte.
  */
 @Module({
   imports: [
@@ -17,7 +22,7 @@ import { SensorsService } from './sensors.service';
     ]),
   ],
   controllers: [SensorsController],
-  providers: [SensorsService],
+  providers: [SensorsService, MockPublisherService],
   exports: [SensorsService],
 })
 export class SensorsModule {}
