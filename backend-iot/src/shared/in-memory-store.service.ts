@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { randomUUID } from 'crypto';
+import { EventEmitter } from 'events';
 
 /**
  * Cache en memoria para el modo demo / dev.
@@ -42,11 +43,39 @@ export class InMemoryStoreService {
   private readonly logger = new Logger(InMemoryStoreService.name);
   private readonly readings = new Map<string, StoredReading>();
   private readonly alerts: StoredAlert[] = [];
+  private emergencyUntil = 0;
+
+  /**
+   * Emisor de eventos para real-time. Los consumidores (EventsGateway)
+   * se suscriben en onModuleInit y retransmiten a clientes por Socket.IO.
+   *
+   * Eventos:
+   *  - 'reading' (StoredReading)
+   *  - 'alert'   (StoredAlert) — alerta nueva
+   *  - 'alert.ack' (StoredAlert) — alerta reconocida
+   *  - 'alerts.cleared' (void)
+   */
+  readonly events = new EventEmitter();
+
+  // ---------- Modo emergencia (bloquea MockPublisher mientras dura un escenario) ----------
+
+  setEmergencyUntil(timestampMs: number): void {
+    this.emergencyUntil = timestampMs;
+  }
+
+  isEmergencyActive(): boolean {
+    return Date.now() < this.emergencyUntil;
+  }
+
+  clearEmergency(): void {
+    this.emergencyUntil = 0;
+  }
 
   // ---------- Lecturas ----------
 
   setReading(reading: StoredReading): void {
     this.readings.set(reading.sensorId, reading);
+    this.events.emit('reading', reading);
   }
 
   getReadings(): StoredReading[] {
@@ -88,6 +117,7 @@ export class InMemoryStoreService {
       fecha: alert.fecha ?? new Date().toISOString(),
     };
     this.alerts.unshift(completa);
+    this.events.emit('alert', completa);
     this.logger.log(
       `Alerta ${completa.severidad}/${completa.tipo}: ${completa.mensaje}`,
     );
@@ -108,11 +138,13 @@ export class InMemoryStoreService {
     a.reconocida = true;
     a.reconocidaPor = userId;
     a.reconocidaEn = new Date().toISOString();
+    this.events.emit('alert.ack', a);
     return a;
   }
 
   clearAlerts(): void {
     this.alerts.length = 0;
+    this.events.emit('alerts.cleared');
   }
 
   hasAlerts(): boolean {

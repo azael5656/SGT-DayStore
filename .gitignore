@@ -36,6 +36,16 @@ infra/mosquitto/log/*
 infra/nginx/ssl/
 
 # Llaves JWT (se generan con infra/scripts/generate-jwt-keys.sh)
+# Excluye tanto infra/keys como cualquier keys/ dentro de los servicios
+# que pudiera aparecer por montajes Docker temporales.
 infra/keys/*.pem
+backend-iot/keys/
+backend-negocio/keys/
+
+# Android build cache
+mobile-app/android/app/.cxx/
+mobile-app/android/.gradle/
+mobile-app/android/build/
+mobile-app/android/app/build/
 
 

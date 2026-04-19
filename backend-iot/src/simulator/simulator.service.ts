@@ -1,30 +1,37 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
 import { MqttService } from '../mqtt/mqtt.service';
 import { InMemoryStoreService } from '../shared/in-memory-store.service';
 
 /**
  * Lógica de escenarios de demo.
  *
- * Cada escenario hace dos cosas:
- *  1) Escribir lecturas forzadas al store (para que Dashboard del móvil
- *     las vea inmediatamente).
- *  2) Publicar los mismos valores por MQTT (para que cuando el handler
- *     real esté implementado también queden persistidos en Mongo).
+ * Cada escenario dramático (incendio, forzado) sostiene valores extremos
+ * durante ~15 segundos publicando cada 2s, y marca en el store
+ * `emergencyUntil` para que MockPublisherService no sobrescriba con
+ * lecturas normales mientras dura la emergencia.
  *
- * Adicionalmente, incendio y forzado generan una alerta `critica`, que
- * hace vibrar el teléfono del dueño gracias a AlertBanner.tsx.
+ * El escenario `normal` resetea la emergencia, limpia alertas y publica
+ * valores saludables.
  */
 
 export type Escenario = 'incendio' | 'forzado' | 'normal';
 
+const DURACION_EMERGENCIA_MS = 15_000;
+const INTERVALO_BURST_MS = 2_000;
+
 @Injectable()
-export class SimulatorService {
+export class SimulatorService implements OnModuleDestroy {
   private readonly logger = new Logger(SimulatorService.name);
+  private burstTimer: ReturnType<typeof setInterval> | null = null;
 
   constructor(
     private readonly store: InMemoryStoreService,
     private readonly mqtt: MqttService,
   ) {}
+
+  onModuleDestroy(): void {
+    if (this.burstTimer) clearInterval(this.burstTimer);
+  }
 
   ejecutar(escenario: Escenario) {
     switch (escenario) {
@@ -38,51 +45,73 @@ export class SimulatorService {
   }
 
   private incendio() {
-    const temp = 38 + Math.random() * 4;
-    this.publicarLectura({
-      sensorId: 'esp32-temperatura-bodega',
-      tipo: 'temperatura',
-      valor: Math.round(temp * 10) / 10,
-      unidad: '°C',
-      fecha: new Date().toISOString(),
-    });
+    this.limpiarBurst();
+    const hasta = Date.now() + DURACION_EMERGENCIA_MS;
+    this.store.setEmergencyUntil(hasta);
+
+    const tempInicial = 38 + Math.random() * 4;
+    this.publicarEmergenciaIncendio(tempInicial);
 
     const alerta = this.store.pushAlert({
-      tipo: 'temperatura',
+      tipo: 'incendio',
       severidad: 'critica',
-      mensaje: `Temperatura critica ${Math.round(temp)}°C — posible incendio`,
+      mensaje: `Temperatura critica ${Math.round(tempInicial)}°C — posible incendio`,
     });
-    this.logger.warn(`🔥 Escenario INCENDIO lanzado (${alerta.id})`);
-    return { escenario: 'incendio', alertaId: alerta.id, temperatura: temp };
+
+    this.burstTimer = setInterval(() => {
+      if (Date.now() >= hasta) {
+        this.limpiarBurst();
+        return;
+      }
+      const temp = 38 + Math.random() * 4;
+      this.publicarEmergenciaIncendio(temp);
+    }, INTERVALO_BURST_MS);
+
+    this.logger.warn(
+      `🔥 Escenario INCENDIO lanzado — sostenido ${DURACION_EMERGENCIA_MS / 1000}s (${alerta.id})`,
+    );
+    return {
+      escenario: 'incendio',
+      alertaId: alerta.id,
+      temperatura: Math.round(tempInicial * 10) / 10,
+      duracionSegundos: DURACION_EMERGENCIA_MS / 1000,
+    };
   }
 
   private forzado() {
-    this.publicarLectura({
-      sensorId: 'esp32-puerta-principal',
-      tipo: 'puerta',
-      valor: 1,
-      unidad: 'estado',
-      fecha: new Date().toISOString(),
-    });
-    this.publicarLectura({
-      sensorId: 'esp32-movimiento-entrada',
-      tipo: 'movimiento',
-      valor: 1,
-      unidad: 'evento',
-      fecha: new Date().toISOString(),
-    });
+    this.limpiarBurst();
+    const hasta = Date.now() + DURACION_EMERGENCIA_MS;
+    this.store.setEmergencyUntil(hasta);
 
+    this.publicarEmergenciaForzado();
     const alerta = this.store.pushAlert({
       tipo: 'forzado',
       severidad: 'critica',
       mensaje: 'Intento de forzado detectado — puerta abierta fuera de horario con movimiento',
     });
-    this.logger.warn(`🚨 Escenario FORZADO lanzado (${alerta.id})`);
-    return { escenario: 'forzado', alertaId: alerta.id };
+
+    this.burstTimer = setInterval(() => {
+      if (Date.now() >= hasta) {
+        this.limpiarBurst();
+        return;
+      }
+      this.publicarEmergenciaForzado();
+    }, INTERVALO_BURST_MS);
+
+    this.logger.warn(
+      `🚨 Escenario FORZADO lanzado — sostenido ${DURACION_EMERGENCIA_MS / 1000}s (${alerta.id})`,
+    );
+    return {
+      escenario: 'forzado',
+      alertaId: alerta.id,
+      duracionSegundos: DURACION_EMERGENCIA_MS / 1000,
+    };
   }
 
   private normal() {
-    // Repone temperatura a un valor confortable y cierra la puerta.
+    this.limpiarBurst();
+    this.store.clearEmergency();
+
     this.publicarLectura({
       sensorId: 'esp32-temperatura-bodega',
       tipo: 'temperatura',
@@ -97,11 +126,81 @@ export class SimulatorService {
       unidad: 'estado',
       fecha: new Date().toISOString(),
     });
+    this.publicarLectura({
+      sensorId: 'mq2-humo',
+      tipo: 'gas',
+      valor: 0,
+      unidad: 'alarma',
+      fecha: new Date().toISOString(),
+    });
+    this.publicarLectura({
+      sensorId: 'buzzer-principal',
+      tipo: 'buzzer',
+      valor: 0,
+      unidad: 'estado',
+      fecha: new Date().toISOString(),
+    });
 
-    // Limpia alertas pendientes.
     this.store.clearAlerts();
-    this.logger.log('✅ Escenario NORMAL aplicado (alertas limpiadas)');
+    this.logger.log('✅ Escenario NORMAL aplicado (alertas limpiadas, emergencia desactivada)');
     return { escenario: 'normal', mensaje: 'Estado estable, alertas limpiadas' };
+  }
+
+  private limpiarBurst(): void {
+    if (this.burstTimer) {
+      clearInterval(this.burstTimer);
+      this.burstTimer = null;
+    }
+  }
+
+  private publicarEmergenciaIncendio(temperatura: number): void {
+    const ts = new Date().toISOString();
+    this.publicarLectura({
+      sensorId: 'esp32-temperatura-bodega',
+      tipo: 'temperatura',
+      valor: Math.round(temperatura * 10) / 10,
+      unidad: '°C',
+      fecha: ts,
+    });
+    this.publicarLectura({
+      sensorId: 'mq2-humo',
+      tipo: 'gas',
+      valor: 1,
+      unidad: 'alarma',
+      fecha: ts,
+    });
+    this.publicarLectura({
+      sensorId: 'buzzer-principal',
+      tipo: 'buzzer',
+      valor: 1,
+      unidad: 'estado',
+      fecha: ts,
+    });
+  }
+
+  private publicarEmergenciaForzado(): void {
+    const ts = new Date().toISOString();
+    this.publicarLectura({
+      sensorId: 'esp32-puerta-principal',
+      tipo: 'puerta',
+      valor: 1,
+      unidad: 'estado',
+      fecha: ts,
+    });
+    this.publicarLectura({
+      sensorId: 'pir-entrada',
+      tipo: 'movimiento',
+      valor: 1,
+      unidad: 'evento',
+      fecha: ts,
+    });
+    this.publicarLectura({
+      sensorId: 'buzzer-principal',
+      tipo: 'buzzer',
+      valor: 1,
+      unidad: 'estado',
+      fecha: ts,
+    });
   }
 
   private publicarLectura(lectura: {
@@ -110,7 +209,7 @@ export class SimulatorService {
     valor: number;
     unidad: string;
     fecha: string;
-  }) {
+  }): void {
     this.store.setReading(lectura);
     try {
       this.mqtt.publish(`tienda/${lectura.tipo}`, JSON.stringify(lectura));
