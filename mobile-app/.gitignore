@@ -1,0 +1,14 @@
+node_modules/
+.DS_Store
+*.log
+
+# Build
+android/app/build/
+android/build/
+ios/build/
+ios/Pods/
+ios/DerivedData/
+
+# Env
+.env
+.env.local
