@@ -35,9 +35,20 @@ export default function AlertBanner({ alerta, onAcknowledge }: Props) {
 
   useEffect(() => {
     if (!debeVibrar) return;
-    // Patron: pausa 0ms, vibra 500ms, pausa 300ms, vibra 500ms, repetir.
-    Vibration.vibrate([0, 500, 300, 500], true);
-    return () => Vibration.cancel();
+    try {
+      // Patron: pausa 0ms, vibra 500ms, pausa 300ms, vibra 500ms, repetir.
+      Vibration.vibrate([0, 500, 300, 500], true);
+    } catch {
+      // Dispositivo sin vibrador o permiso VIBRATE faltante: degradamos
+      // silenciosamente. La alerta visual sigue funcionando.
+    }
+    return () => {
+      try {
+        Vibration.cancel();
+      } catch {
+        /* idem */
+      }
+    };
   }, [debeVibrar]);
 
   const color = COLOR_POR_SEVERIDAD[alerta.severidad];
