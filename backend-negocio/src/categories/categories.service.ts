@@ -1,49 +1,47 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
 import { CreateCategoryDto } from './dto/create-category.dto';
 import { UpdateCategoryDto } from './dto/update-category.dto';
+import { Category } from './entities/category.entity';
 
 /**
  * Servicio de categorias.
  * CRUD basico sobre la tabla "categories".
- *
- * TODO: inyectar el repositorio de Category con @InjectRepository(Category)
- * y reemplazar los mocks con operaciones reales de TypeORM.
  */
 @Injectable()
 export class CategoriesService {
-  async findAll() {
-    // TODO: return this.categoryRepo.find();
-    return [
-      { id: 'mock-1', nombre: 'Bebidas', descripcion: 'Refrescos y jugos' },
-      { id: 'mock-2', nombre: 'Snacks', descripcion: 'Papitas y galletas' },
-    ];
+  constructor(
+    @InjectRepository(Category) private readonly repo: Repository<Category>,
+  ) {}
+
+  findAll() {
+    return this.repo.find({ order: { nombre: 'ASC' } });
   }
 
   async findOne(id: string) {
-    // TODO: return this.categoryRepo.findOneBy({ id });
-    return { id, nombre: 'Bebidas', descripcion: 'Refrescos y jugos' };
+    const cat = await this.repo.findOne({ where: { id } });
+    if (!cat) throw new NotFoundException('Categoria no encontrada');
+    return cat;
   }
 
-  async create(dto: CreateCategoryDto) {
-    // TODO: persistir en BD y devolver la entidad guardada.
-    return {
-      id: 'mock-' + Date.now(),
+  create(dto: CreateCategoryDto) {
+    const cat = this.repo.create({
       nombre: dto.nombre,
-      descripcion: dto.descripcion || null,
-    };
+      descripcion: dto.descripcion ?? null,
+    });
+    return this.repo.save(cat);
   }
 
   async update(id: string, dto: UpdateCategoryDto) {
-    // TODO: actualizar en BD con this.categoryRepo.update(id, dto).
-    return {
-      id,
-      nombre: dto.nombre || 'Bebidas',
-      descripcion: dto.descripcion || null,
-    };
+    const cat = await this.findOne(id);
+    Object.assign(cat, dto);
+    return this.repo.save(cat);
   }
 
   async remove(id: string) {
-    // TODO: eliminar con this.categoryRepo.delete(id).
+    const cat = await this.findOne(id);
+    await this.repo.remove(cat);
     return { mensaje: `Categoria ${id} eliminada` };
   }
 }
