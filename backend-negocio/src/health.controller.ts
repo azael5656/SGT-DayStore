@@ -1,15 +1,17 @@
 import { Controller, Get } from '@nestjs/common';
+import { Public } from './common/decorators/public.decorator';
 
 /**
  * Controlador de salud del microservicio de negocio.
- * Permite verificar que el servicio esta activo y funcionando.
+ * Expone GET /health sin requerir autenticacion para que balanceadores
+ * y monitoreo puedan chequear el estado del servicio.
  */
 @Controller('health')
 export class HealthController {
   /**
-   * Verifica el estado del servicio.
-   * @returns Objeto con el estado, nombre del servicio y timestamp
+   * Verifica que el servicio este arriba.
    */
+  @Public()
   @Get()
   check() {
     return {
