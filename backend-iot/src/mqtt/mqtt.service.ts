@@ -1,22 +1,27 @@
-import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  OnModuleDestroy,
+  OnModuleInit,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as mqtt from 'mqtt';
 
 /**
- * Servicio MQTT para comunicacion con el ESP32 y los sensores.
- * Se conecta al broker Mosquitto y se suscribe a los topicos de la tienda.
- * Modulo global: disponible en todos los modulos sin importarlo.
+ * Servicio MQTT. Se conecta al broker Mosquitto cuando arranca el modulo
+ * y se queda escuchando los topicos de la tienda.
  *
- * TODO: Implementar suscripcion a topicos y procesamiento de mensajes
+ * Esta marcado como @Global en su modulo, asi que cualquier otro servicio
+ * puede inyectar MqttService sin necesidad de importar MqttModule.
  */
 @Injectable()
 export class MqttService implements OnModuleInit, OnModuleDestroy {
   private client!: mqtt.MqttClient;
+  private conectado = false;
   private readonly logger = new Logger(MqttService.name);
 
   constructor(private readonly config: ConfigService) {}
 
-  /** Conecta al broker MQTT al iniciar el modulo */
   onModuleInit(): void {
     const brokerUrl = this.config.get<string>(
       'MQTT_BROKER_URL',
@@ -29,24 +34,56 @@ export class MqttService implements OnModuleInit, OnModuleDestroy {
     });
 
     this.client.on('connect', () => {
+      this.conectado = true;
       this.logger.log(`Conectado al broker MQTT: ${brokerUrl}`);
-      // TODO: Suscribirse a topicos de la tienda (tienda/#)
+
+      // Nos suscribimos a todos los topicos que empiecen con "tienda/".
+      // Ejemplos: tienda/temperatura, tienda/puerta, tienda/movimiento.
+      this.client.subscribe('tienda/#', (err) => {
+        if (err) {
+          this.logger.error('No se pudo suscribir a tienda/#', err);
+          return;
+        }
+        this.logger.log('Suscrito a topicos tienda/#');
+      });
+    });
+
+    this.client.on('disconnect', () => {
+      this.conectado = false;
+      this.logger.warn('Desconectado del broker MQTT');
+    });
+
+    this.client.on('close', () => {
+      this.conectado = false;
     });
 
     this.client.on('error', (err) => {
       this.logger.error('Error de conexion MQTT', err);
     });
+
+    this.client.on('message', (topic, payload) => {
+      // TODO: rutear el mensaje al servicio correspondiente (telemetry,
+      // alerts, etc.) segun el topico. Por ahora solo logueamos.
+      this.logger.debug(`MQTT ${topic}: ${payload.toString()}`);
+    });
   }
 
-  /** Desconecta del broker MQTT al destruir el modulo */
   async onModuleDestroy(): Promise<void> {
-    await this.client.endAsync();
+    if (this.client) {
+      await this.client.endAsync();
+    }
+  }
+
+  /**
+   * Indica si actualmente estamos conectados al broker MQTT.
+   * Lo usa el HealthController para reportar el estado del servicio.
+   */
+  isConnected(): boolean {
+    return this.conectado;
   }
 
   /**
    * Publica un mensaje en un topico MQTT.
-   * @param topic - Topico destino
-   * @param message - Mensaje a publicar
    */
   publish(topic: string, message: string): void {
     this.client.publish(topic, message);

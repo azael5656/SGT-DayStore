@@ -35,5 +35,7 @@ infra/mosquitto/log/*
 # Certificados TLS
 infra/nginx/ssl/
 
-# Claude Code (tooling local)
-.claude/
+# Llaves JWT (se generan con infra/scripts/generate-jwt-keys.sh)
+infra/keys/*.pem
+
+

@@ -1,14 +1,25 @@
-import { Controller } from '@nestjs/common';
+import { Controller, Get, Query } from '@nestjs/common';
+import { Roles } from '../common/decorators/roles.decorator';
 import { AuditService } from './audit.service';
+import { QueryAuditDto } from './dto/query-audit.dto';
 
 /**
- * Controlador de auditoria.
- * Endpoints: GET /audit/logs, GET /audit/logs/export
- * Solo accesible por el dueño (role: 'owner').
- *
- * TODO: Implementar endpoints de consulta y exportacion
+ * Endpoints de auditoria.
+ * Solo accesibles por el dueño (owner).
  */
 @Controller('audit')
 export class AuditController {
   constructor(private readonly auditService: AuditService) {}
+
+  @Get('logs')
+  @Roles('owner')
+  async findAll(@Query() query: QueryAuditDto) {
+    return this.auditService.findAll(query);
+  }
+
+  @Get('logs/export')
+  @Roles('owner')
+  async export(@Query() query: QueryAuditDto) {
+    return this.auditService.exportLogs(query);
+  }
 }

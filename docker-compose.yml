@@ -67,6 +67,11 @@ services:
     container_name: sgt-backend-negocio
     env_file:
       - .env
+    # backend-negocio recibe ambas llaves: la privada (firma tokens) y la
+    # publica (verifica tokens entrantes). Montadas como solo lectura.
+    volumes:
+      - ./infra/keys/jwt-private.pem:/app/keys/jwt-private.pem:ro
+      - ./infra/keys/jwt-public.pem:/app/keys/jwt-public.pem:ro
     ports:
       - "${NEGOCIO_PORT:-3001}:3001"
     depends_on:
@@ -82,6 +87,10 @@ services:
     container_name: sgt-backend-iot
     env_file:
       - .env
+    # backend-iot recibe SOLO la llave publica. No tiene forma de firmar
+    # tokens, solo puede verificar los que emitio backend-negocio.
+    volumes:
+      - ./infra/keys/jwt-public.pem:/app/keys/jwt-public.pem:ro
     ports:
       - "${IOT_PORT:-3002}:3002"
     depends_on:
