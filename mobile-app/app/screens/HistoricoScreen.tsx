@@ -78,14 +78,16 @@ export default function HistoricoScreen() {
       </View>
 
       <View style={styles.resumen}>
-        <View style={{ flex: 1 }}>
+        <View style={{ flex: 1, paddingRight: 10 }}>
           <Text style={styles.resumenLabel}>Ultimo valor</Text>
-          <Text style={styles.resumenValor}>
+          <Text style={styles.resumenValor} numberOfLines={1} adjustsFontSizeToFit>
             {ultimo ? `${ultimo.valor}${tipoActivo?.unidad ?? ''}` : '—'}
           </Text>
           <Text style={styles.resumenTotal}>{total} lecturas guardadas</Text>
         </View>
-        <Sparkline values={valores} width={150} height={50} />
+        <View style={styles.sparkWrap}>
+          <Sparkline values={valores} width={130} height={46} />
+        </View>
       </View>
 
       {cargando && items.length === 0 ? (
@@ -148,7 +150,9 @@ const styles = StyleSheet.create({
     borderColor: COLORS.border,
     marginBottom: 12,
     alignItems: 'center',
+    overflow: 'hidden',
   },
+  sparkWrap: { overflow: 'hidden' },
   resumenLabel: { fontSize: 11, color: COLORS.textMuted, textTransform: 'uppercase' },
   resumenValor: { fontSize: 24, fontWeight: '700', color: COLORS.primary, marginVertical: 2 },
   resumenTotal: { fontSize: 11, color: COLORS.textMuted },

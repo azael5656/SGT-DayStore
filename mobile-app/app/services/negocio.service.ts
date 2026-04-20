@@ -85,4 +85,11 @@ export const categoriesService = {
     const { data } = await api.get<Category[]>('/api/negocio/categories');
     return data;
   },
+  async create(nombre: string, descripcion?: string): Promise<Category> {
+    const { data } = await api.post<Category>('/api/negocio/categories', {
+      nombre,
+      descripcion: descripcion || undefined,
+    });
+    return data;
+  },
 };

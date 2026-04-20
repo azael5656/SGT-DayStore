@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { auditService, type AuditLog } from '../services/audit.service';
 import { COLORS } from '../utils/constants';
+import { labelAccion } from '../utils/labels';
 
 const ACCIONES_FILTRO: { label: string; value: string }[] = [
   { label: 'Todo', value: '' },
@@ -102,31 +103,39 @@ export default function AuditoriaScreen() {
           refreshControl={
             <RefreshControl refreshing={cargando} onRefresh={cargar} />
           }
-          renderItem={({ item }) => (
-            <View style={styles.row}>
-              <View
-                style={[
-                  styles.dot,
-                  { backgroundColor: COLOR_POR_ACCION(item.action) },
-                ]}
-              />
-              <View style={styles.rowText}>
-                <Text style={styles.action}>{item.action}</Text>
-                <Text style={styles.usuario}>
-                  {item.userEmail ?? 'sistema'}{' '}
-                  {item.userRole ? `(${item.userRole})` : ''}
-                </Text>
-                {item.resourceId && (
-                  <Text style={styles.recurso}>
-                    {item.resource}/{item.resourceId.slice(0, 12)}
+          renderItem={({ item }) => {
+            const actor = item.userEmail
+              ? item.userEmail.split('@')[0]
+              : 'El sistema';
+            const accion = labelAccion(item.action);
+            return (
+              <View style={styles.row}>
+                <View
+                  style={[
+                    styles.dot,
+                    { backgroundColor: COLOR_POR_ACCION(item.action) },
+                  ]}
+                />
+                <View style={styles.rowText}>
+                  <Text style={styles.action}>
+                    <Text style={styles.actor}>{actor}</Text> {accion}
                   </Text>
-                )}
-                <Text style={styles.fecha}>
-                  {new Date(item.createdAt).toLocaleString()}
-                </Text>
+                  {item.userRole && (
+                    <Text style={styles.usuario}>
+                      {item.userRole === 'superadmin'
+                        ? 'Super admin'
+                        : item.userRole === 'admin'
+                        ? 'Administrador'
+                        : 'Vendedor'}
+                    </Text>
+                  )}
+                  <Text style={styles.fecha}>
+                    {new Date(item.createdAt).toLocaleString()}
+                  </Text>
+                </View>
               </View>
-            </View>
-          )}
+            );
+          }}
           ListEmptyComponent={
             <Text style={styles.vacio}>No hay registros con esos filtros.</Text>
           }
@@ -186,9 +195,16 @@ const styles = StyleSheet.create({
   },
   dot: { width: 10, height: 10, borderRadius: 5, marginTop: 6, marginRight: 12 },
   rowText: { flex: 1 },
-  action: { fontWeight: '600', color: COLORS.text, fontSize: 14 },
-  usuario: { fontSize: 12, color: COLORS.textMuted, marginTop: 2 },
-  recurso: { fontSize: 11, color: COLORS.textMuted },
-  fecha: { fontSize: 11, color: COLORS.textMuted, marginTop: 4 },
+  action: { fontSize: 15, color: COLORS.text, lineHeight: 20 },
+  actor: { fontWeight: '800', color: COLORS.text },
+  usuario: {
+    fontSize: 11,
+    color: COLORS.textMuted,
+    marginTop: 4,
+    textTransform: 'uppercase',
+    fontWeight: '700',
+    letterSpacing: 0.5,
+  },
+  fecha: { fontSize: 12, color: COLORS.textMuted, marginTop: 4 },
   vacio: { textAlign: 'center', color: COLORS.textMuted, marginTop: 30 },
 });

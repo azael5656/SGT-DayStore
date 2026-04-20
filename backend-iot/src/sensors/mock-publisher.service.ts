@@ -105,20 +105,38 @@ export class MockPublisherService implements OnModuleInit, OnModuleDestroy {
   }
 
   /**
-   * 5 MC-38: entrada + 4 vitrinas. Cada uno con su propia probabilidad.
-   * Solo publica cuando hay cambio de estado (evento real del sensor).
+   * Horario de operacion de la tienda: 9:00 - 20:00.
+   * Fuera de ese rango no deberia haber movimiento ni puertas abriendose.
+   */
+  private enHorarioComercial(): boolean {
+    const hora = new Date().getHours();
+    return hora >= 9 && hora < 20;
+  }
+
+  /**
+   * MC-38:
+   *  - mc38-entrada (puerta del local): se abre con baja probabilidad solo
+   *    en horario comercial (entran/salen clientes).
+   *  - mc38-vitrina-*: las vitrinas rara vez se abren; solo cuando el
+   *    dueno las usa. Probabilidad muy baja incluso en horario.
    */
   private publicarPuertas(): void {
     if (this.store.isEmergencyActive()) return;
-    const sensores = Object.keys(this.puertas);
-    for (const id of sensores) {
+    const enHorario = this.enHorarioComercial();
+    for (const id of Object.keys(this.puertas)) {
       const abierta = this.puertas[id];
+      const esLocal = id === 'mc38-entrada';
+      const probAbrir = esLocal
+        ? enHorario
+          ? 0.04 // cliente entrando
+          : 0 // cerrado
+        : enHorario
+        ? 0.005 // vitrina: muy raramente
+        : 0;
+      const probCerrar = esLocal ? 0.6 : 0.8;
       let nuevoEstado = abierta;
-      if (!abierta && Math.random() < 0.03) {
-        nuevoEstado = true;
-      } else if (abierta && Math.random() < 0.4) {
-        nuevoEstado = false;
-      }
+      if (!abierta && Math.random() < probAbrir) nuevoEstado = true;
+      else if (abierta && Math.random() < probCerrar) nuevoEstado = false;
       if (nuevoEstado === abierta) continue;
       this.puertas[id] = nuevoEstado;
       this.publish('tienda/puerta', {
@@ -131,9 +149,15 @@ export class MockPublisherService implements OnModuleInit, OnModuleDestroy {
     }
   }
 
+  /**
+   * PIR en el interior. Durante el horario comercial esperamos movimiento
+   * normal (clientes y dueno), pero NO es interesante — solo reportamos
+   * movimiento fuera de horario, que si es significativo (posible intruso).
+   */
   private publicarMovimiento(): void {
     if (this.store.isEmergencyActive()) return;
-    if (Math.random() >= 0.05) return;
+    if (this.enHorarioComercial()) return;
+    if (Math.random() >= 0.02) return;
     this.publish('tienda/movimiento', {
       sensorId: 'pir-hcsr501-interior',
       tipo: 'movimiento',
@@ -143,17 +167,20 @@ export class MockPublisherService implements OnModuleInit, OnModuleDestroy {
     });
   }
 
-  /** SW-420 en 3 vitrinas de figuras costosas. 1% pico falso por ruido. */
+  /** SW-420 en 3 vitrinas. Muy raro, casi solo durante forzado. */
   private publicarVibracion(): void {
     if (this.store.isEmergencyActive()) return;
-    const vitrinas = ['sw420-vitrina-figuras-1', 'sw420-vitrina-figuras-2', 'sw420-vitrina-figuras-3'];
+    const vitrinas = [
+      'sw420-vitrina-figuras-1',
+      'sw420-vitrina-figuras-2',
+      'sw420-vitrina-figuras-3',
+    ];
     for (const id of vitrinas) {
-      const valor = Math.random() < 0.01 ? 1 : 0;
-      if (valor === 0) continue;
+      if (Math.random() >= 0.003) continue;
       this.publish('tienda/vibracion', {
         sensorId: id,
         tipo: 'vibracion',
-        valor,
+        valor: 1,
         unidad: 'evento',
         fecha: new Date().toISOString(),
       });

@@ -118,7 +118,9 @@ export default function InventarioScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.titulo}>Inventario</Text>
+        <Text style={styles.subtitulo}>
+          {productos.length} {productos.length === 1 ? 'producto' : 'productos'}
+        </Text>
         <TouchableOpacity
           style={styles.btnAdd}
           onPress={() => {
@@ -176,9 +178,12 @@ export default function InventarioScreen() {
           />
         )}
         ListEmptyComponent={
-          <Text style={styles.vacio}>
-            Sin productos. Usa "+ Nuevo" o corre el seed del backend.
-          </Text>
+          <View style={{ paddingTop: 30 }}>
+            <Text style={styles.vacio}>Todavia no tienes productos.</Text>
+            <Text style={styles.vacioHint}>
+              Toca "+ Nuevo" para crear el primero.
+            </Text>
+          </View>
         }
         refreshControl={
           <RefreshControl refreshing={refrescando} onRefresh={onRefresh} />
@@ -194,6 +199,7 @@ export default function InventarioScreen() {
           setEditando(null);
         }}
         onSubmit={guardar}
+        onCategoriaCreada={(c) => setCategorias((prev) => [...prev, c])}
       />
     </View>
   );
@@ -214,7 +220,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 12,
   },
-  titulo: { fontSize: 18, fontWeight: 'bold', color: COLORS.text },
+  subtitulo: { fontSize: 14, color: COLORS.textMuted, fontWeight: '600' },
   btnAdd: {
     backgroundColor: COLORS.primary,
     paddingHorizontal: 12,
@@ -254,8 +260,14 @@ const styles = StyleSheet.create({
   lista: { padding: 16, paddingTop: 4 },
   vacio: {
     textAlign: 'center',
+    color: COLORS.text,
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  vacioHint: {
+    textAlign: 'center',
     color: COLORS.textMuted,
-    marginTop: 40,
-    fontSize: 14,
+    marginTop: 6,
+    fontSize: 13,
   },
 });

@@ -2,6 +2,7 @@ import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { COLORS } from '../utils/constants';
 import type { SensorReading } from '../services/iot.service';
+import { labelSensor, labelTipo } from '../utils/labels';
 
 /**
  * Tarjeta de visualizacion de una lectura de sensor.
@@ -49,12 +50,12 @@ export default function SensorCard({ lectura }: Props) {
     <View style={styles.card}>
       <View style={styles.header}>
         <Text style={styles.icono}>{icono}</Text>
-        <Text style={styles.tipo}>{lectura.tipo.toUpperCase()}</Text>
+        <Text style={styles.tipo}>{labelTipo(lectura.tipo)}</Text>
       </View>
       <Text style={[styles.valor, { color }]}>
         {formatearValor(lectura.tipo, lectura.valor, lectura.unidad)}
       </Text>
-      <Text style={styles.sensor}>{lectura.sensorId}</Text>
+      <Text style={styles.sensor}>{labelSensor(lectura.sensorId)}</Text>
       <Text style={styles.fecha}>{new Date(lectura.fecha).toLocaleTimeString()}</Text>
     </View>
   );
@@ -74,14 +75,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 8,
   },
-  icono: { fontSize: 20, marginRight: 8 },
+  icono: { fontSize: 22, marginRight: 10 },
   tipo: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: COLORS.textMuted,
-    letterSpacing: 0.5,
+    fontSize: 13,
+    fontWeight: '700',
+    color: COLORS.text,
+    letterSpacing: 0.3,
   },
-  valor: { fontSize: 28, fontWeight: 'bold', marginVertical: 4 },
-  sensor: { fontSize: 12, color: COLORS.textMuted },
-  fecha: { fontSize: 11, color: COLORS.textMuted, marginTop: 4 },
+  valor: { fontSize: 30, fontWeight: '800', marginVertical: 4 },
+  sensor: { fontSize: 13, color: COLORS.textMuted, fontWeight: '500' },
+  fecha: { fontSize: 12, color: COLORS.textMuted, marginTop: 4 },
 });

@@ -10,11 +10,13 @@ import {
   Text,
   View,
 } from 'react-native';
+import BuzzerVibrator from '../components/BuzzerVibrator';
 import LiveStats from '../components/LiveStats';
 import QuickAccessCard from '../components/QuickAccessCard';
 import { useAuth } from '../context/AuthContext';
 import { useRealtimeIoT } from '../hooks/useRealtimeIoT';
 import { COLORS } from '../utils/constants';
+import { saludoPorHora } from '../utils/labels';
 
 type HomeStackParamList = {
   Home: undefined;
@@ -23,10 +25,9 @@ type HomeStackParamList = {
   HistoricoDetalle: undefined;
   UsuariosDetalle: undefined;
   DashboardDetalle: undefined;
+  AlertasDetalle: undefined;
 };
 type Nav = StackNavigationProp<HomeStackParamList>;
-
-const SALUDOS = ['Hola', 'Qué tal', 'Buenas'];
 
 export default function HomeScreen() {
   const { user, logout } = useAuth();
@@ -36,7 +37,7 @@ export default function HomeScreen() {
   const esSuper = user?.role === 'superadmin';
 
   const sinRevisar = alerts.filter((a) => !a.reconocida).length;
-  const saludo = SALUDOS[new Date().getHours() % SALUDOS.length];
+  const saludo = saludoPorHora();
 
   const cerrarSesion = () => {
     Alert.alert('Cerrar sesion', `¿Salir de la cuenta ${user?.email}?`, [
@@ -64,10 +65,32 @@ export default function HomeScreen() {
               : 'Vendedor'}
           </Text>
         </View>
-        <Pressable onPress={cerrarSesion} hitSlop={12} style={styles.iconBtn}>
-          <Text style={styles.iconTxt}>🚪</Text>
+        <Pressable
+          onPress={cerrarSesion}
+          hitSlop={12}
+          style={({ pressed }) => [styles.salirBtn, pressed && { opacity: 0.6 }]}>
+          <Text style={styles.salirTxt}>Salir  ↪</Text>
         </Pressable>
       </View>
+
+      {sinRevisar > 0 && (
+        <Pressable
+          onPress={() => navigation.getParent()?.navigate('Alertas')}
+          style={({ pressed }) => [styles.alertBanner, pressed && { opacity: 0.85 }]}>
+          <Text style={styles.alertBannerIcono}>🚨</Text>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.alertBannerTitulo}>
+              Tienes {sinRevisar} alerta{sinRevisar === 1 ? '' : 's'} sin revisar
+            </Text>
+            <Text style={styles.alertBannerSub}>
+              Toca para verlas ahora
+            </Text>
+          </View>
+          <Text style={styles.alertBannerArrow}>›</Text>
+        </Pressable>
+      )}
+
+      <BuzzerVibrator />
 
       <LiveStats readings={readings} conectado={conectado} alertasSinRevisar={sinRevisar} />
 
@@ -77,41 +100,43 @@ export default function HomeScreen() {
         <Text style={styles.verMasTxt}>Ver dashboard completo →</Text>
       </Pressable>
 
-      <Text style={styles.seccionTitulo}>Operacion</Text>
+      <Text style={styles.seccionTitulo}>Tu dia a dia</Text>
 
       <QuickAccessCard
         icono="💰"
         titulo="Ventas"
-        subtitulo="Registrar y consultar ventas"
+        subtitulo="Registra una venta o revisa el total del dia"
         color="#16A34A"
         onPress={() => navigation.navigate('VentasDetalle')}
       />
 
       {esAdminOSuper && (
         <>
-          <Text style={styles.seccionTitulo}>Administracion</Text>
+          <Text style={styles.seccionTitulo}>Gestion de la tienda</Text>
 
           <QuickAccessCard
             icono="📋"
-            titulo="Auditoria"
-            subtitulo="Ver quien hizo que y cuando"
+            titulo="Actividad reciente"
+            subtitulo="Mira todo lo que paso en la tienda"
             color="#F59E0B"
             onPress={() => navigation.navigate('AuditoriaDetalle')}
           />
 
           <QuickAccessCard
             icono="📈"
-            titulo="Historico IoT"
-            subtitulo="Lecturas pasadas con tendencia"
+            titulo="Tendencias"
+            subtitulo="Revisa como se ha comportado la tienda"
             color="#0EA5E9"
             onPress={() => navigation.navigate('HistoricoDetalle')}
           />
 
           <QuickAccessCard
             icono="👥"
-            titulo={esSuper ? 'Usuarios' : 'Vendedores'}
+            titulo={esSuper ? 'Cuentas de usuarios' : 'Vendedores'}
             subtitulo={
-              esSuper ? 'CRUD total de cuentas' : 'Ver y crear vendedores'
+              esSuper
+                ? 'Crea, edita o desactiva administrador y vendedores'
+                : 'Agrega nuevos vendedores a tu tienda'
             }
             color="#7C3AED"
             onPress={() => navigation.navigate('UsuariosDetalle')}
@@ -119,7 +144,7 @@ export default function HomeScreen() {
         </>
       )}
 
-      <Text style={styles.footer}>DayStore · v0.2</Text>
+      <Text style={styles.footer}>DayIsaacStore · v0.2</Text>
     </ScrollView>
   );
 }
@@ -132,27 +157,44 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 18,
   },
-  hola: { fontSize: 14, color: COLORS.textMuted },
-  nombre: { fontSize: 22, fontWeight: '800', color: COLORS.text, marginTop: 2 },
+  hola: { fontSize: 15, color: COLORS.textMuted, fontWeight: '500' },
+  nombre: { fontSize: 26, fontWeight: '800', color: COLORS.text, marginTop: 2 },
   rol: {
     fontSize: 11,
     color: COLORS.primary,
-    fontWeight: '700',
-    marginTop: 2,
-    letterSpacing: 0.5,
+    fontWeight: '800',
+    marginTop: 4,
+    letterSpacing: 0.8,
     textTransform: 'uppercase',
   },
-  iconBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    alignItems: 'center',
-    justifyContent: 'center',
+  salirBtn: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 20,
     backgroundColor: COLORS.surface,
     borderWidth: 1,
     borderColor: COLORS.border,
   },
-  iconTxt: { fontSize: 20 },
+  salirTxt: { fontSize: 13, fontWeight: '600', color: COLORS.text },
+  alertBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FEF2F2',
+    borderColor: COLORS.danger,
+    borderWidth: 1,
+    borderRadius: 14,
+    padding: 14,
+    marginBottom: 14,
+    gap: 12,
+  },
+  alertBannerIcono: { fontSize: 26 },
+  alertBannerTitulo: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: COLORS.danger,
+  },
+  alertBannerSub: { fontSize: 12, color: '#7F1D1D', marginTop: 2 },
+  alertBannerArrow: { fontSize: 26, color: COLORS.danger, fontWeight: '300' },
   verMas: {
     alignSelf: 'flex-end',
     paddingVertical: 4,
@@ -166,13 +208,11 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   seccionTitulo: {
-    fontSize: 11,
+    fontSize: 13,
     fontWeight: '800',
-    color: COLORS.textMuted,
-    textTransform: 'uppercase',
-    letterSpacing: 0.8,
-    marginTop: 6,
-    marginBottom: 8,
+    color: COLORS.text,
+    marginTop: 14,
+    marginBottom: 10,
     marginLeft: 2,
   },
   footer: {

@@ -1,14 +1,11 @@
 import React, { useMemo } from 'react';
 import {
-  Alert as RNAlert,
-  Pressable,
   ScrollView,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
 import SensorCard from '../components/SensorCard';
-import { useAuth } from '../context/AuthContext';
 import { useRealtimeIoT } from '../hooks/useRealtimeIoT';
 import { COLORS } from '../utils/constants';
 import type { SensorReading } from '../services/iot.service';
@@ -21,37 +18,21 @@ import type { SensorReading } from '../services/iot.service';
  */
 export default function DashboardScreen() {
   const { readings, alerts, conectado } = useRealtimeIoT();
-  const { user, logout } = useAuth();
 
-  const resumen = useMemo(() => computarResumen(readings, alerts.length), [readings, alerts.length]);
-
-  const cerrarSesion = () => {
-    RNAlert.alert('Cerrar sesion', `¿Cerrar la sesion de ${user?.email}?`, [
-      { text: 'Cancelar', style: 'cancel' },
-      { text: 'Cerrar sesion', style: 'destructive', onPress: () => logout() },
-    ]);
-  };
+  const resumen = useMemo(
+    () => computarResumen(readings, alerts.length),
+    [readings, alerts.length],
+  );
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <View style={styles.headerRow}>
-        <View style={{ flex: 1 }}>
-          <Text style={styles.titulo}>Resumen</Text>
-          {user && (
-            <Text style={styles.subUsuario}>
-              {user.nombre || user.email} · {user.role}
-            </Text>
-          )}
-        </View>
+        <Text style={styles.titulo}>Estado completo</Text>
         <View style={[styles.estado, conectado ? styles.estadoOn : styles.estadoOff]}>
-          <Text style={styles.estadoTxt}>{conectado ? '● EN VIVO' : '○ desconectado'}</Text>
+          <Text style={styles.estadoTxt}>
+            {conectado ? '● EN VIVO' : '○ desconectado'}
+          </Text>
         </View>
-        <Pressable
-          onPress={cerrarSesion}
-          style={({ pressed }) => [styles.salirBtn, pressed && { opacity: 0.6 }]}
-          hitSlop={10}>
-          <Text style={styles.salirTxt}>🚪</Text>
-        </Pressable>
       </View>
 
       <View style={styles.gridResumen}>
@@ -191,9 +172,6 @@ const styles = StyleSheet.create({
     marginTop: 8,
     marginBottom: 10,
   },
-  subUsuario: { color: COLORS.textMuted, fontSize: 11, marginTop: 2 },
-  salirBtn: { padding: 6, marginLeft: 8 },
-  salirTxt: { fontSize: 22 },
   estado: {
     paddingHorizontal: 8,
     paddingVertical: 4,
