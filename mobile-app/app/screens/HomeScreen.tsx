@@ -25,6 +25,7 @@ type HomeStackParamList = {
   UsuariosDetalle: undefined;
   DashboardDetalle: undefined;
   AlertasDetalle: undefined;
+  ConfigTiendaDetalle: undefined;
 };
 type Nav = StackNavigationProp<HomeStackParamList>;
 
@@ -137,6 +138,14 @@ export default function HomeScreen() {
             }
             color="#7C3AED"
             onPress={() => navigation.navigate('UsuariosDetalle')}
+          />
+
+          <QuickAccessCard
+            icono="🕒"
+            titulo="Horario de la tienda"
+            subtitulo="Horario, vacaciones y cierre temprano"
+            color="#10B981"
+            onPress={() => navigation.navigate('ConfigTiendaDetalle')}
           />
         </>
       )}

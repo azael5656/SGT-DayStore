@@ -7,6 +7,7 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { MqttService } from '../mqtt/mqtt.service';
 import { InMemoryStoreService } from '../shared/in-memory-store.service';
+import { StoreConfigService } from '../store-config/store-config.service';
 
 /**
  * Publicador simulado del hardware de la tienda.
@@ -44,6 +45,7 @@ export class MockPublisherService implements OnModuleInit, OnModuleDestroy {
     private readonly config: ConfigService,
     private readonly mqtt: MqttService,
     private readonly store: InMemoryStoreService,
+    private readonly storeConfig: StoreConfigService,
   ) {}
 
   onModuleInit(): void {
@@ -60,7 +62,7 @@ export class MockPublisherService implements OnModuleInit, OnModuleDestroy {
     this.timers.push(setInterval(() => this.publicarTemperatura(), 2000));
     this.timers.push(setInterval(() => this.publicarHumedad(), 3000));
     this.timers.push(setInterval(() => this.publicarCorriente(), 3000));
-    this.timers.push(setInterval(() => this.evaluarMovimiento(), 5000));
+    this.timers.push(setInterval(() => void this.evaluarMovimiento(), 5000));
   }
 
   onModuleDestroy(): void {
@@ -144,21 +146,17 @@ export class MockPublisherService implements OnModuleInit, OnModuleDestroy {
     });
   }
 
-  private enHorarioComercial(): boolean {
-    const hora = new Date().getHours();
-    return hora >= 9 && hora < 20;
-  }
-
   /**
-   * PIR: solo lo procesamos fuera de horario. En horario comercial ignoramos
-   * porque hay gente normalmente. Cuando detectamos movimiento fuera de
-   * horario publicamos la lectura Y creamos una alerta severidad 'alta'
-   * (visual, SIN sonido porque no es critica).
+   * PIR: lee la config real de la tienda (horario, vacaciones, modo
+   * nocturno, dias cerrados, cierre temprano). Si la tienda esta abierta,
+   * ignora el movimiento (es normal). Si esta cerrada, publica la lectura
+   * y crea alerta severidad 'alta' sin sonido.
    */
-  private evaluarMovimiento(): void {
+  private async evaluarMovimiento(): Promise<void> {
     if (this.store.isEmergencyActive()) return;
-    if (this.enHorarioComercial()) return;
-    if (Math.random() >= 0.03) return; // 3% chance fuera de horario
+    const abierta = await this.storeConfig.isOpenNow();
+    if (abierta) return;
+    if (Math.random() >= 0.03) return;
 
     const ts = new Date().toISOString();
     this.publish('tienda/movimiento', {
@@ -171,7 +169,7 @@ export class MockPublisherService implements OnModuleInit, OnModuleDestroy {
     this.store.pushAlert({
       tipo: 'movimiento',
       severidad: 'alta',
-      mensaje: 'Movimiento detectado fuera de horario',
+      mensaje: 'Movimiento detectado con la tienda cerrada',
     });
   }
 

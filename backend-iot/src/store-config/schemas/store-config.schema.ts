@@ -1,19 +1,52 @@
-import { Schema, SchemaFactory } from '@nestjs/mongoose';
+import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument } from 'mongoose';
 
 /**
- * Schema StoreConfig - parametros de la tienda (suele haber un solo documento).
+ * Configuracion de la tienda (un solo documento).
  *
- * TODO: Definir propiedades con @Prop():
- *   - horarioApertura (string) - ej. "08:00"
- *   - horarioCierre (string) - ej. "20:00"
- *   - zonaHoraria (string) - ej. "America/Bogota"
- *   - modoNocturno (boolean, default false)
- *   - umbralesAlerta (Mixed) - valores para decidir si una lectura dispara alerta
+ * Reglas "esta cerrado ahora" (orden de evaluacion):
+ *  1. modoNocturno === true                                    -> cerrado
+ *  2. vacacionesHasta (YYYY-MM-DD) >= hoy                      -> cerrado
+ *  3. hoy (0=dom..6=sab) esta en diasCerrados                  -> cerrado
+ *  4. cerrarHoyA (HH:MM) seteado y hora actual >= cerrarHoyA   -> cerrado
+ *  5. hora actual < horarioApertura || >= horarioCierre        -> cerrado
+ *  Si no, abierto.
  */
 @Schema({ collection: 'store_config', timestamps: true })
 export class StoreConfig {
-  // TODO: implementar propiedades con @Prop().
+  @Prop({ default: '09:00' })
+  horarioApertura!: string;
+
+  @Prop({ default: '20:00' })
+  horarioCierre!: string;
+
+  @Prop({ default: 'America/Bogota' })
+  zonaHoraria!: string;
+
+  @Prop({ default: false })
+  modoNocturno!: boolean;
+
+  /** YYYY-MM-DD. Si >= hoy, la tienda esta de vacaciones hasta ese dia inclusive. */
+  @Prop({ type: String, default: null })
+  vacacionesHasta!: string | null;
+
+  /** HH:MM. Cierre temprano solo para el dia de cerrarHoyFecha. */
+  @Prop({ type: String, default: null })
+  cerrarHoyA!: string | null;
+
+  /** YYYY-MM-DD en que se registro cerrarHoyA. Se ignora si es de otro dia. */
+  @Prop({ type: String, default: null })
+  cerrarHoyFecha!: string | null;
+
+  /** 0=Domingo, 1=Lunes, ..., 6=Sabado. */
+  @Prop({ type: [Number], default: [] })
+  diasCerrados!: number[];
+
+  @Prop({
+    type: Object,
+    default: { temperaturaMax: 28, humedadMax: 80 },
+  })
+  umbralesAlerta!: { temperaturaMax: number; humedadMax: number };
 }
 
 export type StoreConfigDocument = HydratedDocument<StoreConfig>;

@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
+import { StoreConfigModule } from '../store-config/store-config.module';
 import { MockPublisherService } from './mock-publisher.service';
 import { Reading, ReadingSchema } from './schemas/reading.schema';
 import {
@@ -15,6 +16,7 @@ import { SensorsService } from './sensors.service';
       { name: SensorConfig.name, schema: SensorConfigSchema },
       { name: Reading.name, schema: ReadingSchema },
     ]),
+    StoreConfigModule,
   ],
   controllers: [SensorsController],
   providers: [SensorsService, MockPublisherService],

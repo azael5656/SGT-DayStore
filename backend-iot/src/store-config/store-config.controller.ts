@@ -16,8 +16,14 @@ export class StoreConfigController {
     return this.storeConfigService.get();
   }
 
+  @Get('is-open')
+  async isOpen() {
+    const abierta = await this.storeConfigService.isOpenNow();
+    return { abierta };
+  }
+
   @Put()
-  @Roles('owner')
+  @Roles('admin', 'superadmin')
   async update(@Body() dto: UpdateStoreConfigDto) {
     return this.storeConfigService.update(dto);
   }
