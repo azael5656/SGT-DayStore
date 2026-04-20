@@ -13,6 +13,7 @@ import { HealthController } from './health.controller';
 import { ProductsModule } from './products/products.module';
 import { SalesModule } from './sales/sales.module';
 import { SyncModule } from './sync/sync.module';
+import { UsersModule } from './users/users.module';
 
 /**
  * Modulo raiz del microservicio de negocio.
@@ -40,10 +41,13 @@ import { SyncModule } from './sync/sync.module';
         password: config.get<string>('POSTGRES_PASSWORD', 'sgt_password_dev'),
         database: config.get<string>('POSTGRES_DB', 'sgt_daystore'),
         autoLoadEntities: true,
-        synchronize: false,
+        // synchronize=true crea/actualiza el schema en cada arranque; apto
+        // solo para dev. En prod se usan migraciones.
+        synchronize: config.get<string>('TYPEORM_SYNC', 'false') === 'true',
       }),
     }),
     AuthModule,
+    UsersModule,
     CategoriesModule,
     ProductsModule,
     SalesModule,

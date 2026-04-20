@@ -39,13 +39,13 @@ export class SalesController {
   }
 
   @Get('report/daily')
-  @Roles('owner')
+  @Roles('admin', 'superadmin')
   async reportDaily(@Query() query: QueryReportDto) {
     return this.salesService.reportDaily(query);
   }
 
   @Get('report/monthly')
-  @Roles('owner')
+  @Roles('admin', 'superadmin')
   async reportMonthly(@Query() query: QueryReportDto) {
     return this.salesService.reportMonthly(query);
   }

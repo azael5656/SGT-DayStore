@@ -9,6 +9,8 @@
     "start:dev": "nest start --watch",
     "start:debug": "nest start --debug --watch",
     "start:prod": "node dist/main.js",
+    "seed:inventario": "ts-node -r tsconfig-paths/register src/seeds/seed-inventario.ts",
+    "seed:users": "node dist/seeds/seed-users.js",
     "lint": "eslint \"{src,test}/**/*.ts\" --fix",
     "format": "prettier --write \"src/**/*.ts\""
   },

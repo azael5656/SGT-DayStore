@@ -1,34 +1,21 @@
 import React from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { useAuth } from '../context/AuthContext';
+import { StyleSheet, Text, View } from 'react-native';
 import { COLORS } from '../utils/constants';
 
 interface Props {
   nombre: string;
 }
 
-/**
- * Pantalla placeholder para los 5 tabs del dashboard.
- * Muestra el nombre del tab y un boton de logout para probar el flujo.
- * Cada tab tendra su pantalla propia cuando se implemente la feature.
- */
+/** Pantalla simple para features aun no implementadas. */
 export default function PlaceholderScreen({ nombre }: Props) {
-  const { user, logout } = useAuth();
-
   return (
     <View style={styles.container}>
+      <Text style={styles.emoji}>🚧</Text>
       <Text style={styles.title}>{nombre}</Text>
-      <Text style={styles.subtitle}>Pantalla en desarrollo</Text>
-
-      {user && (
-        <Text style={styles.user}>
-          Sesion de: {user.email} ({user.role})
-        </Text>
-      )}
-
-      <TouchableOpacity style={styles.boton} onPress={logout}>
-        <Text style={styles.botonTexto}>Cerrar sesion</Text>
-      </TouchableOpacity>
+      <Text style={styles.subtitle}>Esta seccion esta en desarrollo.</Text>
+      <Text style={styles.hint}>
+        Muy pronto la podras usar aqui mismo.
+      </Text>
     </View>
   );
 }
@@ -41,19 +28,19 @@ const styles = StyleSheet.create({
     padding: 24,
     backgroundColor: COLORS.background,
   },
-  title: { fontSize: 24, fontWeight: 'bold', color: COLORS.text },
-  subtitle: { fontSize: 14, color: COLORS.textMuted, marginTop: 8 },
-  user: {
+  emoji: { fontSize: 56, marginBottom: 16 },
+  title: { fontSize: 22, fontWeight: '700', color: COLORS.text },
+  subtitle: {
+    fontSize: 15,
+    color: COLORS.textMuted,
+    marginTop: 8,
+    textAlign: 'center',
+  },
+  hint: {
     fontSize: 13,
     color: COLORS.textMuted,
-    marginTop: 24,
+    marginTop: 10,
+    textAlign: 'center',
+    maxWidth: 280,
   },
-  boton: {
-    marginTop: 32,
-    backgroundColor: COLORS.danger,
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 8,
-  },
-  botonTexto: { color: '#FFFFFF', fontWeight: '600' },
 });

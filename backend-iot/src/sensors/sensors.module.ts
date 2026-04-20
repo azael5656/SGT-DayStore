@@ -1,5 +1,8 @@
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
+import { StoreConfigModule } from '../store-config/store-config.module';
+import { MockPublisherService } from './mock-publisher.service';
+import { Reading, ReadingSchema } from './schemas/reading.schema';
 import {
   SensorConfig,
   SensorConfigSchema,
@@ -7,17 +10,16 @@ import {
 import { SensorsController } from './sensors.controller';
 import { SensorsService } from './sensors.service';
 
-/**
- * Modulo de configuracion de sensores IoT.
- */
 @Module({
   imports: [
     MongooseModule.forFeature([
       { name: SensorConfig.name, schema: SensorConfigSchema },
+      { name: Reading.name, schema: ReadingSchema },
     ]),
+    StoreConfigModule,
   ],
   controllers: [SensorsController],
-  providers: [SensorsService],
+  providers: [SensorsService, MockPublisherService],
   exports: [SensorsService],
 })
 export class SensorsModule {}

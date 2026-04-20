@@ -10,8 +10,11 @@ import { RolesGuard } from './common/guards/roles.guard';
 import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
 import { HealthController } from './health.controller';
 import { MqttModule } from './mqtt/mqtt.module';
+import { EventsModule } from './events/events.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { SensorsModule } from './sensors/sensors.module';
+import { SharedModule } from './shared/shared.module';
+import { SimulatorModule } from './simulator/simulator.module';
 import { StoreConfigModule } from './store-config/store-config.module';
 import { TelemetryModule } from './telemetry/telemetry.module';
 
@@ -47,6 +50,7 @@ import { TelemetryModule } from './telemetry/telemetry.module';
         };
       },
     }),
+    SharedModule,
     CacheModule,
     MqttModule,
     TelemetryModule,
@@ -54,6 +58,8 @@ import { TelemetryModule } from './telemetry/telemetry.module';
     SensorsModule,
     StoreConfigModule,
     NotificationsModule,
+    SimulatorModule,
+    EventsModule,
   ],
   controllers: [HealthController],
   providers: [

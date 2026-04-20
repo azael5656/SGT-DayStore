@@ -6,11 +6,11 @@ import {
   IsString,
   MinLength,
 } from 'class-validator';
+import type { Role } from '../entities/user.entity';
 
 /**
- * Datos de entrada para POST /auth/register.
- * Solo el dueño puede registrar nuevos usuarios (se valida en el controller
- * con @Roles('owner')).
+ * Input para POST /auth/register.
+ * Solo admin/superadmin pueden crear usuarios (validado en controller).
  */
 export class RegisterDto {
   @IsEmail({}, { message: 'El email no tiene un formato valido' })
@@ -18,7 +18,7 @@ export class RegisterDto {
   email!: string;
 
   @IsString()
-  @MinLength(6, { message: 'La contraseña debe tener al menos 6 caracteres' })
+  @MinLength(6, { message: 'La contrasena debe tener al menos 6 caracteres' })
   password!: string;
 
   @IsString()
@@ -26,8 +26,8 @@ export class RegisterDto {
   nombre!: string;
 
   @IsOptional()
-  @IsIn(['owner', 'employee'], {
-    message: 'El rol debe ser "owner" o "employee"',
+  @IsIn(['superadmin', 'admin', 'vendedor'], {
+    message: 'El rol debe ser superadmin, admin o vendedor',
   })
-  role?: 'owner' | 'employee';
+  role?: Role;
 }

@@ -36,7 +36,7 @@ export class AuthController {
    * Registra un nuevo usuario. Solo el dueño (owner) puede crear usuarios.
    */
   @Post('register')
-  @Roles('owner')
+  @Roles('admin', 'superadmin')
   async register(@Body() dto: RegisterDto) {
     return this.authService.register(dto);
   }

@@ -27,8 +27,8 @@ export class AlertsController {
   @Put(':id/acknowledge')
   async acknowledge(
     @Param('id') id: string,
-    @CurrentUser() user: { sub: string },
+    @CurrentUser() user: { sub: string; email?: string; role?: string },
   ) {
-    return this.alertsService.acknowledge(id, user.sub);
+    return this.alertsService.acknowledge(id, user);
   }
 }
