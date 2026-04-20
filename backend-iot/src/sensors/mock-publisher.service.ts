@@ -55,6 +55,12 @@ export class MockPublisherService implements OnModuleInit, OnModuleDestroy {
       'Simulador de sensores ACTIVO (MOCK_SENSORS=true). Publicando a tienda/#',
     );
 
+    // Publicamos UNA vez el estado inicial de TODOS los sensores para que
+    // el snapshot incluya cada sensorId desde el arranque. Sin esto los
+    // sensores que solo publican en cambios (puertas, vibracion,
+    // movimiento) aparecen en "—" hasta el primer evento.
+    this.publicarEstadoInicial();
+
     this.timers.push(setInterval(() => this.publicarTemperatura(), 2000));
     this.timers.push(setInterval(() => this.publicarHumedad(), 3000));
     this.timers.push(setInterval(() => this.publicarPuertas(), 3000));
@@ -62,6 +68,28 @@ export class MockPublisherService implements OnModuleInit, OnModuleDestroy {
     this.timers.push(setInterval(() => this.publicarVibracion(), 4000));
     this.timers.push(setInterval(() => this.publicarCorriente(), 3000));
     this.timers.push(setInterval(() => this.publicarBuzzer(), 3000));
+  }
+
+  private publicarEstadoInicial(): void {
+    const ts = new Date().toISOString();
+    const lecturas = [
+      { sensorId: 'dht22-ambiente', tipo: 'temperatura', valor: this.temperaturaActual, unidad: '°C' },
+      { sensorId: 'dht22-ambiente', tipo: 'humedad', valor: this.humedadActual, unidad: '%' },
+      { sensorId: 'mc38-entrada', tipo: 'puerta', valor: 0, unidad: 'estado' },
+      { sensorId: 'mc38-vitrina-1', tipo: 'puerta', valor: 0, unidad: 'estado' },
+      { sensorId: 'mc38-vitrina-2', tipo: 'puerta', valor: 0, unidad: 'estado' },
+      { sensorId: 'mc38-vitrina-3', tipo: 'puerta', valor: 0, unidad: 'estado' },
+      { sensorId: 'mc38-vitrina-4', tipo: 'puerta', valor: 0, unidad: 'estado' },
+      { sensorId: 'pir-hcsr501-interior', tipo: 'movimiento', valor: 0, unidad: 'evento' },
+      { sensorId: 'sw420-vitrina-figuras-1', tipo: 'vibracion', valor: 0, unidad: 'evento' },
+      { sensorId: 'sw420-vitrina-figuras-2', tipo: 'vibracion', valor: 0, unidad: 'evento' },
+      { sensorId: 'sw420-vitrina-figuras-3', tipo: 'vibracion', valor: 0, unidad: 'evento' },
+      { sensorId: 'sct013-030-principal', tipo: 'corriente', valor: this.corrienteActual, unidad: 'W' },
+      { sensorId: 'buzzer-5v-principal', tipo: 'buzzer', valor: 0, unidad: 'estado' },
+    ];
+    for (const l of lecturas) {
+      this.publish(`tienda/${l.tipo}`, { ...l, fecha: ts });
+    }
   }
 
   onModuleDestroy(): void {

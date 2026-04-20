@@ -16,7 +16,6 @@ import QuickAccessCard from '../components/QuickAccessCard';
 import { useAuth } from '../context/AuthContext';
 import { useRealtimeIoT } from '../hooks/useRealtimeIoT';
 import { COLORS } from '../utils/constants';
-import { saludoPorHora } from '../utils/labels';
 
 type HomeStackParamList = {
   Home: undefined;
@@ -37,7 +36,6 @@ export default function HomeScreen() {
   const esSuper = user?.role === 'superadmin';
 
   const sinRevisar = alerts.filter((a) => !a.reconocida).length;
-  const saludo = saludoPorHora();
 
   const cerrarSesion = () => {
     Alert.alert('Cerrar sesion', `¿Salir de la cuenta ${user?.email}?`, [
@@ -53,7 +51,6 @@ export default function HomeScreen() {
       refreshControl={<RefreshControl refreshing={false} onRefresh={() => {}} />}>
       <View style={styles.header}>
         <View style={{ flex: 1 }}>
-          <Text style={styles.hola}>{saludo},</Text>
           <Text style={styles.nombre} numberOfLines={1}>
             {user?.nombre || user?.email}
           </Text>
@@ -157,8 +154,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 18,
   },
-  hola: { fontSize: 15, color: COLORS.textMuted, fontWeight: '500' },
-  nombre: { fontSize: 26, fontWeight: '800', color: COLORS.text, marginTop: 2 },
+  nombre: { fontSize: 26, fontWeight: '800', color: COLORS.text },
   rol: {
     fontSize: 11,
     color: COLORS.primary,

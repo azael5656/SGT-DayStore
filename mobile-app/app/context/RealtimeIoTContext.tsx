@@ -34,9 +34,15 @@ export function RealtimeIoTProvider({ children }: { children: ReactNode }) {
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [conectado, setConectado] = useState(false);
 
-  const fetchAlertasSeed = useCallback(async () => {
+  const fetchSeed = useCallback(async () => {
+    // Hacemos fetch en paralelo de lecturas y alertas. Si el snapshot del
+    // socket llega despues, se sobrescribe con la version mas fresca.
     try {
-      const lista = await iotService.alertas();
+      const [lecturas, lista] = await Promise.all([
+        iotService.telemetriaLatest(),
+        iotService.alertas(),
+      ]);
+      setReadings(lecturas);
       setAlerts(lista);
     } catch {
       /* el socket luego rellena */
@@ -44,8 +50,7 @@ export function RealtimeIoTProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
-    // Seed por REST para no depender del timing del snapshot.
-    void fetchAlertasSeed();
+    void fetchSeed();
 
     const socket = getRealtimeSocket();
     const onConnect = () => setConectado(true);
@@ -88,7 +93,7 @@ export function RealtimeIoTProvider({ children }: { children: ReactNode }) {
       socket.off('alert.ack', onAlertAck);
       socket.off('alerts.cleared', onAlertsCleared);
     };
-  }, [fetchAlertasSeed]);
+  }, [fetchSeed]);
 
   return (
     <RealtimeIoTContext.Provider

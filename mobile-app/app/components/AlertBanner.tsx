@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   StyleSheet,
   Text,
@@ -6,6 +6,14 @@ import {
   Vibration,
   View,
 } from 'react-native';
+
+/**
+ * Tiempo maximo que la alarma vibra aunque no la reconozcas. Evita que el
+ * telefono quede vibrando para siempre por un falso positivo o porque el
+ * dueno dejo la app abierta. Al pasar este tiempo la alerta sigue en la UI
+ * (roja y destacada) pero deja de "ladrar" fisicamente.
+ */
+const MAX_VIBRACION_MS = 20_000;
 import { COLORS } from '../utils/constants';
 import type { Alert, AlertSeverity } from '../services/iot.service';
 
@@ -57,17 +65,24 @@ interface Props {
 }
 
 export default function AlertBanner({ alerta, onAcknowledge }: Props) {
-  const debeVibrar = alerta.severidad === 'critica' && !alerta.reconocida;
+  const [vibracionExpirada, setVibracionExpirada] = useState(false);
+  const debeVibrar =
+    alerta.severidad === 'critica' &&
+    !alerta.reconocida &&
+    !vibracionExpirada;
 
   useEffect(() => {
     if (!debeVibrar) return;
     try {
       Vibration.vibrate([0, 500, 300, 500], true);
     } catch {
-      // Dispositivo sin vibrador o permiso VIBRATE faltante: degradamos
-      // silenciosamente. La alerta visual sigue funcionando.
+      /* sin vibrador o permiso */
     }
+    const timeout = setTimeout(() => {
+      setVibracionExpirada(true);
+    }, MAX_VIBRACION_MS);
     return () => {
+      clearTimeout(timeout);
       try {
         Vibration.cancel();
       } catch {
