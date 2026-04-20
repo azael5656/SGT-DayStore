@@ -21,13 +21,18 @@ const MAX_SONIDO_MS = 20_000;
  * compila dentro del APK. En iOS habria que agregarlo al bundle Xcode.
  */
 export default function BuzzerVibrator() {
-  const { readings } = useRealtimeIoT();
+  const { readings, alerts } = useRealtimeIoT();
   const buzzerHardware = readings.some(
     (r) => r.tipo === 'buzzer' && r.valor === 1,
   );
+  // Sonamos solo si hay al menos una alerta CRITICA no reconocida ademas
+  // del buzzer. Asi cuando el usuario toca "Marcar como revisada" el
+  // sonido local para aunque el hardware siga encendido.
+  const hayCriticaPendiente = alerts.some(
+    (a) => a.severidad === 'critica' && !a.reconocida,
+  );
   const [timeoutExpirado, setTimeoutExpirado] = useState(false);
-  // Solo sonamos si el hardware dice buzzer=1 Y el timeout local no vencio.
-  const debeSonar = buzzerHardware && !timeoutExpirado;
+  const debeSonar = buzzerHardware && hayCriticaPendiente && !timeoutExpirado;
   const soundRef = useRef<Sound | null>(null);
 
   // Reset del timeout cuando el buzzer vuelve a 0: proxima vez que suba a 1

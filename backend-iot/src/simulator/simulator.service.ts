@@ -229,6 +229,20 @@ export class SimulatorService implements OnModuleDestroy {
   }
 
   /**
+   * Detiene un escenario activo (si lo hay) y apaga el buzzer.
+   * Lo usa AlertsService al reconocer una alerta critica: si el dueno
+   * ya se entero, no tiene sentido sostener valores extremos por 15s.
+   */
+  public stopIfActive(): boolean {
+    if (!this.burstTimer && !this.store.isEmergencyActive()) return false;
+    this.limpiarBurst();
+    this.store.clearEmergency();
+    this.apagarBuzzer();
+    this.logger.log('⏹ Escenario detenido por ack de alerta critica');
+    return true;
+  }
+
+  /**
    * Apaga el buzzer explicitamente al terminar el burst. El MockPublisher
    * tambien lo haria en su proxima iteracion de 3s, pero preferimos cerrar
    * la alarma sin lag visible para el usuario.

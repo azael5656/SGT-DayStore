@@ -12,5 +12,6 @@ import { SimulatorService } from './simulator.service';
 @Module({
   controllers: [SimulatorController],
   providers: [SimulatorService],
+  exports: [SimulatorService],
 })
 export class SimulatorModule {}

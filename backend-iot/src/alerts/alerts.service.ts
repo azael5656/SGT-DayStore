@@ -1,21 +1,19 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { AuditPublisherService } from '../shared/audit-publisher.service';
 import { InMemoryStoreService } from '../shared/in-memory-store.service';
+import { SimulatorService } from '../simulator/simulator.service';
 
 /**
- * Servicio de alertas.
- *
- * Las alertas viven en InMemoryStoreService (demo); las genera el
+ * Las alertas viven en InMemoryStoreService (demo). Las genera
  * SimulatorService al ejecutar escenarios o el handler MQTT al cruzar
  * umbrales.
- *
- * TODO: cuando se implemente @InjectModel(Alert.name), preferir Mongo.
  */
 @Injectable()
 export class AlertsService {
   constructor(
     private readonly store: InMemoryStoreService,
     private readonly auditPublisher: AuditPublisherService,
+    private readonly simulator: SimulatorService,
   ) {}
 
   async findAll() {
@@ -45,6 +43,12 @@ export class AlertsService {
   ) {
     const alerta = this.store.acknowledgeAlert(id, user.sub);
     if (!alerta) throw new NotFoundException('Alerta no encontrada');
+
+    // Si era critica, detener el escenario y apagar el buzzer. Ya se entero.
+    if (alerta.severidad === 'critica') {
+      this.simulator.stopIfActive();
+    }
+
     void this.auditPublisher.publish({
       userId: user.sub,
       userEmail: user.email ?? null,
