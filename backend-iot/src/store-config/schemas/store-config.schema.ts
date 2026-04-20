@@ -23,8 +23,13 @@ export class StoreConfig {
   @Prop({ default: 'America/Bogota' })
   zonaHoraria!: string;
 
+  /** Fuerza "cerrado" ahora mismo, ignorando horario. */
   @Prop({ default: false })
   modoNocturno!: boolean;
+
+  /** Fuerza "abierto" ahora mismo, ignorando horario. Gana sobre todo lo demas. */
+  @Prop({ default: false })
+  abiertoForzado!: boolean;
 
   /** YYYY-MM-DD. Si >= hoy, la tienda esta de vacaciones hasta ese dia inclusive. */
   @Prop({ type: String, default: null })

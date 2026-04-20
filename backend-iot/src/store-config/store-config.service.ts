@@ -99,6 +99,14 @@ export class StoreConfigService implements OnModuleInit {
     const dia = this.diaSemana(doc.zonaHoraria, now);
     const base = { horaActual, hoy, diaSemana: dia };
 
+    // Override manual "Abrir ahora": fuerza abierta pase lo que pase.
+    if (doc.abiertoForzado) {
+      return {
+        abierta: true,
+        motivo: 'Abierta forzada manualmente ("Abrir ahora")',
+        ...base,
+      };
+    }
     if (doc.modoNocturno) {
       return { abierta: false, motivo: 'Modo nocturno activo (forzado manualmente)', ...base };
     }
@@ -145,19 +153,26 @@ export class StoreConfigService implements OnModuleInit {
     };
   }
 
-  /** Activa modoNocturno para que todo movimiento genere alerta. */
+  /** Activa modoNocturno; la tienda queda cerrada haga la hora que haga. */
   async cerrarAhora() {
     const doc = await this.ensureExists();
     doc.modoNocturno = true;
+    doc.abiertoForzado = false;
     const saved = await doc.save();
     this.cacheDoc = saved;
     this.cacheExpires = Date.now() + this.CACHE_TTL_MS;
     return this.serialize(saved);
   }
 
-  /** Quita los overrides que fuerzan cerrado: modo nocturno, vacaciones, cierre temprano. */
+  /**
+   * Fuerza abierta: activa abiertoForzado y limpia cualquier override que
+   * forzara "cerrado" (modo nocturno, vacaciones, cierre temprano).
+   * Gana sobre el horario normal: con esto la tienda queda abierta aunque
+   * sean las 3 AM.
+   */
   async abrirAhora() {
     const doc = await this.ensureExists();
+    doc.abiertoForzado = true;
     doc.modoNocturno = false;
     doc.vacacionesHasta = null;
     doc.cerrarHoyA = null;
@@ -217,6 +232,7 @@ export class StoreConfigService implements OnModuleInit {
       horarioCierre: doc.horarioCierre,
       zonaHoraria: doc.zonaHoraria,
       modoNocturno: doc.modoNocturno,
+      abiertoForzado: doc.abiertoForzado,
       vacacionesHasta: doc.vacacionesHasta,
       cerrarHoyA: doc.cerrarHoyA,
       cerrarHoyFecha: doc.cerrarHoyFecha,
