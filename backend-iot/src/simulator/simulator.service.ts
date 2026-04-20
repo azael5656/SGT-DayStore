@@ -1,5 +1,6 @@
 import { Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
 import { MqttService } from '../mqtt/mqtt.service';
+import { AuditPublisherService } from '../shared/audit-publisher.service';
 import { InMemoryStoreService } from '../shared/in-memory-store.service';
 
 /**
@@ -35,6 +36,7 @@ export class SimulatorService implements OnModuleDestroy {
   constructor(
     private readonly store: InMemoryStoreService,
     private readonly mqtt: MqttService,
+    private readonly auditPublisher: AuditPublisherService,
   ) {}
 
   onModuleDestroy(): void {
@@ -42,6 +44,12 @@ export class SimulatorService implements OnModuleDestroy {
   }
 
   ejecutar(escenario: Escenario) {
+    void this.auditPublisher.publish({
+      action: 'iot.scenario.run',
+      resource: 'simulator',
+      resourceId: escenario,
+      metadata: { escenario },
+    });
     switch (escenario) {
       case 'incendio':
         return this.incendio();

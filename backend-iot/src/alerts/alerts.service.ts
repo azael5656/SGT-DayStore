@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { AuditPublisherService } from '../shared/audit-publisher.service';
 import { InMemoryStoreService } from '../shared/in-memory-store.service';
 
 /**
@@ -16,7 +17,10 @@ import { InMemoryStoreService } from '../shared/in-memory-store.service';
  */
 @Injectable()
 export class AlertsService {
-  constructor(private readonly store: InMemoryStoreService) {}
+  constructor(
+    private readonly store: InMemoryStoreService,
+    private readonly auditPublisher: AuditPublisherService,
+  ) {}
 
   async findAll() {
     if (!this.store.hasAlerts()) return [this.mockAlert()];
@@ -40,9 +44,21 @@ export class AlertsService {
     return alerta;
   }
 
-  async acknowledge(id: string, userId: string) {
-    const alerta = this.store.acknowledgeAlert(id, userId);
+  async acknowledge(
+    id: string,
+    user: { sub: string; email?: string; role?: string },
+  ) {
+    const alerta = this.store.acknowledgeAlert(id, user.sub);
     if (!alerta) throw new NotFoundException('Alerta no encontrada');
+    void this.auditPublisher.publish({
+      userId: user.sub,
+      userEmail: user.email ?? null,
+      userRole: user.role ?? null,
+      action: 'alert.ack',
+      resource: 'alerts',
+      resourceId: id,
+      metadata: { tipo: alerta.tipo, severidad: alerta.severidad },
+    });
     return alerta;
   }
 
