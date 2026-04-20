@@ -9,20 +9,28 @@ import { MqttService } from '../mqtt/mqtt.service';
 import { InMemoryStoreService } from '../shared/in-memory-store.service';
 
 /**
- * Publicador simulado que imita el hardware real de la tienda:
- *  - DHT22 (temperatura + humedad)
- *  - MC-38 (5 sensores magneticos: entrada + 4 vitrinas)
- *  - SW-420 (3 sensores de vibracion en vitrinas de figuras)
- *  - PIR HC-SR501 (movimiento interior)
- *  - SCT-013-030 (corriente de la tienda)
- *  - Buzzer 5V (actuador)
+ * Publicador simulado del hardware de la tienda.
  *
- * Se activa solo con MOCK_SENSORS=true para que en produccion el ESP32 real
- * sea la unica fuente. Cuando MqttService reciba del ESP32, los datos
- * fluiran por el mismo path (store + websocket).
+ * Hardware modelado:
+ *  - 1 DHT22 ambiente          -> temperatura + humedad (lectura continua)
+ *  - 1 MC-38 santa maria       -> puerta del local (evento al abrir/cerrar)
+ *  - 2 SW-420 en vitrinas      -> golpe/vibracion (evento al intentar forzar)
+ *  - 1 PIR HC-SR501 interior   -> movimiento (solo interesante fuera de horario)
+ *  - 1 SCT-013 principal       -> consumo electrico (continuo)
+ *  - 1 buzzer 5V               -> actuador (lo prenden los escenarios)
  *
- * Respeta `store.isEmergencyActive()`: durante un escenario no sobrescribe
- * los valores dramaticos que publica SimulatorService.
+ * Politica de publicacion:
+ *  - CONTINUOS (temp, hum, corriente): tick cada X segundos, drift suave.
+ *  - BINARIOS (puerta, vibracion, buzzer): publican SOLO cuando hay evento
+ *    real. No spameamos 0s cada pocos segundos. El estado "negativo"
+ *    (cerrada, estable, silencio) se emite UNA sola vez al arranque como
+ *    estado inicial y despues queda asi hasta que un escenario lo cambie.
+ *  - MOVIMIENTO: solo se publica FUERA de horario comercial. En horario es
+ *    ruido inutil (esperamos movimiento). Fuera de horario genera alerta
+ *    severidad 'alta' (visual, SIN sonido).
+ *
+ * El sonido del buzzer se controla desde SimulatorService cuando corre un
+ * escenario critico (incendio/forzado/corte_luz).
  */
 @Injectable()
 export class MockPublisherService implements OnModuleInit, OnModuleDestroy {
@@ -31,13 +39,6 @@ export class MockPublisherService implements OnModuleInit, OnModuleDestroy {
   private temperaturaActual = 22;
   private humedadActual = 55;
   private corrienteActual = 280;
-  private puertas: Record<string, boolean> = {
-    'mc38-entrada': false,
-    'mc38-vitrina-1': false,
-    'mc38-vitrina-2': false,
-    'mc38-vitrina-3': false,
-    'mc38-vitrina-4': false,
-  };
 
   constructor(
     private readonly config: ConfigService,
@@ -47,49 +48,19 @@ export class MockPublisherService implements OnModuleInit, OnModuleDestroy {
 
   onModuleInit(): void {
     const habilitado = this.config.get<string>('MOCK_SENSORS') === 'true';
-    if (!habilitado) {
-      return;
-    }
+    if (!habilitado) return;
 
     this.logger.log(
       'Simulador de sensores ACTIVO (MOCK_SENSORS=true). Publicando a tienda/#',
     );
 
-    // Publicamos UNA vez el estado inicial de TODOS los sensores para que
-    // el snapshot incluya cada sensorId desde el arranque. Sin esto los
-    // sensores que solo publican en cambios (puertas, vibracion,
-    // movimiento) aparecen en "—" hasta el primer evento.
     this.publicarEstadoInicial();
 
+    // Solo los sensores analogicos corren en loop.
     this.timers.push(setInterval(() => this.publicarTemperatura(), 2000));
     this.timers.push(setInterval(() => this.publicarHumedad(), 3000));
-    this.timers.push(setInterval(() => this.publicarPuertas(), 3000));
-    this.timers.push(setInterval(() => this.publicarMovimiento(), 4000));
-    this.timers.push(setInterval(() => this.publicarVibracion(), 4000));
     this.timers.push(setInterval(() => this.publicarCorriente(), 3000));
-    this.timers.push(setInterval(() => this.publicarBuzzer(), 3000));
-  }
-
-  private publicarEstadoInicial(): void {
-    const ts = new Date().toISOString();
-    const lecturas = [
-      { sensorId: 'dht22-ambiente', tipo: 'temperatura', valor: this.temperaturaActual, unidad: '°C' },
-      { sensorId: 'dht22-ambiente', tipo: 'humedad', valor: this.humedadActual, unidad: '%' },
-      { sensorId: 'mc38-entrada', tipo: 'puerta', valor: 0, unidad: 'estado' },
-      { sensorId: 'mc38-vitrina-1', tipo: 'puerta', valor: 0, unidad: 'estado' },
-      { sensorId: 'mc38-vitrina-2', tipo: 'puerta', valor: 0, unidad: 'estado' },
-      { sensorId: 'mc38-vitrina-3', tipo: 'puerta', valor: 0, unidad: 'estado' },
-      { sensorId: 'mc38-vitrina-4', tipo: 'puerta', valor: 0, unidad: 'estado' },
-      { sensorId: 'pir-hcsr501-interior', tipo: 'movimiento', valor: 0, unidad: 'evento' },
-      { sensorId: 'sw420-vitrina-figuras-1', tipo: 'vibracion', valor: 0, unidad: 'evento' },
-      { sensorId: 'sw420-vitrina-figuras-2', tipo: 'vibracion', valor: 0, unidad: 'evento' },
-      { sensorId: 'sw420-vitrina-figuras-3', tipo: 'vibracion', valor: 0, unidad: 'evento' },
-      { sensorId: 'sct013-030-principal', tipo: 'corriente', valor: this.corrienteActual, unidad: 'W' },
-      { sensorId: 'buzzer-5v-principal', tipo: 'buzzer', valor: 0, unidad: 'estado' },
-    ];
-    for (const l of lecturas) {
-      this.publish(`tienda/${l.tipo}`, { ...l, fecha: ts });
-    }
+    this.timers.push(setInterval(() => this.evaluarMovimiento(), 5000));
   }
 
   onModuleDestroy(): void {
@@ -98,10 +69,28 @@ export class MockPublisherService implements OnModuleInit, OnModuleDestroy {
   }
 
   /**
+   * Publica una lectura base de cada sensor para que el dashboard muestre
+   * TODOS los sensores desde el arranque. Los binarios quedan en 0 hasta
+   * que un escenario o evento real cambie el estado.
+   */
+  private publicarEstadoInicial(): void {
+    const ts = new Date().toISOString();
+    const base = [
+      { sensorId: 'dht22-ambiente', tipo: 'temperatura', valor: this.temperaturaActual, unidad: '°C' },
+      { sensorId: 'dht22-ambiente', tipo: 'humedad', valor: this.humedadActual, unidad: '%' },
+      { sensorId: 'mc38-santa-maria', tipo: 'puerta', valor: 0, unidad: 'estado' },
+      { sensorId: 'sw420-vitrina-1', tipo: 'vibracion', valor: 0, unidad: 'evento' },
+      { sensorId: 'sw420-vitrina-2', tipo: 'vibracion', valor: 0, unidad: 'evento' },
+      { sensorId: 'pir-hcsr501-interior', tipo: 'movimiento', valor: 0, unidad: 'evento' },
+      { sensorId: 'sct013-030-principal', tipo: 'corriente', valor: this.corrienteActual, unidad: 'W' },
+      { sensorId: 'buzzer-5v-principal', tipo: 'buzzer', valor: 0, unidad: 'estado' },
+    ];
+    for (const l of base) this.publish(`tienda/${l.tipo}`, { ...l, fecha: ts });
+  }
+
+  /**
    * Temperatura: drift suave hacia el objetivo del horario + ruido chico.
-   * Con drift 0.04 y noise +/-0.05 los cambios entre lecturas son de ~0.05
-   * a 0.2 grados, realistas para un DHT22 en una tienda (la masa termica
-   * del ambiente no cambia de golpe). Alcanza el objetivo en ~1-2 min.
+   * Cambios de ~0.05-0.15 grados cada 2s. Alcanza el objetivo en ~1-2 min.
    */
   private publicarTemperatura(): void {
     if (this.store.isEmergencyActive()) return;
@@ -121,7 +110,7 @@ export class MockPublisherService implements OnModuleInit, OnModuleDestroy {
     });
   }
 
-  /** Humedad: igual de suave, cambios de ~1% por lectura. */
+  /** Humedad: cambios de ~0.5-1% por lectura, muy suaves. */
   private publicarHumedad(): void {
     if (this.store.isEmergencyActive()) return;
     const drift = (55 - this.humedadActual) * 0.03;
@@ -138,98 +127,12 @@ export class MockPublisherService implements OnModuleInit, OnModuleDestroy {
     });
   }
 
-  /**
-   * Horario de operacion de la tienda: 9:00 - 20:00.
-   * Fuera de ese rango no deberia haber movimiento ni puertas abriendose.
-   */
-  private enHorarioComercial(): boolean {
-    const hora = new Date().getHours();
-    return hora >= 9 && hora < 20;
-  }
-
-  /**
-   * MC-38:
-   *  - mc38-entrada (puerta del local): se abre con baja probabilidad solo
-   *    en horario comercial (entran/salen clientes).
-   *  - mc38-vitrina-*: las vitrinas rara vez se abren; solo cuando el
-   *    dueno las usa. Probabilidad muy baja incluso en horario.
-   */
-  private publicarPuertas(): void {
-    if (this.store.isEmergencyActive()) return;
-    const enHorario = this.enHorarioComercial();
-    for (const id of Object.keys(this.puertas)) {
-      const abierta = this.puertas[id];
-      const esLocal = id === 'mc38-entrada';
-      const probAbrir = esLocal
-        ? enHorario
-          ? 0.04 // cliente entrando
-          : 0 // cerrado
-        : enHorario
-        ? 0.005 // vitrina: muy raramente
-        : 0;
-      const probCerrar = esLocal ? 0.6 : 0.8;
-      let nuevoEstado = abierta;
-      if (!abierta && Math.random() < probAbrir) nuevoEstado = true;
-      else if (abierta && Math.random() < probCerrar) nuevoEstado = false;
-      if (nuevoEstado === abierta) continue;
-      this.puertas[id] = nuevoEstado;
-      this.publish('tienda/puerta', {
-        sensorId: id,
-        tipo: 'puerta',
-        valor: nuevoEstado ? 1 : 0,
-        unidad: 'estado',
-        fecha: new Date().toISOString(),
-      });
-    }
-  }
-
-  /**
-   * PIR en el interior. Durante el horario comercial esperamos movimiento
-   * normal (clientes y dueno), pero NO es interesante — solo reportamos
-   * movimiento fuera de horario, que si es significativo (posible intruso).
-   */
-  private publicarMovimiento(): void {
-    if (this.store.isEmergencyActive()) return;
-    if (this.enHorarioComercial()) return;
-    if (Math.random() >= 0.02) return;
-    this.publish('tienda/movimiento', {
-      sensorId: 'pir-hcsr501-interior',
-      tipo: 'movimiento',
-      valor: 1,
-      unidad: 'evento',
-      fecha: new Date().toISOString(),
-    });
-  }
-
-  /** SW-420 en 3 vitrinas. Muy raro, casi solo durante forzado. */
-  private publicarVibracion(): void {
-    if (this.store.isEmergencyActive()) return;
-    const vitrinas = [
-      'sw420-vitrina-figuras-1',
-      'sw420-vitrina-figuras-2',
-      'sw420-vitrina-figuras-3',
-    ];
-    for (const id of vitrinas) {
-      if (Math.random() >= 0.003) continue;
-      this.publish('tienda/vibracion', {
-        sensorId: id,
-        tipo: 'vibracion',
-        valor: 1,
-        unidad: 'evento',
-        fecha: new Date().toISOString(),
-      });
-    }
-  }
-
-  /**
-   * SCT-013-030: consumo electrico en W. Random walk alrededor de 280W.
-   * Una caida brusca a 0 = corte de luz (el escenario `corte_luz` lo fuerza).
-   */
+  /** Consumo electrico con pequena variacion por carga de la tienda. */
   private publicarCorriente(): void {
     if (this.store.isEmergencyActive()) return;
     const drift = (280 - this.corrienteActual) * 0.1;
-    const ruido = (Math.random() - 0.5) * 30;
-    const nueva = this.clamp(this.corrienteActual + drift + ruido, 150, 450);
+    const ruido = (Math.random() - 0.5) * 20;
+    const nueva = this.clamp(this.corrienteActual + drift + ruido, 180, 400);
     this.corrienteActual = Math.round(nueva);
 
     this.publish('tienda/corriente', {
@@ -241,14 +144,34 @@ export class MockPublisherService implements OnModuleInit, OnModuleDestroy {
     });
   }
 
-  private publicarBuzzer(): void {
+  private enHorarioComercial(): boolean {
+    const hora = new Date().getHours();
+    return hora >= 9 && hora < 20;
+  }
+
+  /**
+   * PIR: solo lo procesamos fuera de horario. En horario comercial ignoramos
+   * porque hay gente normalmente. Cuando detectamos movimiento fuera de
+   * horario publicamos la lectura Y creamos una alerta severidad 'alta'
+   * (visual, SIN sonido porque no es critica).
+   */
+  private evaluarMovimiento(): void {
     if (this.store.isEmergencyActive()) return;
-    this.publish('tienda/buzzer', {
-      sensorId: 'buzzer-5v-principal',
-      tipo: 'buzzer',
-      valor: 0,
-      unidad: 'estado',
-      fecha: new Date().toISOString(),
+    if (this.enHorarioComercial()) return;
+    if (Math.random() >= 0.03) return; // 3% chance fuera de horario
+
+    const ts = new Date().toISOString();
+    this.publish('tienda/movimiento', {
+      sensorId: 'pir-hcsr501-interior',
+      tipo: 'movimiento',
+      valor: 1,
+      unidad: 'evento',
+      fecha: ts,
+    });
+    this.store.pushAlert({
+      tipo: 'movimiento',
+      severidad: 'alta',
+      mensaje: 'Movimiento detectado fuera de horario',
     });
   }
 

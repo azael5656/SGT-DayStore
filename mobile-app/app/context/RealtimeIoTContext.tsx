@@ -61,7 +61,12 @@ export function RealtimeIoTProvider({ children }: { children: ReactNode }) {
     };
     const onReading = (r: SensorReading) => {
       setReadings((prev) => {
-        const sinPrevia = prev.filter((x) => x.sensorId !== r.sensorId);
+        // Dedupe por (sensorId + tipo): un mismo sensor fisico puede emitir
+        // varios tipos (DHT22 emite temperatura Y humedad). Antes dedupaba
+        // solo por sensorId y uno sobrescribia al otro.
+        const sinPrevia = prev.filter(
+          (x) => !(x.sensorId === r.sensorId && x.tipo === r.tipo),
+        );
         return [r, ...sinPrevia];
       });
     };

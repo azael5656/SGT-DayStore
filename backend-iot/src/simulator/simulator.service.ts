@@ -178,28 +178,14 @@ export class SimulatorService implements OnModuleDestroy {
       unidad: '%',
       fecha: ts,
     });
-    const puertas = [
-      'mc38-entrada',
-      'mc38-vitrina-1',
-      'mc38-vitrina-2',
-      'mc38-vitrina-3',
-      'mc38-vitrina-4',
-    ];
-    for (const id of puertas) {
-      this.publicarLectura({
-        sensorId: id,
-        tipo: 'puerta',
-        valor: 0,
-        unidad: 'estado',
-        fecha: ts,
-      });
-    }
-    const vitrinas = [
-      'sw420-vitrina-figuras-1',
-      'sw420-vitrina-figuras-2',
-      'sw420-vitrina-figuras-3',
-    ];
-    for (const id of vitrinas) {
+    this.publicarLectura({
+      sensorId: 'mc38-santa-maria',
+      tipo: 'puerta',
+      valor: 0,
+      unidad: 'estado',
+      fecha: ts,
+    });
+    for (const id of ['sw420-vitrina-1', 'sw420-vitrina-2']) {
       this.publicarLectura({
         sensorId: id,
         tipo: 'vibracion',
@@ -208,6 +194,13 @@ export class SimulatorService implements OnModuleDestroy {
         fecha: ts,
       });
     }
+    this.publicarLectura({
+      sensorId: 'pir-hcsr501-interior',
+      tipo: 'movimiento',
+      valor: 0,
+      unidad: 'evento',
+      fecha: ts,
+    });
     this.publicarLectura({
       sensorId: 'sct013-030-principal',
       tipo: 'corriente',
@@ -279,14 +272,21 @@ export class SimulatorService implements OnModuleDestroy {
   private publicarEmergenciaForzado(): void {
     const ts = new Date().toISOString();
     this.publicarLectura({
-      sensorId: 'mc38-vitrina-2',
+      sensorId: 'mc38-santa-maria',
       tipo: 'puerta',
       valor: 1,
       unidad: 'estado',
       fecha: ts,
     });
     this.publicarLectura({
-      sensorId: 'sw420-vitrina-figuras-1',
+      sensorId: 'sw420-vitrina-1',
+      tipo: 'vibracion',
+      valor: 1,
+      unidad: 'evento',
+      fecha: ts,
+    });
+    this.publicarLectura({
+      sensorId: 'sw420-vitrina-2',
       tipo: 'vibracion',
       valor: 1,
       unidad: 'evento',

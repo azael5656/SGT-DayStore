@@ -73,8 +73,18 @@ export class InMemoryStoreService {
 
   // ---------- Lecturas ----------
 
+  /**
+   * El key compuesto "sensorId::tipo" evita colisiones cuando un mismo
+   * sensor fisico emite multiples lecturas (p.ej. DHT22 emite temperatura
+   * Y humedad con el mismo sensorId). Antes la humedad sobrescribia a la
+   * temperatura y viceversa.
+   */
+  private keyOf(r: { sensorId: string; tipo: string }): string {
+    return `${r.sensorId}::${r.tipo}`;
+  }
+
   setReading(reading: StoredReading): void {
-    this.readings.set(reading.sensorId, reading);
+    this.readings.set(this.keyOf(reading), reading);
     this.events.emit('reading', reading);
   }
 
@@ -85,7 +95,10 @@ export class InMemoryStoreService {
   }
 
   getReading(sensorId: string): StoredReading | undefined {
-    return this.readings.get(sensorId);
+    for (const r of this.readings.values()) {
+      if (r.sensorId === sensorId) return r;
+    }
+    return undefined;
   }
 
   getLatestByTipo(tipo: string): StoredReading | undefined {

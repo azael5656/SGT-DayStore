@@ -13,15 +13,10 @@ export function saludoPorHora(fecha = new Date()): string {
 /** Traduce sensorId a etiqueta humana. */
 export function labelSensor(sensorId: string): string {
   const map: Record<string, string> = {
-    'dht22-ambiente': 'Sensor de ambiente',
-    'mc38-entrada': 'Puerta del local',
-    'mc38-vitrina-1': 'Vitrina 1',
-    'mc38-vitrina-2': 'Vitrina 2',
-    'mc38-vitrina-3': 'Vitrina 3',
-    'mc38-vitrina-4': 'Vitrina 4',
-    'sw420-vitrina-figuras-1': 'Vitrina de figuras (golpe)',
-    'sw420-vitrina-figuras-2': 'Vitrina de figuras 2 (golpe)',
-    'sw420-vitrina-figuras-3': 'Vitrina de figuras 3 (golpe)',
+    'dht22-ambiente': 'Ambiente de la tienda',
+    'mc38-santa-maria': 'Santa maria del local',
+    'sw420-vitrina-1': 'Vitrina 1 (golpe)',
+    'sw420-vitrina-2': 'Vitrina 2 (golpe)',
     'pir-hcsr501-interior': 'Sensor de movimiento',
     'sct013-030-principal': 'Medidor de corriente',
     'buzzer-5v-principal': 'Alarma sonora',
@@ -34,9 +29,9 @@ export function labelTipo(tipo: string): string {
   const map: Record<string, string> = {
     temperatura: 'Temperatura',
     humedad: 'Humedad',
-    puerta: 'Puerta',
+    puerta: 'Santa maria',
     movimiento: 'Movimiento',
-    vibracion: 'Vibracion en vitrina',
+    vibracion: 'Golpe en vitrina',
     corriente: 'Consumo electrico',
     buzzer: 'Alarma',
   };
