@@ -5,13 +5,9 @@ import { InMemoryStoreService } from '../shared/in-memory-store.service';
 /**
  * Servicio de alertas.
  *
- * Estado actual: mientras la persistencia en Mongo sigue como TODO (ver
- * alert.schema.ts del PR #2), las alertas viven en el InMemoryStoreService.
- * Las genera el módulo Simulator (endpoints de escenario para demo) o las
- * generaría el handler real de MQTT cuando detecte umbrales cruzados.
- *
- * Si el store está vacío respondemos con una alerta mock para que el móvil
- * no se rompa en la primera corrida.
+ * Las alertas viven en InMemoryStoreService (demo); las genera el
+ * SimulatorService al ejecutar escenarios o el handler MQTT al cruzar
+ * umbrales.
  *
  * TODO: cuando se implemente @InjectModel(Alert.name), preferir Mongo.
  */
@@ -23,7 +19,6 @@ export class AlertsService {
   ) {}
 
   async findAll() {
-    if (!this.store.hasAlerts()) return [this.mockAlert()];
     return this.store.getAlerts();
   }
 
@@ -60,16 +55,5 @@ export class AlertsService {
       metadata: { tipo: alerta.tipo, severidad: alerta.severidad },
     });
     return alerta;
-  }
-
-  private mockAlert() {
-    return {
-      id: 'mock-alert-1',
-      tipo: 'puerta',
-      severidad: 'media' as const,
-      mensaje: 'Puerta principal abierta fuera de horario',
-      reconocida: false,
-      fecha: new Date().toISOString(),
-    };
   }
 }
