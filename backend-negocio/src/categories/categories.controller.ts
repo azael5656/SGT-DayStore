@@ -32,19 +32,19 @@ export class CategoriesController {
   }
 
   @Post()
-  @Roles('owner')
+  @Roles('admin', 'superadmin')
   async create(@Body() dto: CreateCategoryDto) {
     return this.categoriesService.create(dto);
   }
 
   @Put(':id')
-  @Roles('owner')
+  @Roles('admin', 'superadmin')
   async update(@Param('id') id: string, @Body() dto: UpdateCategoryDto) {
     return this.categoriesService.update(id, dto);
   }
 
   @Delete(':id')
-  @Roles('owner')
+  @Roles('admin', 'superadmin')
   async remove(@Param('id') id: string) {
     return this.categoriesService.remove(id);
   }

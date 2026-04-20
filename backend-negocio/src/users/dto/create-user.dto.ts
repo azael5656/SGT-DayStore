@@ -2,19 +2,13 @@ import {
   IsEmail,
   IsIn,
   IsNotEmpty,
-  IsOptional,
   IsString,
   MinLength,
 } from 'class-validator';
-import type { Role } from '../entities/user.entity';
+import type { Role } from '../../auth/entities/user.entity';
 
-/**
- * Input para POST /auth/register.
- * Solo admin/superadmin pueden crear usuarios (validado en controller).
- */
-export class RegisterDto {
+export class CreateUserDto {
   @IsEmail({}, { message: 'El email no tiene un formato valido' })
-  @IsNotEmpty()
   email!: string;
 
   @IsString()
@@ -25,9 +19,8 @@ export class RegisterDto {
   @IsNotEmpty({ message: 'El nombre es obligatorio' })
   nombre!: string;
 
-  @IsOptional()
   @IsIn(['superadmin', 'admin', 'vendedor'], {
     message: 'El rol debe ser superadmin, admin o vendedor',
   })
-  role?: Role;
+  role!: Role;
 }

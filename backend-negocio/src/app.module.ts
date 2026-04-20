@@ -13,6 +13,7 @@ import { HealthController } from './health.controller';
 import { ProductsModule } from './products/products.module';
 import { SalesModule } from './sales/sales.module';
 import { SyncModule } from './sync/sync.module';
+import { UsersModule } from './users/users.module';
 
 /**
  * Modulo raiz del microservicio de negocio.
@@ -46,6 +47,7 @@ import { SyncModule } from './sync/sync.module';
       }),
     }),
     AuthModule,
+    UsersModule,
     CategoriesModule,
     ProductsModule,
     SalesModule,

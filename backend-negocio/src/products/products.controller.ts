@@ -35,7 +35,7 @@ export class ProductsController {
   }
 
   @Get('stats')
-  @Roles('owner')
+  @Roles('admin', 'superadmin')
   async stats() {
     return this.productsService.getStats();
   }
@@ -46,19 +46,19 @@ export class ProductsController {
   }
 
   @Post()
-  @Roles('owner')
+  @Roles('admin', 'superadmin')
   async create(@Body() dto: CreateProductDto) {
     return this.productsService.create(dto);
   }
 
   @Put(':id')
-  @Roles('owner')
+  @Roles('admin', 'superadmin')
   async update(@Param('id') id: string, @Body() dto: UpdateProductDto) {
     return this.productsService.update(id, dto);
   }
 
   @Delete(':id')
-  @Roles('owner')
+  @Roles('admin', 'superadmin')
   async remove(@Param('id') id: string) {
     return this.productsService.remove(id);
   }

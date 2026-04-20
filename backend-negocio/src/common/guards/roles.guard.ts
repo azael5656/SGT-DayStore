@@ -10,7 +10,7 @@ import { ROLES_KEY } from '../decorators/roles.decorator';
 
 /**
  * Guard que revisa que el usuario tenga uno de los roles requeridos.
- * Funciona en conjunto con el decorador @Roles('owner', 'employee').
+ * Funciona en conjunto con el decorador @Roles('admin', 'vendedor').
  *
  * Debe ejecutarse DESPUES del AuthGuard, porque depende de que request.user
  * ya este cargado con el payload del JWT.

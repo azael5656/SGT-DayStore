@@ -1,8 +1,12 @@
 import { SetMetadata } from '@nestjs/common';
 
+export type Role = 'superadmin' | 'admin' | 'vendedor';
+
 /**
- * Decorador para restringir acceso por rol.
- * Uso: @Roles('owner') o @Roles('owner', 'employee')
+ * Restringe acceso por rol. Funciona junto a RolesGuard (corre despues
+ * del AuthGuard para tener request.user.role disponible).
+ *
+ * Uso: @Roles('admin'), @Roles('admin', 'superadmin')
  */
 export const ROLES_KEY = 'roles';
-export const Roles = (...roles: string[]) => SetMetadata(ROLES_KEY, roles);
+export const Roles = (...roles: Role[]) => SetMetadata(ROLES_KEY, roles);
