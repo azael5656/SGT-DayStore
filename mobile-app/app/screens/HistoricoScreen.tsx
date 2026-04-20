@@ -1,4 +1,10 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -28,6 +34,8 @@ export default function HistoricoScreen() {
   const [total, setTotal] = useState(0);
   const [cargando, setCargando] = useState(false);
 
+  const listRef = useRef<FlatList<SensorReading>>(null);
+
   const cargar = useCallback(async () => {
     setCargando(true);
     try {
@@ -38,6 +46,11 @@ export default function HistoricoScreen() {
       });
       setItems(resp.items);
       setTotal(resp.total);
+      // Tras cargar datos nuevos, aseguramos que la lista arranque arriba
+      // para que el usuario no "aparezca" a la mitad o al fondo.
+      requestAnimationFrame(() => {
+        listRef.current?.scrollToOffset({ offset: 0, animated: false });
+      });
     } finally {
       setCargando(false);
     }
@@ -94,6 +107,8 @@ export default function HistoricoScreen() {
         <ActivityIndicator color={COLORS.primary} style={{ marginTop: 24 }} />
       ) : (
         <FlatList
+          ref={listRef}
+          key={tipo}
           data={items}
           keyExtractor={(it) => it.sensorId + it.fecha}
           contentContainerStyle={{ paddingBottom: 24 }}

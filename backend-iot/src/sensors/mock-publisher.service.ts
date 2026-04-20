@@ -69,14 +69,19 @@ export class MockPublisherService implements OnModuleInit, OnModuleDestroy {
     this.timers = [];
   }
 
+  /**
+   * Temperatura: drift suave hacia el objetivo del horario + ruido chico.
+   * Con drift 0.04 y noise +/-0.05 los cambios entre lecturas son de ~0.05
+   * a 0.2 grados, realistas para un DHT22 en una tienda (la masa termica
+   * del ambiente no cambia de golpe). Alcanza el objetivo en ~1-2 min.
+   */
   private publicarTemperatura(): void {
     if (this.store.isEmergencyActive()) return;
     const hora = new Date().getHours();
     const objetivo = hora >= 10 && hora <= 18 ? 26 : 22;
-    const drift = (objetivo - this.temperaturaActual) * 0.15;
-    const ruido = (Math.random() - 0.5) * 0.4;
-    const pico = Math.random() < 0.02 ? 3 : 0;
-    const nueva = this.clamp(this.temperaturaActual + drift + ruido + pico, 15, 35);
+    const drift = (objetivo - this.temperaturaActual) * 0.04;
+    const ruido = (Math.random() - 0.5) * 0.1;
+    const nueva = this.clamp(this.temperaturaActual + drift + ruido, 18, 32);
     this.temperaturaActual = Math.round(nueva * 10) / 10;
 
     this.publish('tienda/temperatura', {
@@ -88,10 +93,11 @@ export class MockPublisherService implements OnModuleInit, OnModuleDestroy {
     });
   }
 
+  /** Humedad: igual de suave, cambios de ~1% por lectura. */
   private publicarHumedad(): void {
     if (this.store.isEmergencyActive()) return;
-    const drift = (55 - this.humedadActual) * 0.1;
-    const ruido = (Math.random() - 0.5) * 2;
+    const drift = (55 - this.humedadActual) * 0.03;
+    const ruido = (Math.random() - 0.5) * 0.8;
     const nueva = this.clamp(this.humedadActual + drift + ruido, 40, 70);
     this.humedadActual = Math.round(nueva);
 

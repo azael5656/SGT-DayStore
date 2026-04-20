@@ -79,6 +79,7 @@ export class SimulatorService implements OnModuleDestroy {
     this.burstTimer = setInterval(() => {
       if (Date.now() >= hasta) {
         this.limpiarBurst();
+        this.apagarBuzzer();
         return;
       }
       const temp = 38 + Math.random() * 4;
@@ -111,6 +112,7 @@ export class SimulatorService implements OnModuleDestroy {
     this.burstTimer = setInterval(() => {
       if (Date.now() >= hasta) {
         this.limpiarBurst();
+        this.apagarBuzzer();
         return;
       }
       this.publicarEmergenciaForzado();
@@ -141,6 +143,7 @@ export class SimulatorService implements OnModuleDestroy {
     this.burstTimer = setInterval(() => {
       if (Date.now() >= hasta) {
         this.limpiarBurst();
+        this.apagarBuzzer();
         return;
       }
       this.publicarEmergenciaCorte();
@@ -230,6 +233,21 @@ export class SimulatorService implements OnModuleDestroy {
       clearInterval(this.burstTimer);
       this.burstTimer = null;
     }
+  }
+
+  /**
+   * Apaga el buzzer explicitamente al terminar el burst. El MockPublisher
+   * tambien lo haria en su proxima iteracion de 3s, pero preferimos cerrar
+   * la alarma sin lag visible para el usuario.
+   */
+  private apagarBuzzer(): void {
+    this.publicarLectura({
+      sensorId: 'buzzer-5v-principal',
+      tipo: 'buzzer',
+      valor: 0,
+      unidad: 'estado',
+      fecha: new Date().toISOString(),
+    });
   }
 
   private publicarEmergenciaIncendio(temperatura: number): void {

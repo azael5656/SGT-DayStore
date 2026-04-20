@@ -108,6 +108,21 @@ export class InMemoryStoreService {
     fecha?: string;
     reconocida?: boolean;
   }): StoredAlert {
+    // Dedupe: si ya hay una alerta NO reconocida del mismo tipo, la reusamos
+    // refrescando la fecha y el mensaje. Esto evita que lanzar varias veces
+    // el mismo escenario (incendio, forzado, corte_luz) apile alertas
+    // iguales. Cuando la actual sea reconocida, el proximo push crea una nueva.
+    const existente = this.alerts.find(
+      (a) => a.tipo === alert.tipo && !a.reconocida,
+    );
+    if (existente) {
+      existente.mensaje = alert.mensaje;
+      existente.severidad = alert.severidad;
+      existente.fecha = alert.fecha ?? new Date().toISOString();
+      this.events.emit('alert', existente);
+      return existente;
+    }
+
     const completa: StoredAlert = {
       id: alert.id ?? randomUUID(),
       tipo: alert.tipo,
