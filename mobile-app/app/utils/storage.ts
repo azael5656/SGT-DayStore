@@ -9,11 +9,13 @@ import { STORAGE_KEYS } from './constants';
  * abre la app al dia siguiente no tiene que volver a loguearse.
  */
 
+export type Role = 'superadmin' | 'admin' | 'vendedor';
+
 export interface UsuarioGuardado {
   id: string;
   email: string;
   nombre: string;
-  role: string;
+  role: Role;
 }
 
 export async function getToken(): Promise<string | null> {

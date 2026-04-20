@@ -32,6 +32,8 @@ export const ROUTES = {
   Ventas: 'Ventas',
   Alertas: 'Alertas',
   Auditoria: 'Auditoria',
+  Historico: 'Historico',
+  Perfil: 'Perfil',
 } as const;
 
 /**

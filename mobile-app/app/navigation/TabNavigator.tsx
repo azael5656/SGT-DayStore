@@ -1,27 +1,33 @@
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import React from 'react';
 import { Text } from 'react-native';
+import { useAuth } from '../context/AuthContext';
 import AlertsScreen from '../screens/AlertsScreen';
+import AuditoriaScreen from '../screens/AuditoriaScreen';
 import DashboardScreen from '../screens/DashboardScreen';
+import HistoricoScreen from '../screens/HistoricoScreen';
 import InventarioScreen from '../screens/InventarioScreen';
+import PerfilScreen from '../screens/PerfilScreen';
 import PlaceholderScreen from '../screens/PlaceholderScreen';
 import { COLORS, ROUTES } from '../utils/constants';
 
 /**
- * Bottom tabs principales de la app para usuarios autenticados.
- * Ventas y Auditoria siguen como placeholder hasta que se implemente la
- * feature correspondiente.
+ * Bottom tabs renderizados segun el rol del usuario logueado:
+ *  - vendedor: Dashboard, Inventario, Ventas, Alertas, Perfil
+ *  - admin/superadmin: + Auditoria, + Historico
  */
 const Tab = createBottomTabNavigator();
 
 const Ventas = () => <PlaceholderScreen nombre="Ventas" />;
-const Auditoria = () => <PlaceholderScreen nombre="Auditoria" />;
 
 const icono = (emoji: string) => ({ color, size }: { color: string; size: number }) => (
   <Text style={{ fontSize: size, color }}>{emoji}</Text>
 );
 
 export default function TabNavigator() {
+  const { user } = useAuth();
+  const esAdminOSuper = user?.role === 'admin' || user?.role === 'superadmin';
+
   return (
     <Tab.Navigator
       screenOptions={{
@@ -48,10 +54,24 @@ export default function TabNavigator() {
         component={AlertsScreen}
         options={{ tabBarIcon: icono('🔔') }}
       />
+      {esAdminOSuper && (
+        <Tab.Screen
+          name={ROUTES.Auditoria}
+          component={AuditoriaScreen}
+          options={{ tabBarIcon: icono('📋') }}
+        />
+      )}
+      {esAdminOSuper && (
+        <Tab.Screen
+          name={ROUTES.Historico}
+          component={HistoricoScreen}
+          options={{ tabBarIcon: icono('📈') }}
+        />
+      )}
       <Tab.Screen
-        name={ROUTES.Auditoria}
-        component={Auditoria}
-        options={{ tabBarIcon: icono('📋') }}
+        name={ROUTES.Perfil}
+        component={PerfilScreen}
+        options={{ tabBarIcon: icono('👤') }}
       />
     </Tab.Navigator>
   );
