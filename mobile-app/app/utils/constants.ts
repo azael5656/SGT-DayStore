@@ -33,6 +33,7 @@ export const ROUTES = {
   Alertas: 'Alertas',
   Auditoria: 'Auditoria',
   Historico: 'Historico',
+  Usuarios: 'Usuarios',
   Perfil: 'Perfil',
 } as const;
 

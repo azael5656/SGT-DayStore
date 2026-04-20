@@ -9,6 +9,7 @@ import HistoricoScreen from '../screens/HistoricoScreen';
 import InventarioScreen from '../screens/InventarioScreen';
 import PerfilScreen from '../screens/PerfilScreen';
 import PlaceholderScreen from '../screens/PlaceholderScreen';
+import UsuariosScreen from '../screens/UsuariosScreen';
 import { COLORS, ROUTES } from '../utils/constants';
 
 /**
@@ -66,6 +67,13 @@ export default function TabNavigator() {
           name={ROUTES.Historico}
           component={HistoricoScreen}
           options={{ tabBarIcon: icono('📈') }}
+        />
+      )}
+      {esAdminOSuper && (
+        <Tab.Screen
+          name={ROUTES.Usuarios}
+          component={UsuariosScreen}
+          options={{ tabBarIcon: icono('👥') }}
         />
       )}
       <Tab.Screen

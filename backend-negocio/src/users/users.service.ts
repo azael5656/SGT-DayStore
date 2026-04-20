@@ -38,6 +38,10 @@ export class UsersService {
     return this.repo.find({ order: { createdAt: 'DESC' } });
   }
 
+  async contarActivosPorRol(role: Role): Promise<number> {
+    return this.repo.count({ where: { role, activo: true } });
+  }
+
   async create(input: CreateUserInput): Promise<User> {
     const email = input.email.toLowerCase();
     const previa = await this.findByEmail(email);
