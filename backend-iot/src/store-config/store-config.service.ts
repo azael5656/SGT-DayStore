@@ -78,31 +78,94 @@ export class StoreConfigService implements OnModuleInit {
     return this.serialize(saved);
   }
 
-  /**
-   * Decide si la tienda esta abierta "ahora" en su zona horaria.
-   * Orden de evaluacion: modoNocturno > vacaciones > diasCerrados >
-   * cerrarHoyA > horario normal.
-   */
   async isOpenNow(now: Date = new Date()): Promise<boolean> {
+    return (await this.getEstado(now)).abierta;
+  }
+
+  /**
+   * Decide si la tienda esta abierta "ahora" Y devuelve el motivo.
+   * El motivo se muestra al usuario para que entienda por que el estado.
+   */
+  async getEstado(now: Date = new Date()): Promise<{
+    abierta: boolean;
+    motivo: string;
+    horaActual: string;
+    hoy: string;
+    diaSemana: number;
+  }> {
     const doc = await this.getFresh();
-
-    if (doc.modoNocturno) return false;
-
     const hoy = this.hoyISO(doc.zonaHoraria, now);
-    if (doc.vacacionesHasta && doc.vacacionesHasta >= hoy) return false;
-
-    const diaSemana = this.diaSemana(doc.zonaHoraria, now);
-    if (doc.diasCerrados?.includes(diaSemana)) return false;
-
     const horaActual = this.horaEnTZ(doc.zonaHoraria, now);
-    if (doc.cerrarHoyA && doc.cerrarHoyFecha === hoy) {
-      if (horaActual >= doc.cerrarHoyA) return false;
+    const dia = this.diaSemana(doc.zonaHoraria, now);
+    const base = { horaActual, hoy, diaSemana: dia };
+
+    if (doc.modoNocturno) {
+      return { abierta: false, motivo: 'Modo nocturno activo (forzado manualmente)', ...base };
     }
+    if (doc.vacacionesHasta && doc.vacacionesHasta >= hoy) {
+      return {
+        abierta: false,
+        motivo: `De vacaciones hasta el ${doc.vacacionesHasta}`,
+        ...base,
+      };
+    }
+    if (doc.diasCerrados?.includes(dia)) {
+      const nombres = ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'];
+      return {
+        abierta: false,
+        motivo: `Hoy es ${nombres[dia]}, la tienda no abre ese dia`,
+        ...base,
+      };
+    }
+    if (doc.cerrarHoyA && doc.cerrarHoyFecha === hoy && horaActual >= doc.cerrarHoyA) {
+      return {
+        abierta: false,
+        motivo: `Cerraste temprano hoy a las ${doc.cerrarHoyA}`,
+        ...base,
+      };
+    }
+    if (horaActual < doc.horarioApertura) {
+      return {
+        abierta: false,
+        motivo: `Son las ${horaActual}. Abres a las ${doc.horarioApertura}`,
+        ...base,
+      };
+    }
+    if (horaActual >= doc.horarioCierre) {
+      return {
+        abierta: false,
+        motivo: `Son las ${horaActual}. Cerraste a las ${doc.horarioCierre}`,
+        ...base,
+      };
+    }
+    return {
+      abierta: true,
+      motivo: `En horario (${doc.horarioApertura}-${doc.horarioCierre})`,
+      ...base,
+    };
+  }
 
-    if (horaActual < doc.horarioApertura) return false;
-    if (horaActual >= doc.horarioCierre) return false;
+  /** Activa modoNocturno para que todo movimiento genere alerta. */
+  async cerrarAhora() {
+    const doc = await this.ensureExists();
+    doc.modoNocturno = true;
+    const saved = await doc.save();
+    this.cacheDoc = saved;
+    this.cacheExpires = Date.now() + this.CACHE_TTL_MS;
+    return this.serialize(saved);
+  }
 
-    return true;
+  /** Quita los overrides que fuerzan cerrado: modo nocturno, vacaciones, cierre temprano. */
+  async abrirAhora() {
+    const doc = await this.ensureExists();
+    doc.modoNocturno = false;
+    doc.vacacionesHasta = null;
+    doc.cerrarHoyA = null;
+    doc.cerrarHoyFecha = null;
+    const saved = await doc.save();
+    this.cacheDoc = saved;
+    this.cacheExpires = Date.now() + this.CACHE_TTL_MS;
+    return this.serialize(saved);
   }
 
   // ---- helpers timezone ----

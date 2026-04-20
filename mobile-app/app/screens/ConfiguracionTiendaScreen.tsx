@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Alert,
   KeyboardAvoidingView,
@@ -11,8 +11,10 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import HourPicker from '../components/HourPicker';
 import {
   storeConfigService,
+  type EstadoTienda,
   type StoreConfig,
 } from '../services/storeConfig.service';
 import { COLORS } from '../utils/constants';
@@ -27,36 +29,46 @@ const DIAS = [
   { v: 0, label: 'Dom' },
 ];
 
-/**
- * Pantalla de configuracion de horario de la tienda. Accesible para
- * admin/superadmin. Controla lo que el backend considera "abierto" o
- * "cerrado" para las alertas de movimiento.
- */
 export default function ConfiguracionTiendaScreen() {
   const [config, setConfig] = useState<StoreConfig | null>(null);
+  const [estado, setEstado] = useState<EstadoTienda | null>(null);
   const [cargando, setCargando] = useState(true);
   const [guardando, setGuardando] = useState(false);
-  const [abierta, setAbierta] = useState<boolean | null>(null);
+  const estadoTimer = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const cargar = useCallback(async () => {
+  const refrescarEstado = useCallback(async () => {
+    try {
+      const e = await storeConfigService.estado();
+      setEstado(e);
+    } catch {
+      /* keep old */
+    }
+  }, []);
+
+  const cargarTodo = useCallback(async () => {
     setCargando(true);
     try {
-      const [cfg, estado] = await Promise.all([
+      const [cfg, e] = await Promise.all([
         storeConfigService.get(),
-        storeConfigService.isOpenNow(),
+        storeConfigService.estado(),
       ]);
       setConfig(cfg);
-      setAbierta(estado);
-    } catch (e) {
-      Alert.alert('Error', (e as Error).message);
+      setEstado(e);
+    } catch (err) {
+      Alert.alert('Error', (err as Error).message);
     } finally {
       setCargando(false);
     }
   }, []);
 
   useEffect(() => {
-    cargar();
-  }, [cargar]);
+    cargarTodo();
+    // refrescar el estado (hora actual) cada 30s para que el banner se mueva solo
+    estadoTimer.current = setInterval(() => refrescarEstado(), 30_000);
+    return () => {
+      if (estadoTimer.current) clearInterval(estadoTimer.current);
+    };
+  }, [cargarTodo, refrescarEstado]);
 
   const actualizar = (patch: Partial<StoreConfig>) => {
     setConfig((prev) => (prev ? { ...prev, ...patch } : prev));
@@ -76,16 +88,35 @@ export default function ConfiguracionTiendaScreen() {
         diasCerrados: config.diasCerrados,
       });
       setConfig(saved);
-      const estado = await storeConfigService.isOpenNow();
-      setAbierta(estado);
+      await refrescarEstado();
       Alert.alert('Listo', 'Configuracion guardada.');
-    } catch (e) {
-      const msg =
-        (e as { response?: { data?: { message?: string } } }).response?.data
-          ?.message || (e as Error).message;
-      Alert.alert('No se pudo guardar', String(msg));
+    } catch (err) {
+      const m =
+        (err as { response?: { data?: { message?: string } } }).response?.data
+          ?.message || (err as Error).message;
+      Alert.alert('No se pudo guardar', String(m));
     } finally {
       setGuardando(false);
+    }
+  };
+
+  const abrirAhora = async () => {
+    try {
+      const saved = await storeConfigService.abrirAhora();
+      setConfig(saved);
+      await refrescarEstado();
+    } catch (e) {
+      Alert.alert('Error', (e as Error).message);
+    }
+  };
+
+  const cerrarAhora = async () => {
+    try {
+      const saved = await storeConfigService.cerrarAhora();
+      setConfig(saved);
+      await refrescarEstado();
+    } catch (e) {
+      Alert.alert('Error', (e as Error).message);
     }
   };
 
@@ -97,7 +128,7 @@ export default function ConfiguracionTiendaScreen() {
     actualizar({ diasCerrados: [...set].sort() });
   };
 
-  if (cargando || !config) {
+  if (cargando || !config || !estado) {
     return (
       <View style={styles.center}>
         <Text style={styles.hint}>Cargando configuracion...</Text>
@@ -113,47 +144,68 @@ export default function ConfiguracionTiendaScreen() {
         <View
           style={[
             styles.estado,
-            { backgroundColor: abierta ? '#DCFCE7' : '#FEE2E2' },
+            { backgroundColor: estado.abierta ? '#DCFCE7' : '#FEE2E2' },
           ]}>
-          <Text style={styles.estadoIcono}>{abierta ? '🟢' : '🔴'}</Text>
+          <Text style={styles.estadoIcono}>{estado.abierta ? '🟢' : '🔴'}</Text>
           <View style={{ flex: 1 }}>
             <Text style={styles.estadoTitulo}>
-              {abierta ? 'La tienda esta ABIERTA' : 'La tienda esta CERRADA'}
+              Tienda {estado.abierta ? 'ABIERTA' : 'CERRADA'}
             </Text>
-            <Text style={styles.estadoSub}>
-              {abierta
-                ? 'Los movimientos son normales, no generan alertas.'
-                : 'Cualquier movimiento detectado creara una alerta.'}
+            <Text style={styles.estadoMotivo}>{estado.motivo}</Text>
+            <Text style={styles.estadoHora}>
+              Son las {estado.horaActual} en {config.zonaHoraria}
             </Text>
           </View>
         </View>
+
+        <View style={styles.filaBtns}>
+          <Pressable
+            style={[
+              styles.btnAtajo,
+              { backgroundColor: COLORS.success + '18', borderColor: COLORS.success },
+            ]}
+            onPress={abrirAhora}>
+            <Text style={[styles.btnAtajoTxt, { color: COLORS.success }]}>
+              🟢  Abrir ahora
+            </Text>
+          </Pressable>
+          <Pressable
+            style={[
+              styles.btnAtajo,
+              { backgroundColor: COLORS.danger + '18', borderColor: COLORS.danger },
+            ]}
+            onPress={cerrarAhora}>
+            <Text style={[styles.btnAtajoTxt, { color: COLORS.danger }]}>
+              🔴  Cerrar ahora
+            </Text>
+          </Pressable>
+        </View>
+        <Text style={styles.hintAtajos}>
+          "Abrir ahora" desactiva modo nocturno, vacaciones y cierre temprano.
+          "Cerrar ahora" activa modo nocturno.
+        </Text>
 
         <Text style={styles.seccion}>Horario normal</Text>
         <View style={styles.card}>
           <View style={styles.fila}>
             <View style={{ flex: 1 }}>
               <Text style={styles.label}>Abre a las</Text>
-              <TextInput
-                style={styles.input}
+              <HourPicker
                 value={config.horarioApertura}
-                onChangeText={(t) => actualizar({ horarioApertura: t })}
+                onChange={(v) => actualizar({ horarioApertura: v })}
                 placeholder="09:00"
-                placeholderTextColor={COLORS.textMuted}
               />
             </View>
             <View style={{ width: 10 }} />
             <View style={{ flex: 1 }}>
               <Text style={styles.label}>Cierra a las</Text>
-              <TextInput
-                style={styles.input}
+              <HourPicker
                 value={config.horarioCierre}
-                onChangeText={(t) => actualizar({ horarioCierre: t })}
+                onChange={(v) => actualizar({ horarioCierre: v })}
                 placeholder="20:00"
-                placeholderTextColor={COLORS.textMuted}
               />
             </View>
           </View>
-          <Text style={styles.hint}>Formato 24h (HH:MM)</Text>
 
           <Text style={[styles.label, { marginTop: 14 }]}>Zona horaria</Text>
           <TextInput
@@ -197,8 +249,7 @@ export default function ConfiguracionTiendaScreen() {
             <View style={{ flex: 1 }}>
               <Text style={styles.label}>Modo nocturno</Text>
               <Text style={styles.hint}>
-                Fuerza "cerrado" ahora mismo. Util cuando sales de la tienda
-                fuera del horario habitual.
+                Fuerza "cerrado" ahora mismo.
               </Text>
             </View>
             <Switch
@@ -209,32 +260,23 @@ export default function ConfiguracionTiendaScreen() {
 
           <View style={styles.separador} />
 
-          <Text style={styles.label}>Cerrar hoy a las (cierre temprano)</Text>
+          <Text style={styles.label}>Cerrar hoy antes de la hora normal</Text>
           <Text style={styles.hint}>
-            Si hoy cierras antes del horario habitual. Ej: 16:00. Deja vacio
-            para usar el horario normal.
+            Ej: hoy cierras a las 16:00 en vez del horario habitual.
           </Text>
-          <View style={styles.fila}>
-            <TextInput
-              style={[styles.input, { flex: 1 }]}
-              value={config.cerrarHoyA ?? ''}
-              onChangeText={(t) => actualizar({ cerrarHoyA: t || null })}
-              placeholder="HH:MM"
-              placeholderTextColor={COLORS.textMuted}
-            />
-            <Pressable
-              onPress={() => actualizar({ cerrarHoyA: null })}
-              style={styles.btnSec}>
-              <Text style={styles.btnSecTxt}>Limpiar</Text>
-            </Pressable>
-          </View>
+          <HourPicker
+            value={config.cerrarHoyA}
+            onChange={(v) => actualizar({ cerrarHoyA: v })}
+            onClear={() => actualizar({ cerrarHoyA: null })}
+            placeholder="Sin cierre temprano"
+          />
 
           <View style={styles.separador} />
 
           <Text style={styles.label}>Vacaciones hasta</Text>
           <Text style={styles.hint}>
-            Fecha (YYYY-MM-DD) hasta la cual la tienda esta cerrada. Todo lo
-            que pase en ese periodo disparara alerta.
+            Formato YYYY-MM-DD. Durante las vacaciones cualquier movimiento
+            genera alerta.
           </Text>
           <View style={styles.fila}>
             <TextInput
@@ -257,7 +299,7 @@ export default function ConfiguracionTiendaScreen() {
           disabled={guardando}
           style={({ pressed }) => [
             styles.btnGuardar,
-            (guardando || pressed) && { opacity: 0.7 },
+            (guardando || pressed) && { opacity: 0.75 },
           ]}>
           <Text style={styles.btnGuardarTxt}>
             {guardando ? 'Guardando...' : 'Guardar configuracion'}
@@ -283,11 +325,29 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     padding: 14,
     gap: 12,
-    marginBottom: 18,
+    marginBottom: 12,
   },
-  estadoIcono: { fontSize: 28 },
-  estadoTitulo: { fontSize: 15, fontWeight: '800', color: COLORS.text },
-  estadoSub: { fontSize: 12, color: COLORS.textMuted, marginTop: 4 },
+  estadoIcono: { fontSize: 30 },
+  estadoTitulo: { fontSize: 16, fontWeight: '800', color: COLORS.text },
+  estadoMotivo: { fontSize: 13, color: COLORS.text, marginTop: 2 },
+  estadoHora: { fontSize: 11, color: COLORS.textMuted, marginTop: 4 },
+  filaBtns: { flexDirection: 'row', gap: 8, marginBottom: 6 },
+  btnAtajo: {
+    flex: 1,
+    padding: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+    alignItems: 'center',
+  },
+  btnAtajoTxt: { fontSize: 14, fontWeight: '800' },
+  hintAtajos: {
+    fontSize: 11,
+    color: COLORS.textMuted,
+    fontStyle: 'italic',
+    marginTop: 6,
+    marginBottom: 16,
+    textAlign: 'center',
+  },
   seccion: {
     fontSize: 13,
     fontWeight: '800',
@@ -316,32 +376,25 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: COLORS.border,
     borderRadius: 10,
-    padding: 12,
+    padding: 14,
     fontSize: 15,
     color: COLORS.text,
   },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 4 },
   chip: {
-    paddingHorizontal: 12,
+    paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: 14,
     backgroundColor: COLORS.background,
     borderWidth: 1,
     borderColor: COLORS.border,
-    minWidth: 48,
+    minWidth: 52,
     alignItems: 'center',
   },
-  chipActive: {
-    backgroundColor: COLORS.danger,
-    borderColor: COLORS.danger,
-  },
+  chipActive: { backgroundColor: COLORS.danger, borderColor: COLORS.danger },
   chipTxt: { fontSize: 13, color: COLORS.text, fontWeight: '600' },
   chipTxtActive: { color: '#fff', fontWeight: '800' },
-  switchRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
+  switchRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   separador: {
     height: 1,
     backgroundColor: COLORS.border,

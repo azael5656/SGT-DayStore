@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import api from '../api/client';
 
 interface StoreConfig {
@@ -13,6 +13,14 @@ interface StoreConfig {
   umbralesAlerta: { temperaturaMax: number; humedadMax: number };
 }
 
+interface EstadoTienda {
+  abierta: boolean;
+  motivo: string;
+  horaActual: string;
+  hoy: string;
+  diaSemana: number;
+}
+
 const DIAS = [
   { v: 1, label: 'Lun' },
   { v: 2, label: 'Mar' },
@@ -25,22 +33,36 @@ const DIAS = [
 
 export default function HorarioTiendaPage() {
   const [cfg, setCfg] = useState<StoreConfig | null>(null);
-  const [abierta, setAbierta] = useState<boolean | null>(null);
+  const [estado, setEstado] = useState<EstadoTienda | null>(null);
   const [guardando, setGuardando] = useState(false);
   const [mensaje, setMensaje] = useState<{ tipo: 'ok' | 'err'; txt: string } | null>(null);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const cargar = async () => {
-    const [c, o] = await Promise.all([
+  const refrescarEstado = useCallback(async () => {
+    try {
+      const e = await api.get<EstadoTienda>('/api/iot/store/config/estado');
+      setEstado(e.data);
+    } catch {
+      /* keep */
+    }
+  }, []);
+
+  const cargar = useCallback(async () => {
+    const [c, e] = await Promise.all([
       api.get<StoreConfig>('/api/iot/store/config'),
-      api.get<{ abierta: boolean }>('/api/iot/store/config/is-open'),
+      api.get<EstadoTienda>('/api/iot/store/config/estado'),
     ]);
     setCfg(c.data);
-    setAbierta(o.data.abierta);
-  };
+    setEstado(e.data);
+  }, []);
 
   useEffect(() => {
     cargar().catch(() => {});
-  }, []);
+    timerRef.current = setInterval(() => refrescarEstado(), 30_000);
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+    };
+  }, [cargar, refrescarEstado]);
 
   const actualizar = (patch: Partial<StoreConfig>) => {
     setCfg((prev) => (prev ? { ...prev, ...patch } : prev));
@@ -69,10 +91,7 @@ export default function HorarioTiendaPage() {
         diasCerrados: cfg.diasCerrados,
       });
       setCfg(data);
-      const o = await api.get<{ abierta: boolean }>(
-        '/api/iot/store/config/is-open',
-      );
-      setAbierta(o.data.abierta);
+      await refrescarEstado();
       setMensaje({ tipo: 'ok', txt: 'Configuracion guardada.' });
     } catch (e) {
       const m =
@@ -84,28 +103,63 @@ export default function HorarioTiendaPage() {
     }
   };
 
-  if (!cfg) return <div className="text-gray-500">Cargando configuracion...</div>;
+  const abrirAhora = async () => {
+    const { data } = await api.post<StoreConfig>(
+      '/api/iot/store/config/abrir-ahora',
+      {},
+    );
+    setCfg(data);
+    await refrescarEstado();
+  };
+
+  const cerrarAhora = async () => {
+    const { data } = await api.post<StoreConfig>(
+      '/api/iot/store/config/cerrar-ahora',
+      {},
+    );
+    setCfg(data);
+    await refrescarEstado();
+  };
+
+  if (!cfg || !estado)
+    return <div className="text-gray-500">Cargando configuracion...</div>;
 
   return (
     <div className="max-w-3xl">
       <h1 className="text-2xl font-bold mb-5">Horario de la tienda</h1>
 
       <div
-        className={`flex items-center gap-3 p-4 rounded-xl mb-6 ${
-          abierta ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'
+        className={`p-4 rounded-xl mb-3 flex items-center gap-3 ${
+          estado.abierta ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'
         }`}>
-        <span className="text-2xl">{abierta ? '🟢' : '🔴'}</span>
+        <span className="text-3xl">{estado.abierta ? '🟢' : '🔴'}</span>
         <div>
           <div className="font-bold">
-            La tienda esta {abierta ? 'ABIERTA' : 'CERRADA'}
+            Tienda {estado.abierta ? 'ABIERTA' : 'CERRADA'}
           </div>
-          <div className="text-xs text-gray-600">
-            {abierta
-              ? 'Los movimientos son normales, no generan alertas.'
-              : 'Cualquier movimiento detectado creara una alerta.'}
+          <div className="text-sm text-gray-700 mt-0.5">{estado.motivo}</div>
+          <div className="text-xs text-gray-500 mt-0.5">
+            Son las {estado.horaActual} en {cfg.zonaHoraria}
           </div>
         </div>
       </div>
+
+      <div className="grid grid-cols-2 gap-2 mb-2">
+        <button
+          onClick={abrirAhora}
+          className="py-2.5 rounded-lg border border-green-300 bg-green-50 text-green-700 font-bold hover:bg-green-100">
+          🟢 Abrir ahora
+        </button>
+        <button
+          onClick={cerrarAhora}
+          className="py-2.5 rounded-lg border border-red-300 bg-red-50 text-red-700 font-bold hover:bg-red-100">
+          🔴 Cerrar ahora
+        </button>
+      </div>
+      <p className="text-xs text-gray-500 italic text-center mb-6">
+        "Abrir ahora" desactiva modo nocturno, vacaciones y cierre temprano.
+        "Cerrar ahora" activa modo nocturno.
+      </p>
 
       {mensaje && (
         <div
@@ -126,20 +180,18 @@ export default function HorarioTiendaPage() {
           <label className="block">
             <span className="text-xs text-gray-600 mb-1 block">Abre a las</span>
             <input
-              type="text"
+              type="time"
               value={cfg.horarioApertura}
               onChange={(e) => actualizar({ horarioApertura: e.target.value })}
-              placeholder="09:00"
               className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
             />
           </label>
           <label className="block">
             <span className="text-xs text-gray-600 mb-1 block">Cierra a las</span>
             <input
-              type="text"
+              type="time"
               value={cfg.horarioCierre}
               onChange={(e) => actualizar({ horarioCierre: e.target.value })}
-              placeholder="20:00"
               className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
             />
           </label>
@@ -191,8 +243,7 @@ export default function HorarioTiendaPage() {
           <div>
             <div className="font-semibold text-sm">Modo nocturno</div>
             <p className="text-xs text-gray-500 mt-0.5">
-              Fuerza "cerrado" ahora mismo. Util cuando sales de la tienda
-              fuera del horario habitual.
+              Fuerza "cerrado" ahora mismo.
             </p>
           </div>
           <label className="inline-flex items-center cursor-pointer">
@@ -215,19 +266,15 @@ export default function HorarioTiendaPage() {
         <hr className="border-gray-200" />
 
         <div>
-          <div className="font-semibold text-sm">Cerrar hoy a las (cierre temprano)</div>
+          <div className="font-semibold text-sm">Cerrar hoy antes de la hora normal</div>
           <p className="text-xs text-gray-500 mt-0.5 mb-2">
-            Si hoy cierras antes del horario habitual. Ej: 16:00. Deja vacio
-            para usar el horario normal.
+            Hoy cierras a las 16:00 en vez del horario habitual, por ejemplo.
           </p>
           <div className="flex gap-2">
             <input
-              type="text"
+              type="time"
               value={cfg.cerrarHoyA ?? ''}
-              onChange={(e) =>
-                actualizar({ cerrarHoyA: e.target.value || null })
-              }
-              placeholder="HH:MM"
+              onChange={(e) => actualizar({ cerrarHoyA: e.target.value || null })}
               className="flex-1 border border-gray-300 rounded-md px-3 py-2 text-sm"
             />
             <button
@@ -244,17 +291,15 @@ export default function HorarioTiendaPage() {
         <div>
           <div className="font-semibold text-sm">Vacaciones hasta</div>
           <p className="text-xs text-gray-500 mt-0.5 mb-2">
-            Fecha (YYYY-MM-DD) hasta la cual la tienda esta cerrada. Todo lo
-            que pase en ese periodo disparara alerta.
+            Durante las vacaciones cualquier movimiento genera alerta.
           </p>
           <div className="flex gap-2">
             <input
-              type="text"
+              type="date"
               value={cfg.vacacionesHasta ?? ''}
               onChange={(e) =>
                 actualizar({ vacacionesHasta: e.target.value || null })
               }
-              placeholder="2026-05-15"
               className="flex-1 border border-gray-300 rounded-md px-3 py-2 text-sm"
             />
             <button
