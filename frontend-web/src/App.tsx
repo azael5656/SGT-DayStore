@@ -5,17 +5,33 @@ import AlertasPage from './pages/AlertasPage';
 import AuditoriaPage from './pages/AuditoriaPage';
 import DashboardPage from './pages/DashboardPage';
 import HistoricoPage from './pages/HistoricoPage';
+import HomePage from './pages/HomePage';
 import InventarioPage from './pages/InventarioPage';
 import LoginPage from './pages/LoginPage';
 import PerfilPage from './pages/PerfilPage';
 import UsuariosPage from './pages/UsuariosPage';
+import VentasPage from './pages/VentasPage';
 
+/**
+ * El "/" es ahora un hub con quick-access cards por rol.
+ * El dashboard IoT completo vive en "/dashboard-detalle".
+ */
 export default function App() {
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
       <Route
         path="/"
+        element={
+          <ProtectedRoute>
+            <Layout>
+              <HomePage />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/dashboard-detalle"
         element={
           <ProtectedRoute>
             <Layout>
@@ -45,6 +61,16 @@ export default function App() {
         }
       />
       <Route
+        path="/ventas"
+        element={
+          <ProtectedRoute>
+            <Layout>
+              <VentasPage />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
         path="/auditoria"
         element={
           <ProtectedRoute roles={['admin', 'superadmin']}>
@@ -67,7 +93,7 @@ export default function App() {
       <Route
         path="/usuarios"
         element={
-          <ProtectedRoute roles={['superadmin']}>
+          <ProtectedRoute roles={['admin', 'superadmin']}>
             <Layout>
               <UsuariosPage />
             </Layout>

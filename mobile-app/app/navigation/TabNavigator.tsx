@@ -1,85 +1,56 @@
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import React from 'react';
 import { Text } from 'react-native';
-import { useAuth } from '../context/AuthContext';
 import AlertsScreen from '../screens/AlertsScreen';
-import AuditoriaScreen from '../screens/AuditoriaScreen';
-import DashboardScreen from '../screens/DashboardScreen';
-import HistoricoScreen from '../screens/HistoricoScreen';
 import InventarioScreen from '../screens/InventarioScreen';
 import PerfilScreen from '../screens/PerfilScreen';
-import PlaceholderScreen from '../screens/PlaceholderScreen';
-import UsuariosScreen from '../screens/UsuariosScreen';
 import { COLORS, ROUTES } from '../utils/constants';
+import HomeStack from './HomeStack';
 
 /**
- * Bottom tabs renderizados segun el rol del usuario logueado:
- *  - vendedor: Dashboard, Inventario, Ventas, Alertas, Perfil
- *  - admin/superadmin: + Auditoria, + Historico
+ * Bottom nav principal con 4 tabs fijos (no cambian por rol):
+ *  - Home (hub): resumen + cards a secciones secundarias (filtradas por rol)
+ *  - Inventario: CRUD de productos
+ *  - Alertas: alertas IoT en vivo
+ *  - Perfil: datos del usuario + logout
+ *
+ * Ventas, Auditoria, Historico, Usuarios se navegan dentro del HomeStack.
  */
 const Tab = createBottomTabNavigator();
-
-const Ventas = () => <PlaceholderScreen nombre="Ventas" />;
 
 const icono = (emoji: string) => ({ color, size }: { color: string; size: number }) => (
   <Text style={{ fontSize: size, color }}>{emoji}</Text>
 );
 
 export default function TabNavigator() {
-  const { user } = useAuth();
-  const esAdminOSuper = user?.role === 'admin' || user?.role === 'superadmin';
-
   return (
     <Tab.Navigator
       screenOptions={{
         tabBarActiveTintColor: COLORS.primary,
         tabBarInactiveTintColor: COLORS.textMuted,
+        tabBarLabelStyle: { fontSize: 11, fontWeight: '600' },
+        tabBarStyle: { paddingTop: 4, height: 58 },
+        headerShown: false,
       }}>
       <Tab.Screen
-        name={ROUTES.Dashboard}
-        component={DashboardScreen}
-        options={{ tabBarIcon: icono('📊') }}
+        name="HomeTab"
+        component={HomeStack}
+        options={{ title: 'Home', tabBarIcon: icono('🏠') }}
       />
       <Tab.Screen
         name={ROUTES.Inventario}
         component={InventarioScreen}
-        options={{ tabBarIcon: icono('📦') }}
-      />
-      <Tab.Screen
-        name={ROUTES.Ventas}
-        component={Ventas}
-        options={{ tabBarIcon: icono('💰') }}
+        options={{ tabBarIcon: icono('📦'), headerShown: true }}
       />
       <Tab.Screen
         name={ROUTES.Alertas}
         component={AlertsScreen}
-        options={{ tabBarIcon: icono('🔔') }}
+        options={{ tabBarIcon: icono('🔔'), headerShown: true }}
       />
-      {esAdminOSuper && (
-        <Tab.Screen
-          name={ROUTES.Auditoria}
-          component={AuditoriaScreen}
-          options={{ tabBarIcon: icono('📋') }}
-        />
-      )}
-      {esAdminOSuper && (
-        <Tab.Screen
-          name={ROUTES.Historico}
-          component={HistoricoScreen}
-          options={{ tabBarIcon: icono('📈') }}
-        />
-      )}
-      {esAdminOSuper && (
-        <Tab.Screen
-          name={ROUTES.Usuarios}
-          component={UsuariosScreen}
-          options={{ tabBarIcon: icono('👥') }}
-        />
-      )}
       <Tab.Screen
         name={ROUTES.Perfil}
         component={PerfilScreen}
-        options={{ tabBarIcon: icono('👤') }}
+        options={{ tabBarIcon: icono('👤'), headerShown: true }}
       />
     </Tab.Navigator>
   );

@@ -10,13 +10,35 @@ interface NavItem {
   roles?: Role[];
 }
 
-const NAV: NavItem[] = [
-  { to: '/', label: 'Dashboard', icon: '📊' },
-  { to: '/inventario', label: 'Inventario', icon: '📦' },
-  { to: '/alertas', label: 'Alertas', icon: '🔔' },
-  { to: '/auditoria', label: 'Auditoria', icon: '📋', roles: ['admin', 'superadmin'] },
-  { to: '/historico', label: 'Historico IoT', icon: '📈', roles: ['admin', 'superadmin'] },
-  { to: '/usuarios', label: 'Usuarios', icon: '👥', roles: ['superadmin'] },
+interface NavGroup {
+  title: string;
+  items: NavItem[];
+}
+
+const GROUPS: NavGroup[] = [
+  {
+    title: 'Principal',
+    items: [
+      { to: '/', label: 'Home', icon: '🏠' },
+      { to: '/dashboard-detalle', label: 'Dashboard IoT', icon: '📊' },
+    ],
+  },
+  {
+    title: 'Operacion',
+    items: [
+      { to: '/inventario', label: 'Inventario', icon: '📦' },
+      { to: '/ventas', label: 'Ventas', icon: '💰' },
+      { to: '/alertas', label: 'Alertas', icon: '🔔' },
+    ],
+  },
+  {
+    title: 'Administracion',
+    items: [
+      { to: '/auditoria', label: 'Auditoria', icon: '📋', roles: ['admin', 'superadmin'] },
+      { to: '/historico', label: 'Historico IoT', icon: '📈', roles: ['admin', 'superadmin'] },
+      { to: '/usuarios', label: 'Usuarios', icon: '👥', roles: ['admin', 'superadmin'] },
+    ],
+  },
 ];
 
 const ROLE_BADGE: Record<Role, { label: string; color: string }> = {
@@ -31,7 +53,6 @@ export default function Layout({ children }: { children: ReactNode }) {
 
   if (!user) return <>{children}</>;
   const badge = ROLE_BADGE[user.role];
-  const items = NAV.filter((n) => !n.roles || n.roles.includes(user.role));
 
   return (
     <div className="flex h-screen w-full bg-gray-50 text-gray-900">
@@ -46,30 +67,44 @@ export default function Layout({ children }: { children: ReactNode }) {
           </div>
         </div>
 
-        <nav className="flex-1 px-2 py-3 space-y-1">
-          {items.map((item) => (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              end={item.to === '/'}
-              className={({ isActive }) =>
-                `flex items-center gap-3 px-3 py-2 rounded-md text-sm transition ${
-                  isActive
-                    ? 'bg-blue-50 text-primary font-semibold'
-                    : 'text-gray-700 hover:bg-gray-100'
-                }`
-              }>
-              <span className="text-lg">{item.icon}</span>
-              <span>{item.label}</span>
-            </NavLink>
-          ))}
+        <nav className="flex-1 overflow-y-auto px-2 py-3">
+          {GROUPS.map((g) => {
+            const visibles = g.items.filter(
+              (i) => !i.roles || i.roles.includes(user.role),
+            );
+            if (visibles.length === 0) return null;
+            return (
+              <div key={g.title} className="mb-4">
+                <div className="px-3 pb-1 text-[10px] uppercase font-bold tracking-wider text-gray-400">
+                  {g.title}
+                </div>
+                {visibles.map((item) => (
+                  <NavLink
+                    key={item.to}
+                    to={item.to}
+                    end={item.to === '/'}
+                    className={({ isActive }) =>
+                      `flex items-center gap-3 px-3 py-2 rounded-md text-sm transition ${
+                        isActive
+                          ? 'bg-blue-50 text-primary font-semibold'
+                          : 'text-gray-700 hover:bg-gray-100'
+                      }`
+                    }>
+                    <span className="text-lg">{item.icon}</span>
+                    <span>{item.label}</span>
+                  </NavLink>
+                ))}
+              </div>
+            );
+          })}
         </nav>
 
         <div className="p-3 border-t border-gray-200">
           <button
             onClick={() => navigate('/perfil')}
-            className="w-full text-left px-3 py-2 rounded-md hover:bg-gray-100 text-sm">
-            👤 Mi perfil
+            className="w-full text-left px-3 py-2 rounded-md hover:bg-gray-100 text-sm flex items-center gap-3">
+            <span className="text-lg">👤</span>
+            <span>Mi perfil</span>
           </button>
         </div>
       </aside>
