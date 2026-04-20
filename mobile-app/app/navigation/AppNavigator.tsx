@@ -1,6 +1,7 @@
 import React from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { useAuth } from '../context/AuthContext';
+import { RealtimeIoTProvider } from '../context/RealtimeIoTContext';
 import { COLORS } from '../utils/constants';
 import AuthNavigator from './AuthNavigator';
 import TabNavigator from './TabNavigator';
@@ -22,7 +23,13 @@ export default function AppNavigator() {
     );
   }
 
-  return isAuthenticated ? <TabNavigator /> : <AuthNavigator />;
+  return isAuthenticated ? (
+    <RealtimeIoTProvider>
+      <TabNavigator />
+    </RealtimeIoTProvider>
+  ) : (
+    <AuthNavigator />
+  );
 }
 
 const styles = StyleSheet.create({
