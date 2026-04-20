@@ -1,5 +1,13 @@
-import { useEffect, useState } from 'react';
+import {
+  createContext,
+  ReactNode,
+  useContext,
+  useEffect,
+  useState,
+  createElement,
+} from 'react';
 import { io, Socket } from 'socket.io-client';
+import api from '../api/client';
 import type { IotAlert, SensorReading } from '../types';
 
 let socket: Socket | null = null;
@@ -14,12 +22,34 @@ function getSocket(): Socket {
   return socket;
 }
 
-export function useRealtimeIoT() {
+interface Ctx {
+  readings: SensorReading[];
+  alerts: IotAlert[];
+  conectado: boolean;
+}
+
+const RealtimeCtx = createContext<Ctx | null>(null);
+
+export function RealtimeIoTProvider({ children }: { children: ReactNode }) {
   const [readings, setReadings] = useState<SensorReading[]>([]);
   const [alerts, setAlerts] = useState<IotAlert[]>([]);
   const [conectado, setConectado] = useState(false);
 
   useEffect(() => {
+    // Seed REST para no depender del timing del snapshot del socket.
+    (async () => {
+      try {
+        const [lecturas, lista] = await Promise.all([
+          api.get<SensorReading[]>('/api/iot/telemetry/latest'),
+          api.get<IotAlert[]>('/api/iot/alerts'),
+        ]);
+        setReadings(lecturas.data);
+        setAlerts(lista.data);
+      } catch {
+        /* el socket rellena */
+      }
+    })();
+
     const s = getSocket();
     const onConnect = () => setConectado(true);
     const onDisconnect = () => setConectado(false);
@@ -28,7 +58,13 @@ export function useRealtimeIoT() {
       setAlerts(data.alerts);
     };
     const onReading = (r: SensorReading) => {
-      setReadings((prev) => [r, ...prev.filter((x) => x.sensorId !== r.sensorId)]);
+      // Dedupe por (sensorId + tipo) para que temp/hum del mismo sensor coexistan.
+      setReadings((prev) => [
+        r,
+        ...prev.filter(
+          (x) => !(x.sensorId === r.sensorId && x.tipo === r.tipo),
+        ),
+      ]);
     };
     const onAlert = (a: IotAlert) =>
       setAlerts((prev) => [a, ...prev.filter((x) => x.id !== a.id)]);
@@ -58,5 +94,16 @@ export function useRealtimeIoT() {
     };
   }, []);
 
-  return { readings, alerts, conectado };
+  return createElement(
+    RealtimeCtx.Provider,
+    { value: { readings, alerts, conectado } },
+    children,
+  );
+}
+
+export function useRealtimeIoT(): Ctx {
+  const ctx = useContext(RealtimeCtx);
+  if (!ctx)
+    throw new Error('useRealtimeIoT debe usarse dentro de RealtimeIoTProvider');
+  return ctx;
 }

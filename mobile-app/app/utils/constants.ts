@@ -15,7 +15,16 @@
  *  - En device fisico conectado por USB usa la IP local de tu PC
  *    (ej. 192.168.1.50).
  */
-export const API_BASE_URL = 'http://10.0.2.2:80';
+/**
+ * Para ver la app desde un telefono FISICO conectado a la misma red WiFi
+ * que tu PC: usa la IP LAN de tu PC (la que sale en `ipconfig` como
+ * "Wi-Fi IPv4 Address"). Ej: 'http://192.168.0.103:80'.
+ *
+ * Para emulador Android Studio: 'http://10.0.2.2:80' (reserva especial).
+ *
+ * Cambia esto y recompila. Si el WiFi de tu PC cambia de red, la IP cambia.
+ */
+export const API_BASE_URL = 'http://192.168.0.103:80';
 
 /**
  * Nombres de las rutas de navegacion. Los usamos para navegar de forma

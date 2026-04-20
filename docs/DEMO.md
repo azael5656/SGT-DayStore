@@ -1,133 +1,258 @@
-# Guia de presentacion — sensores simulados y escenarios
+# DayIsaacStore — Guía de demo
 
-Esta guia describe como ejecutar una demostracion end-to-end del sistema
-IoT sin necesidad de ESP32 fisico. Se apoya en dos piezas:
+Documento único para arrancar, actualizar y probar el proyecto end‑to‑end.
 
-1. **MockPublisherService** (backend-iot): publica lecturas sinteticas por
-   MQTT de forma continua cuando `MOCK_SENSORS=true`.
-2. **SimulatorController** (backend-iot): tres endpoints HTTP que lanzan
-   escenarios dramaticos durante la presentacion (incendio, forzado,
-   normal). Cada escenario fuerza lecturas y genera alertas visibles
-   inmediatamente en el movil.
+## Cuentas demo
 
-Ambas piezas escriben al `InMemoryStoreService`, que TelemetryService y
-AlertsService leen en vivo. No depende de Mongo — los datos se pierden
-al reiniciar el backend.
+| Rol          | Email                        | Contraseña  | Qué puede ver                                                                  |
+|--------------|------------------------------|-------------|--------------------------------------------------------------------------------|
+| Super admin  | `super@daystore.local`       | `super1234` | Todo: IoT, inventario, ventas, alertas, auditoría, histórico, usuarios, config |
+| Administrador| `owner@daystore.local`       | `123456`    | Todo menos gestión de super admins                                             |
+| Vendedor     | `vendedor@daystore.local`    | `123456`    | Home, inventario (lectura), ventas, alertas, perfil                            |
 
-## Preparacion (una sola vez)
+Se crean con `npm run seed:users`. El super admin es único: solo puede existir uno activo.
+
+---
+
+## Arranque desde cero
+
+Asume Docker Desktop, Node 20+, Android Studio (para el emulador) y `adb` en PATH.
 
 ```bash
-# En la raiz del repo
-cp .env.example .env
-# En backend-iot
-cp backend-iot/.env.example backend-iot/.env
-# Activar el simulador en backend-iot/.env
-#   MOCK_SENSORS=true
+cd C:/dev/daystore/proyecto
 
-# Levantar infraestructura (Mosquitto, Postgres, Mongo, Redis, nginx)
-docker compose -f docker-compose.dev.yml up -d
+# 1) Copiar .env
+cp .env.example .env    # o edita .env si ya existe
 
-# Backend IoT
-cd backend-iot && npm install && npm run start:dev
-# (en otra terminal)
-# Backend Negocio
-cd backend-negocio && npm install && npm run start:dev
-# (en otra terminal)
-# Mobile
-cd mobile-app && npm install && npm start
-# Luego en otra terminal: npx react-native run-android
+# 2) Generar llaves JWT si nunca lo has hecho
+bash infra/scripts/generate-jwt-keys.sh
+
+# 3) Levantar backend + Mongo + Postgres + Redis + nginx + Mosquitto
+docker compose up -d
+
+# 4) Sembrar datos
+docker compose exec -T backend-negocio node dist/seeds/seed-users.js
+docker compose exec -T backend-negocio node dist/seeds/seed-inventario.js
+
+# 5) Mobile (Metro + emulador)
+cd mobile-app
+npm install
+adb emu start @Pixel_7    # o el AVD que tengas
+npx react-native start --reset-cache &
+npx react-native run-android
+
+# 6) Web (admin panel)
+cd ../frontend-web
+npm install
+npm run dev
+# abrir http://localhost:5173
 ```
 
-> Verifica que en los logs de **backend-iot** aparezca
-> `Simulador de sensores ACTIVO (MOCK_SENSORS=true). Publicando a tienda/#`
-> y que `MqttService` diga `Conectado al broker MQTT: mqtt://...`.
+---
 
-## Flujo de la demo
-
-### 1. Login (backend-negocio)
-
-En el emulador, pantalla de login:
-
-- Email: `owner@daystore.local`
-- Contrasena: `123456`
-
-> Cualquier email con "owner" y password >= 6 caracteres pasa la
-> validacion mock actual del backend-negocio (ver `auth.service.ts`,
-> pendiente de implementar bcrypt real).
-
-La app entra a los tabs.
-
-### 2. Estado normal
-
-Tab **Dashboard** muestra:
-
-- Temperatura oscilando alrededor de 22-26 C.
-- Puerta mayormente cerrada.
-- Movimiento tranquilo.
-
-Los valores se refrescan cada 5 s porque el MockPublisher sigue corriendo.
-
-### 3. Escenario: INCENDIO
-
-En una terminal (en la PC de la demo):
+## Actualizar tras cambios (flujo diario)
 
 ```bash
-curl -X POST http://localhost:3002/api/iot/simulator/escenario/incendio
+# 1) Pull de la rama
+cd C:/dev/daystore/proyecto
+git pull
+
+# 2) Reconstruir lo que cambió
+docker compose build backend-iot backend-negocio
+docker compose up -d --force-recreate backend-iot backend-negocio
+
+# 3) Seed solo si el schema cambió
+docker compose exec -T backend-negocio node dist/seeds/seed-users.js
+
+# 4a) Mobile: si cambió solo TS/JSX — basta con reset de Metro
+cd mobile-app
+adb shell am force-stop com.daystoreapp
+npx react-native start --reset-cache &
+adb shell am start -n com.daystoreapp/.MainActivity
+
+# 4b) Mobile: si cambió algo NATIVO (libs nuevas, permisos, archivos en res/) — rebuild APK
+cd mobile-app/android
+./gradlew assembleDebug --no-daemon --project-cache-dir=C:/gc
+adb -s emulator-5554 install -r app/build/outputs/apk/debug/app-debug.apk
+# para teléfono físico (ajusta el serial, ej. adb devices para verlo):
+adb -s <serial> install -r app/build/outputs/apk/debug/app-debug.apk
+
+# 5) Web: Vite tiene HMR; si algo se congela, reinicia:
+cd frontend-web
+npm run dev
 ```
 
-Inmediatamente en el emulador:
+---
 
-- Tab **Dashboard**: temperatura salta a ~38-42 C en rojo.
-- Tab **Alertas**: aparece alerta `CRITICA` "Temperatura critica XX°C —
-  posible incendio".
-- **El telefono vibra** con patron de 500 ms — no para hasta que toques
-  "Reconocer" en la alerta.
-
-### 4. Escenario: FORZADO
+## APK release para teléfono físico
 
 ```bash
-curl -X POST http://localhost:3002/api/iot/simulator/escenario/forzado
+# 1) Cambiar IP en mobile-app/app/utils/constants.ts
+# API_BASE_URL = 'http://<IP-LAN-de-tu-PC>:80'
+# (obtén la IP con `ipconfig` → Wi-Fi IPv4 Address)
+
+# 2) Abrir firewall Windows (PowerShell Admin)
+# New-NetFirewallRule -DisplayName "DayStore nginx 80" -Direction Inbound -Protocol TCP -LocalPort 80 -Action Allow
+
+# 3) Build release (~5-8 min en Windows)
+cd mobile-app/android
+./gradlew assembleRelease --no-daemon --project-cache-dir=C:/gc
+
+# 4) APK queda en:
+# mobile-app/android/app/build/outputs/apk/release/app-release.apk
+
+# 5) Instalar en el teléfono (USB debugging activado):
+adb -s <serial-tel> install -r app/build/outputs/apk/release/app-release.apk
+
+# O copiar el APK a Drive / WhatsApp y abrir desde el teléfono.
 ```
 
-- Tab **Dashboard**: puerta abierta (rojo) + movimiento reciente
-  (naranja).
-- Tab **Alertas**: alerta `CRITICA` "Intento de forzado detectado".
-- **Vibracion** hasta reconocer.
+Teléfono y PC deben estar en la **misma red WiFi** sin aislamiento de clientes.
 
-### 5. Volver a la normalidad
+---
+
+## Escenarios IoT (demo en vivo)
+
+Los escenarios duran 15 s sosteniendo valores extremos. El buzzer suena y vibra en el móvil hasta que reconoces la alerta o pasa el timeout (20 s).
+
+| Escenario     | Qué hace                                                                     | Comando                                                                    |
+|---------------|------------------------------------------------------------------------------|----------------------------------------------------------------------------|
+| Incendio      | Temperatura 38–42 °C durante 15 s + alerta crítica + buzzer                  | `curl.exe -X POST http://localhost/api/iot/simulator/escenario/incendio`   |
+| Forzado       | Santa maría abierta + vibración en 2 vitrinas + movimiento + buzzer          | `curl.exe -X POST http://localhost/api/iot/simulator/escenario/forzado`    |
+| Corte de luz  | Corriente cae a 0 W + buzzer + alerta crítica                                | `curl.exe -X POST http://localhost/api/iot/simulator/escenario/corte_luz`  |
+| Normal        | Resetea todo: alertas limpiadas, buzzer apagado, sensores a estado seguro    | `curl.exe -X POST http://localhost/api/iot/simulator/escenario/normal`     |
+
+> En Windows usa `curl.exe` explícitamente. `curl` a secas es alias de PowerShell `Invoke-WebRequest` y da error con `-X POST`.
+
+Alerta tipo `movimiento` (severidad alta, **sin sonido**) se genera automáticamente si el PIR detecta algo con la tienda **cerrada** según `StoreConfig`.
+
+---
+
+## Sensores modelados
+
+| Sensor físico               | Cantidad | Tipo de publicación                    | Estado por defecto |
+|-----------------------------|----------|----------------------------------------|--------------------|
+| DHT22 ambiente              | 1        | Continua (temp cada 2 s, hum cada 3 s) | 22 °C / 55 %       |
+| MC-38 santa maría del local | 1        | Solo evento (al abrir/cerrar)          | cerrada            |
+| SW-420 vitrinas             | 2        | Solo evento (intento de forzar)        | estable            |
+| PIR HC-SR501 interior       | 1        | Solo fuera de horario                  | tranquilo          |
+| SCT-013-030 corriente       | 1        | Continua cada 3 s                      | ~280 W             |
+| Buzzer 5 V                  | 1        | Solo lo enciende un escenario          | silencio           |
+
+---
+
+## Configuración de la tienda (horario / vacaciones / cierre temprano)
+
+Accesible desde móvil (Home → card **"Horario de la tienda"** si eres admin/superadmin) o con curl:
 
 ```bash
-curl -X POST http://localhost:3002/api/iot/simulator/escenario/normal
-```
-
-- Temperatura y puerta vuelven a valores estables.
-- Todas las alertas se limpian.
-- La vibracion se detiene cuando AlertBanner se desmonta.
-
-## Verificar desde el API (opcional)
-
-```bash
-# Login para obtener token
-TOKEN=$(curl -s -X POST http://localhost:3001/api/negocio/auth/login \
+# Leer config actual
+TOKEN=$(curl.exe -s -X POST http://localhost/api/negocio/auth/login \
   -H "Content-Type: application/json" \
-  -d '{"email":"owner@daystore.local","password":"123456"}' \
-  | node -e "let d=''; process.stdin.on('data',c=>d+=c); process.stdin.on('end',()=>{console.log(JSON.parse(d).accessToken)})")
+  -d '{"email":"owner@daystore.local","password":"123456"}' | jq -r .accessToken)
 
-# Consultar telemetria y alertas
-curl -H "Authorization: Bearer $TOKEN" http://localhost:3002/api/iot/telemetry/latest | jq
-curl -H "Authorization: Bearer $TOKEN" http://localhost:3002/api/iot/telemetry/dashboard | jq
-curl -H "Authorization: Bearer $TOKEN" http://localhost:3002/api/iot/alerts | jq
+curl.exe -s -H "Authorization: Bearer $TOKEN" http://localhost/api/iot/store/config
+
+# ¿Abierta ahora?
+curl.exe -s -H "Authorization: Bearer $TOKEN" http://localhost/api/iot/store/config/is-open
+
+# Forzar modo nocturno (cualquier movimiento dispara alerta)
+curl.exe -s -X PUT http://localhost/api/iot/store/config \
+  -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{"modoNocturno":true}'
+
+# Irme de vacaciones hasta el 25/04
+curl.exe -s -X PUT http://localhost/api/iot/store/config \
+  -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{"vacacionesHasta":"2026-04-25"}'
+
+# Cerrar hoy temprano a las 16:00
+curl.exe -s -X PUT http://localhost/api/iot/store/config \
+  -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{"cerrarHoyA":"16:00"}'
+
+# Domingo y lunes cerrado todo el día
+curl.exe -s -X PUT http://localhost/api/iot/store/config \
+  -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{"diasCerrados":[0,1]}'
 ```
 
-## Notas
+Orden de evaluación para decidir "abierta ahora":
 
-- Los endpoints del simulador (`/api/iot/simulator/escenario/:nombre`)
-  estan marcados `@Public()` para facilitar la demo con curl. Antes de
-  produccion hay que retirar ese decorator o restringir con `@Roles('admin')`.
-- `InMemoryStoreService` es explicitamente para dev/demo. Cuando el
-  equipo implemente los schemas Mongo (`sensor-reading.schema.ts`,
-  `alert.schema.ts`) y el handler de persistencia en `MqttService`, se
-  podra retirar o mantener como cache.
-- La validacion de password en `backend-negocio/src/auth/auth.service.ts`
-  sigue siendo mock. Para demo sirve; para produccion hay que implementar
-  bcrypt + seed de usuarios.
+1. `modoNocturno === true` → cerrada
+2. `vacacionesHasta >= hoy` → cerrada
+3. `diaSemana` en `diasCerrados` → cerrada
+4. `cerrarHoyA` seteado y hora actual ≥ `cerrarHoyA` → cerrada
+5. Hora actual fuera de `horarioApertura`–`horarioCierre` → cerrada
+6. En otro caso → abierta
+
+Las comparaciones usan la `zonaHoraria` configurada (por defecto `America/Bogota`), no la hora del contenedor Docker.
+
+---
+
+## URLs útiles
+
+| Servicio              | URL                                    |
+|-----------------------|----------------------------------------|
+| API gateway (nginx)   | `http://localhost` o `http://<IP-LAN>` |
+| Web admin             | `http://localhost:5173`                |
+| Metro (dev mobile)    | `http://localhost:8081`                |
+| Mongo                 | `mongodb://localhost:27017/sgt_iot`    |
+| Postgres              | `postgres://localhost:5432/sgt_daystore` |
+| MQTT broker           | `mqtt://localhost:1883`                |
+
+### Endpoints principales
+
+| Método | Ruta                                              | Quién                    |
+|--------|---------------------------------------------------|--------------------------|
+| POST   | `/api/negocio/auth/login`                         | público                  |
+| POST   | `/api/negocio/auth/refresh`                       | público                  |
+| GET    | `/api/negocio/users`                              | admin, superadmin        |
+| POST   | `/api/negocio/users`                              | admin (solo vendedor), super (cualquiera) |
+| PATCH  | `/api/negocio/users/:id/role`                     | superadmin               |
+| GET    | `/api/negocio/products`                           | autenticado              |
+| POST   | `/api/negocio/products`                           | admin, superadmin        |
+| GET    | `/api/negocio/audit/logs?page=1&limit=50`         | admin, superadmin        |
+| GET    | `/api/iot/alerts`                                 | autenticado              |
+| PUT    | `/api/iot/alerts/:id/acknowledge`                 | autenticado              |
+| GET    | `/api/iot/telemetry/latest`                       | autenticado              |
+| GET    | `/api/iot/sensors/readings/historico`             | admin, superadmin        |
+| GET/PUT| `/api/iot/store/config`                           | GET: autenticado; PUT: admin/super |
+| POST   | `/api/iot/simulator/escenario/{incendio\|forzado\|corte_luz\|normal}` | público (demo) |
+
+### Socket.IO realtime
+
+| Path        | Eventos del servidor → cliente                                          |
+|-------------|-------------------------------------------------------------------------|
+| `/socket.io`| `snapshot` (al conectar), `reading`, `alert`, `alert.ack`, `alerts.cleared` |
+
+---
+
+## Troubleshooting
+
+| Síntoma                                              | Solución                                                               |
+|------------------------------------------------------|------------------------------------------------------------------------|
+| "Error de red" al login en teléfono físico           | Confirmar misma WiFi, firewall abierto en 80, `API_BASE_URL` correcto   |
+| "Unable to resolve module" tras crear archivo nuevo  | `npx react-native start --reset-cache`                                  |
+| Cambios backend no se reflejan                       | `docker compose up -d --force-recreate backend-iot`                     |
+| Seed falla con "MODULE_NOT_FOUND"                    | Dockerfile es prod sin ts-node. Usa `node dist/seeds/seed-users.js`     |
+| APK no instala por firma                             | `adb uninstall com.daystoreapp` y reinstala                             |
+| Buzzer no suena (emulador)                           | Volumen "Media" subido. Móviles físicos suenan fuerte                   |
+| Vite proxy 502                                       | Backend no corre: `docker compose ps` y levantar lo que falte           |
+| Auditoría muestra `api.create` en vez de texto       | Actualizar al commit con `labelAccion()`                                |
+| Alertas se apilan al lanzar `incendio` varias veces  | Dedupe por tipo activo; reconoce la alerta para empezar una nueva       |
+| Temperatura cambia demasiado rápido                  | Esperado: drift 0.04 + ruido ±0.05 → cambios de ~0.05–0.2 °C cada 2 s   |
+
+---
+
+## Flujo de demo recomendado (10 min)
+
+1. Abrir web `http://localhost:5173`, login con `super@`.
+2. Enseñar Home hub con las métricas en vivo.
+3. En móvil, login con `owner@`, mostrar tabs filtrados por rol.
+4. `curl.exe -X POST http://localhost/api/iot/simulator/escenario/incendio` → alarma suena, vibra, banner rojo en Home, protocolo de emergencia.
+5. Tocar "Marcar como revisada" → alarma para.
+6. Abrir **Horario de la tienda** → cambiar a modo nocturno, enseñar que se evalúa contra zona horaria configurada.
+7. Abrir Auditoría → ver el log humano ("owner Reconoció una alerta").
+8. Abrir Histórico → ver tendencia de temperatura con sparkline.
+9. Login en otro device con `vendedor@` → enseñar que NO ve tabs de admin.

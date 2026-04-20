@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { useRealtimeIoT } from '../hooks/useRealtimeIoT';
 import type { SensorReading } from '../types';
+import { labelSensor, labelTipo } from '../utils/labels';
 
 const ICONOS: Record<string, string> = {
   temperatura: '🌡️',
@@ -131,10 +132,12 @@ export default function DashboardPage() {
           </div>
         ) : (
           readings.map((l) => (
-            <div key={l.sensorId} className="px-4 py-3 flex justify-between items-center">
+            <div
+              key={l.sensorId + '::' + l.tipo}
+              className="px-4 py-3 flex justify-between items-center">
               <div>
                 <div className="text-sm font-medium">
-                  {ICONOS[l.tipo] ?? '📡'} {l.sensorId}
+                  {ICONOS[l.tipo] ?? '📡'} {labelSensor(l.sensorId)}
                 </div>
                 <div className="text-xs text-gray-500">
                   {new Date(l.fecha).toLocaleTimeString()}
@@ -142,9 +145,10 @@ export default function DashboardPage() {
               </div>
               <div className="text-right">
                 <div className="text-lg font-bold text-primary">
-                  {l.valor} <span className="text-xs text-gray-400">{l.unidad}</span>
+                  {l.valor}{' '}
+                  <span className="text-xs text-gray-400">{l.unidad}</span>
                 </div>
-                <div className="text-xs text-gray-500 uppercase">{l.tipo}</div>
+                <div className="text-xs text-gray-500">{labelTipo(l.tipo)}</div>
               </div>
             </div>
           ))

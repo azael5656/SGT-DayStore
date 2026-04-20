@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import api from '../api/client';
 import type { Page, SensorReading } from '../types';
+import { labelSensor } from '../utils/labels';
 
 const TIPOS = [
   { label: 'Temperatura', value: 'temperatura', unidad: '°C', color: '#DC2626' },
@@ -92,8 +93,8 @@ export default function HistoricoPage() {
         <Sparkline values={valores} width={420} height={70} color={tipoActivo.color} />
       </div>
 
-      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-        <table className="w-full text-sm">
+      <div className="bg-white rounded-xl border border-gray-200 overflow-x-auto">
+        <table className="w-full text-sm min-w-[500px]">
           <thead className="bg-gray-50 border-b border-gray-200">
             <tr className="text-left text-xs uppercase text-gray-500">
               <th className="px-3 py-2">Cuando</th>
@@ -114,7 +115,7 @@ export default function HistoricoPage() {
                 <td className="px-3 py-2 text-xs text-gray-600 whitespace-nowrap">
                   {new Date(r.fecha).toLocaleString()}
                 </td>
-                <td className="px-3 py-2 font-medium">{r.sensorId}</td>
+                <td className="px-3 py-2 font-medium">{labelSensor(r.sensorId)}</td>
                 <td className="px-3 py-2 text-right font-bold">
                   {r.valor}
                   <span className="ml-1 text-xs text-gray-400">{r.unidad}</span>

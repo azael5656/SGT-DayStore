@@ -67,8 +67,8 @@ export default function InventarioPage() {
         </button>
       </div>
 
-      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-        <table className="w-full text-sm">
+      <div className="bg-white rounded-xl border border-gray-200 overflow-x-auto">
+        <table className="w-full text-sm min-w-[720px]">
           <thead className="bg-gray-50 border-b border-gray-200">
             <tr className="text-left text-xs uppercase text-gray-500">
               <th className="px-3 py-2">Nombre</th>

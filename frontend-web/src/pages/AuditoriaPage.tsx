@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import api from '../api/client';
 import type { AuditLog, Page } from '../types';
+import { labelAccion } from '../utils/labels';
 
 const ACCIONES = [
   { label: 'Todo', value: '' },
@@ -94,8 +95,8 @@ export default function AuditoriaPage() {
         </button>
       </div>
 
-      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-        <table className="w-full text-sm">
+      <div className="bg-white rounded-xl border border-gray-200 overflow-x-auto">
+        <table className="w-full text-sm min-w-[680px]">
           <thead className="bg-gray-50 border-b border-gray-200">
             <tr className="text-left text-xs uppercase text-gray-500">
               <th className="px-3 py-2">Cuando</th>
@@ -121,25 +122,45 @@ export default function AuditoriaPage() {
                 </td>
               </tr>
             )}
-            {items.map((it) => (
-              <tr key={it.id}>
-                <td className="px-3 py-2 text-xs text-gray-600 whitespace-nowrap">
-                  {new Date(it.createdAt).toLocaleString()}
-                </td>
-                <td className="px-3 py-2">{it.userEmail ?? <em className="text-gray-400">sistema</em>}</td>
-                <td className="px-3 py-2 text-xs text-gray-500">{it.userRole ?? '-'}</td>
-                <td className="px-3 py-2">
-                  <span className={`px-2 py-0.5 rounded text-xs font-mono ${colorAccion(it.action)}`}>
-                    {it.action}
-                  </span>
-                </td>
-                <td className="px-3 py-2 text-xs text-gray-600">
-                  {it.resource ?? '-'}
-                  {it.resourceId ? `/${it.resourceId.slice(0, 12)}` : ''}
-                </td>
-                <td className="px-3 py-2 text-xs text-gray-500">{it.ip ?? '-'}</td>
-              </tr>
-            ))}
+            {items.map((it) => {
+              const actor = it.userEmail
+                ? it.userEmail.split('@')[0]
+                : 'El sistema';
+              const rolLabel =
+                it.userRole === 'superadmin'
+                  ? 'Super admin'
+                  : it.userRole === 'admin'
+                  ? 'Administrador'
+                  : it.userRole === 'vendedor'
+                  ? 'Vendedor'
+                  : '-';
+              return (
+                <tr key={it.id}>
+                  <td className="px-3 py-2 text-xs text-gray-600 whitespace-nowrap">
+                    {new Date(it.createdAt).toLocaleString()}
+                  </td>
+                  <td className="px-3 py-2">
+                    <div className="font-semibold">{actor}</div>
+                    {it.userEmail && (
+                      <div className="text-xs text-gray-500">{it.userEmail}</div>
+                    )}
+                  </td>
+                  <td className="px-3 py-2 text-xs text-gray-500">{rolLabel}</td>
+                  <td className="px-3 py-2">
+                    <span
+                      className={`px-2 py-0.5 rounded text-xs ${colorAccion(it.action)}`}>
+                      {labelAccion(it.action)}
+                    </span>
+                  </td>
+                  <td className="px-3 py-2 text-xs text-gray-600">
+                    {it.resource ?? '-'}
+                  </td>
+                  <td className="px-3 py-2 text-xs text-gray-500">
+                    {it.ip ?? '-'}
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>

@@ -197,6 +197,13 @@ export default function HomePage() {
               color="bg-purple-100 text-purple-700"
               to="/usuarios"
             />
+            <QuickCard
+              icono="🕒"
+              titulo="Horario de la tienda"
+              sub="Horario, vacaciones y cierre temprano"
+              color="bg-emerald-100 text-emerald-700"
+              to="/horario-tienda"
+            />
           </div>
         </>
       )}

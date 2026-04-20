@@ -37,6 +37,7 @@ const GROUPS: NavGroup[] = [
       { to: '/auditoria', label: 'Auditoria', icon: '📋', roles: ['admin', 'superadmin'] },
       { to: '/historico', label: 'Historico IoT', icon: '📈', roles: ['admin', 'superadmin'] },
       { to: '/usuarios', label: 'Usuarios', icon: '👥', roles: ['admin', 'superadmin'] },
+      { to: '/horario-tienda', label: 'Horario tienda', icon: '🕒', roles: ['admin', 'superadmin'] },
     ],
   },
 ];

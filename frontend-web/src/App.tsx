@@ -6,6 +6,7 @@ import AuditoriaPage from './pages/AuditoriaPage';
 import DashboardPage from './pages/DashboardPage';
 import HistoricoPage from './pages/HistoricoPage';
 import HomePage from './pages/HomePage';
+import HorarioTiendaPage from './pages/HorarioTiendaPage';
 import InventarioPage from './pages/InventarioPage';
 import LoginPage from './pages/LoginPage';
 import PerfilPage from './pages/PerfilPage';
@@ -96,6 +97,16 @@ export default function App() {
           <ProtectedRoute roles={['admin', 'superadmin']}>
             <Layout>
               <UsuariosPage />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/horario-tienda"
+        element={
+          <ProtectedRoute roles={['admin', 'superadmin']}>
+            <Layout>
+              <HorarioTiendaPage />
             </Layout>
           </ProtectedRoute>
         }
