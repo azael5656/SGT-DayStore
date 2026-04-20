@@ -1,3 +1,17 @@
+/**
+ * Filtro de alertas por rol:
+ *  - vendedor: solo incendio + forzado (lo que afecta productos y vitrinas)
+ *  - admin/superadmin: todas
+ */
+export function alertaVisibleParaRol(
+  tipoAlerta: string,
+  role: string | undefined,
+): boolean {
+  if (!role) return false;
+  if (role === 'admin' || role === 'superadmin') return true;
+  return tipoAlerta === 'incendio' || tipoAlerta === 'forzado';
+}
+
 export function labelSensor(sensorId: string): string {
   const map: Record<string, string> = {
     'dht22-ambiente': 'Ambiente de la tienda',

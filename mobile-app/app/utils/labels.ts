@@ -10,6 +10,25 @@ export function saludoPorHora(fecha = new Date()): string {
   return 'Buenas noches';
 }
 
+/**
+ * Decide si un tipo de alerta es relevante para el rol del usuario.
+ *
+ * Vendedor: solo ve lo que afecta su trabajo directo:
+ *  - incendio (productos se pueden arruinar)
+ *  - forzado (santa maria abierta o vitrina golpeada)
+ *
+ * Admin / superadmin: ven todo (incluye movimiento fuera de horario,
+ * cortes de luz, etc).
+ */
+export function alertaVisibleParaRol(
+  tipoAlerta: string,
+  role: string | undefined,
+): boolean {
+  if (!role) return false;
+  if (role === 'admin' || role === 'superadmin') return true;
+  return tipoAlerta === 'incendio' || tipoAlerta === 'forzado';
+}
+
 /** Traduce sensorId a etiqueta humana. */
 export function labelSensor(sensorId: string): string {
   const map: Record<string, string> = {

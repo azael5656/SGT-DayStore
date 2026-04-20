@@ -4,10 +4,13 @@ import React, {
   useCallback,
   useContext,
   useEffect,
+  useMemo,
   useState,
 } from 'react';
 import { iotService, type Alert, type SensorReading } from '../services/iot.service';
 import { getRealtimeSocket } from '../services/realtime.service';
+import { alertaVisibleParaRol } from '../utils/labels';
+import { useAuth } from './AuthContext';
 
 /**
  * Estado realtime IoT compartido por toda la app autenticada.
@@ -30,9 +33,19 @@ interface Ctx {
 const RealtimeIoTContext = createContext<Ctx | null>(null);
 
 export function RealtimeIoTProvider({ children }: { children: ReactNode }) {
+  const { user } = useAuth();
   const [readings, setReadings] = useState<SensorReading[]>([]);
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [conectado, setConectado] = useState(false);
+
+  /**
+   * Vendedor no ve alertas de corte_luz ni movimiento; solo las que afectan
+   * su trabajo (incendio, forzado). Admin/super ven todo.
+   */
+  const alertasVisibles = useMemo(
+    () => alerts.filter((a) => alertaVisibleParaRol(a.tipo, user?.role)),
+    [alerts, user?.role],
+  );
 
   const fetchSeed = useCallback(async () => {
     // Hacemos fetch en paralelo de lecturas y alertas. Si el snapshot del
@@ -102,7 +115,7 @@ export function RealtimeIoTProvider({ children }: { children: ReactNode }) {
 
   return (
     <RealtimeIoTContext.Provider
-      value={{ readings, alerts, setAlerts, conectado }}>
+      value={{ readings, alerts: alertasVisibles, setAlerts, conectado }}>
       {children}
     </RealtimeIoTContext.Provider>
   );

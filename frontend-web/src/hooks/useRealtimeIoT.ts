@@ -3,12 +3,15 @@ import {
   ReactNode,
   useContext,
   useEffect,
+  useMemo,
   useState,
   createElement,
 } from 'react';
 import { io, Socket } from 'socket.io-client';
 import api from '../api/client';
+import { useAuth } from '../auth/AuthContext';
 import type { IotAlert, SensorReading } from '../types';
+import { alertaVisibleParaRol } from '../utils/labels';
 
 let socket: Socket | null = null;
 
@@ -31,9 +34,16 @@ interface Ctx {
 const RealtimeCtx = createContext<Ctx | null>(null);
 
 export function RealtimeIoTProvider({ children }: { children: ReactNode }) {
+  const { user } = useAuth();
   const [readings, setReadings] = useState<SensorReading[]>([]);
   const [alerts, setAlerts] = useState<IotAlert[]>([]);
   const [conectado, setConectado] = useState(false);
+
+  // Filtra alertas segun rol: vendedor solo ve incendio + forzado.
+  const alertasVisibles = useMemo(
+    () => alerts.filter((a) => alertaVisibleParaRol(a.tipo, user?.role)),
+    [alerts, user?.role],
+  );
 
   useEffect(() => {
     // Seed REST para no depender del timing del snapshot del socket.
@@ -96,7 +106,7 @@ export function RealtimeIoTProvider({ children }: { children: ReactNode }) {
 
   return createElement(
     RealtimeCtx.Provider,
-    { value: { readings, alerts, conectado } },
+    { value: { readings, alerts: alertasVisibles, conectado } },
     children,
   );
 }
