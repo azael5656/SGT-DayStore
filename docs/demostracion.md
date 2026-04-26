@@ -109,6 +109,87 @@ Teléfono y PC deben estar en la **misma red WiFi** sin aislamiento de clientes.
 
 ---
 
+## Compañero sin Android Studio: instalar el APK directo en el celular
+
+Para quien tiene problemas con Android Studio (o no lo quiere instalar). Solo necesitas un APK ya compilado y un teléfono Android. **No instalas SDK, no instalas emulador, no compilas.**
+
+### Lo que pides al equipo
+
+- Archivo `app-debug.apk` (lo manda quien sí tiene el entorno completo, por WhatsApp / Drive / USB).
+- IP local de la PC que va a correr el backend (`ipconfig` → Wi-Fi IPv4, ej. `192.168.0.103`).
+- Esa IP **debe estar quemada en el APK** que te mandan. Si el APK trae otra IP o `10.0.2.2`, no conecta. Pídele a quien compile que edite [mobile-app/app/utils/constants.ts:27](../mobile-app/app/utils/constants.ts#L27) con la IP correcta antes de hacer `assembleDebug`.
+
+### Preparar el teléfono (una sola vez)
+
+1. Ajustes → Seguridad / Privacidad → activar **"Instalar apps desconocidas"** para el navegador / WhatsApp / Drive (la app desde la que vas a abrir el `.apk`).
+2. Si Play Protect bloquea al instalar: **"Instalar de todos modos"**. El APK debug está firmado con keystore de desarrollo, no con uno de Play Store.
+3. Misma WiFi que el backend, sin aislamiento de clientes (las redes de oficina o WiFi públicas suelen bloquear).
+
+### Instalar el APK
+
+**Opción A — sin PC (la más sencilla):**
+
+1. Recibe el `.apk` por WhatsApp / Drive / correo / cable USB.
+2. Tócalo desde el administrador de archivos o la app de descargas.
+3. "Instalar". Si avisa "App no segura" → **Instalar de todos modos**.
+
+**Opción B — con PC y `adb` (si ya tienes Platform Tools):**
+
+```bash
+adb devices                                # debe listar el teléfono
+adb install -r ruta/al/app-debug.apk
+```
+
+Si solo necesitas `adb` y no quieres todo Android Studio: descarga **Android Platform Tools** (zip) desde [developer.android.com/tools/releases/platform-tools](https://developer.android.com/tools/releases/platform-tools), descomprime y mete la carpeta al PATH. Pesa ~15 MB.
+
+### Levantar el backend en otra PC del equipo
+
+Si tu PC es la que va a hostear el backend para que un compañero lo consuma desde el celular:
+
+1. Docker Desktop + Node 20+ instalados (Android Studio **no** hace falta para esto).
+2. Sigue **Arranque desde cero** de arriba, saltando los pasos 5 y 6 (Mobile y Web). Solo necesitas:
+
+   ```bash
+   cp .env.example .env
+   bash infra/scripts/generate-jwt-keys.sh
+   docker compose up -d
+   docker compose exec -T backend-negocio node dist/seeds/seed-users.js
+   docker compose exec -T backend-negocio node dist/seeds/seed-inventario.js
+   ```
+
+3. Saca tu IPv4 de la WiFi: `ipconfig` → busca **Adaptador de LAN inalámbrica Wi-Fi** → "Dirección IPv4".
+4. Abrir el firewall en el puerto 80 (PowerShell como **Admin**):
+
+   ```powershell
+   New-NetFirewallRule -DisplayName "DayStore nginx 80" -Direction Inbound -Protocol TCP -LocalPort 80 -Action Allow
+   ```
+
+5. Test desde el navegador del **teléfono**: `http://<tu-IP>:80/health` → debe responder `{"status":"ok","service":"gateway"}`. Si esto falla, no es problema de la app, es firewall o aislamiento de WiFi.
+6. Pásale tu IP al compañero que va a generar el APK; él edita `constants.ts` con esa IP, compila y te manda el `.apk`.
+
+### Verificar que quedó bien instalado
+
+1. Abre la app **DayStore** en el celular.
+2. Login con `vendedor@daystore.local` / `123456`.
+3. Si entra al Home → backend conecta, todo bien.
+4. Si dice **"Error de red"** o se queda cargando, no es la app, es la red:
+   - ¿Misma WiFi que la PC del backend?
+   - ¿La IP dentro del APK es la actual de esa PC? (cambia si reconectas el WiFi).
+   - ¿Firewall abierto en :80?
+   - Test: abrir `http://<IP-backend>:80/health` desde el navegador del teléfono. Si esto no responde, la app tampoco lo va a hacer.
+
+### Reinstalar / desinstalar
+
+Si al instalar dice **"App no instalada"** o falla por firma diferente:
+
+```bash
+adb uninstall com.daystoreapp
+```
+
+O en el teléfono: Ajustes → Apps → DayStore → Desinstalar. Después reinstala el APK nuevo.
+
+---
+
 ## Escenarios IoT (demo en vivo)
 
 Los escenarios duran 15 s sosteniendo valores extremos. El buzzer suena y vibra en el móvil hasta que reconoces la alerta o pasa el timeout (20 s).
