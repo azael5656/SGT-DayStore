@@ -34,7 +34,7 @@ export default function LoginPage() {
         <div className="flex items-center gap-3 mb-6">
           <span className="text-3xl">🏪</span>
           <div>
-            <h1 className="text-2xl font-bold">DayStore</h1>
+            <h1 className="text-2xl font-bold">Dayisaactore</h1>
             <p className="text-sm text-gray-500">Panel administrativo</p>
           </div>
         </div>
