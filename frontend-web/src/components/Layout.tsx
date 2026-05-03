@@ -62,7 +62,7 @@ export default function Layout({ children }: { children: ReactNode }) {
           <div className="flex items-center gap-2">
             <span className="text-2xl">🏪</span>
             <div>
-              <div className="font-bold text-lg">DayStore</div>
+              <div className="font-bold text-lg">Dayisaactore</div>
               <div className="text-xs text-gray-500">Panel admin</div>
             </div>
           </div>
