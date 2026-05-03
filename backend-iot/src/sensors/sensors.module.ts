@@ -8,6 +8,7 @@ import {
   SensorConfigSchema,
 } from './schemas/sensor-config.schema';
 import { SensorsController } from './sensors.controller';
+import { SensorsRepository } from './sensors.repository';
 import { SensorsService } from './sensors.service';
 
 @Module({
@@ -19,7 +20,7 @@ import { SensorsService } from './sensors.service';
     StoreConfigModule,
   ],
   controllers: [SensorsController],
-  providers: [SensorsService, MockPublisherService],
+  providers: [SensorsService, SensorsRepository, MockPublisherService],
   exports: [SensorsService],
 })
 export class SensorsModule {}

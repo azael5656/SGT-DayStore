@@ -16,6 +16,17 @@ export interface RegistrarInput {
   userAgent?: string | null;
 }
 
+/**
+ * Servicio de auditoría.
+ *
+ * Persiste eventos del sistema (logins, creaciones, cambios de rol,
+ * reconocimiento de alertas, etc.) en la tabla `audit_logs`. La auditoría
+ * es **best-effort**: si falla la escritura, NO debe romper la request
+ * que la disparó (ver `registrar` abajo).
+ *
+ * Backend-iot publica sus eventos a través del endpoint interno
+ * `POST /audit/internal` para que toda la auditoría viva en una sola BD.
+ */
 @Injectable()
 export class AuditService {
   private readonly logger = new Logger(AuditService.name);
@@ -25,6 +36,14 @@ export class AuditService {
     private readonly repo: Repository<AuditLog>,
   ) {}
 
+  /**
+   * Registra un evento de auditoría. Si la escritura falla, solo loguea
+   * un warning — nunca propaga la excepción para no romper el flujo
+   * principal del usuario.
+   *
+   * @param input Datos del evento: actor (user*), acción, recurso afectado,
+   *              metadata libre, IP y user-agent del request.
+   */
   async registrar(input: RegistrarInput): Promise<void> {
     try {
       const entity = this.repo.create({
@@ -40,11 +59,19 @@ export class AuditService {
       });
       await this.repo.save(entity);
     } catch (err) {
-      // No queremos que un fallo de auditoria rompa la request original.
       this.logger.warn(`No se pudo registrar audit log: ${(err as Error).message}`);
     }
   }
 
+  /**
+   * Lista los logs de auditoría con paginación y filtros opcionales.
+   *
+   * @param query  Filtros: `userEmail` (ILIKE), `action` (ILIKE), `resource`
+   *               (exacto), `desde`/`hasta` (rango de `createdAt`),
+   *               `page` (default 1), `limit` (default 50).
+   * @returns      `{ items, total, page, limit }` — formato estándar de
+   *               paginación del proyecto.
+   */
   async findAll(query: QueryAuditDto) {
     const page = query.page ?? 1;
     const limit = query.limit ?? 50;
@@ -67,6 +94,13 @@ export class AuditService {
     return { items, total, page, limit };
   }
 
+  /**
+   * Exporta los logs filtrados como CSV (máximo 200 filas por export).
+   * Útil para auditoría externa o respaldo manual.
+   *
+   * @param query Mismos filtros que `findAll`. Se ignoran `page`/`limit`.
+   * @returns     `{ formato: 'csv', csv: string, total: number }`.
+   */
   async exportLogs(query: QueryAuditDto) {
     const { items } = await this.findAll({ ...query, page: 1, limit: 200 });
     const header = 'fecha,usuario,rol,accion,recurso,recursoId,ip\n';

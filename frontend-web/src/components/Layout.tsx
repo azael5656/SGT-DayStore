@@ -20,7 +20,8 @@ const GROUPS: NavGroup[] = [
     title: 'Principal',
     items: [
       { to: '/', label: 'Home', icon: '🏠' },
-      { to: '/dashboard-detalle', label: 'Dashboard IoT', icon: '📊' },
+      { to: '/reportes', label: 'Reportes', icon: '📊', roles: ['admin', 'superadmin'] },
+      { to: '/dashboard-detalle', label: 'Dashboard IoT', icon: '📡' },
     ],
   },
   {
@@ -38,6 +39,8 @@ const GROUPS: NavGroup[] = [
       { to: '/historico', label: 'Historico IoT', icon: '📈', roles: ['admin', 'superadmin'] },
       { to: '/usuarios', label: 'Usuarios', icon: '👥', roles: ['admin', 'superadmin'] },
       { to: '/horario-tienda', label: 'Horario tienda', icon: '🕒', roles: ['admin', 'superadmin'] },
+      { to: '/tasas', label: 'Tasas de cambio', icon: '💱', roles: ['admin', 'superadmin'] },
+      { to: '/clientes', label: 'Clientes', icon: '🧾', roles: ['admin', 'superadmin'] },
     ],
   },
 ];

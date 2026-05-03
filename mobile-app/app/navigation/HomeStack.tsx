@@ -1,17 +1,18 @@
 import { createStackNavigator } from '@react-navigation/stack';
 import React from 'react';
 import AuditoriaScreen from '../screens/AuditoriaScreen';
+import ClientesScreen from '../screens/ClientesScreen';
 import ConfiguracionTiendaScreen from '../screens/ConfiguracionTiendaScreen';
 import DashboardScreen from '../screens/DashboardScreen';
 import HistoricoScreen from '../screens/HistoricoScreen';
 import HomeScreen from '../screens/HomeScreen';
-import PlaceholderScreen from '../screens/PlaceholderScreen';
+import MiNegocioScreen from '../screens/MiNegocioScreen';
+import TasasScreen from '../screens/TasasScreen';
 import UsuariosScreen from '../screens/UsuariosScreen';
+import VentasScreen from '../screens/VentasScreen';
 import { COLORS } from '../utils/constants';
 
 const Stack = createStackNavigator();
-
-const Ventas = () => <PlaceholderScreen nombre="Ventas" />;
 
 /**
  * Stack del tab Home. El Home es el hub (sin header).
@@ -38,7 +39,7 @@ export default function HomeStack() {
       />
       <Stack.Screen
         name="VentasDetalle"
-        component={Ventas}
+        component={VentasScreen}
         options={{ title: 'Ventas' }}
       />
       <Stack.Screen
@@ -60,6 +61,21 @@ export default function HomeStack() {
         name="ConfigTiendaDetalle"
         component={ConfiguracionTiendaScreen}
         options={{ title: 'Configuracion de la tienda' }}
+      />
+      <Stack.Screen
+        name="TasasDetalle"
+        component={TasasScreen}
+        options={{ title: 'Tasas de cambio' }}
+      />
+      <Stack.Screen
+        name="ClientesDetalle"
+        component={ClientesScreen}
+        options={{ title: 'Clientes / Deudores' }}
+      />
+      <Stack.Screen
+        name="MiNegocioDetalle"
+        component={MiNegocioScreen}
+        options={{ title: 'Mi negocio' }}
       />
     </Stack.Navigator>
   );

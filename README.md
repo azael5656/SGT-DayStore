@@ -90,7 +90,7 @@ docker compose down
 
    ```bash
    cd mobile-app/android
-   ./gradlew app:installDebug -PreactNativeDevServerPort=8081 --no-daemon --project-cache-dir=C:\gc
+   ./gradlew app:installDebug -PreactNativeDevServerPort=8081 --no-daemon "--project-cache-dir=C:\gc"
    ```
 
    **macOS/Linux**:
@@ -117,7 +117,7 @@ Desde `mobile-app/android/`:
 **Windows**:
 
 ```bash
-./gradlew assembleDebug --no-daemon --project-cache-dir=C:\gc
+./gradlew assembleDebug --no-daemon "--project-cache-dir=C:\gc"
 ```
 
 **macOS/Linux**:
@@ -163,7 +163,7 @@ La config actual de release en [mobile-app/android/app/build.gradle](mobile-app/
 3. Build:
 
    ```bash
-   ./gradlew assembleRelease --no-daemon --project-cache-dir=C:\gc   # Windows
+   ./gradlew assembleRelease --no-daemon "--project-cache-dir=C:\gc"   # Windows (comillas obligatorias en Git Bash)
    ./gradlew assembleRelease                                          # macOS/Linux
    ```
 
@@ -200,6 +200,11 @@ Con React Native 0.76.5, los siguientes paquetes nativos deben pinearse **sin ca
 
 | Síntoma | Causa probable | Fix |
 | --- | --- | --- |
+| App abre en blanco con `Unable to load script` | APK debug requiere Metro corriendo y el celular debe poder alcanzarlo en `:8081` | `adb reverse tcp:8081 tcp:8081` + `cd mobile-app && npx react-native start`. Para evitarlo permanentemente: usar `assembleRelease` (embebe el bundle JS). |
+| `sh: nest: not found` al levantar backends en Docker | Volumen anónimo `/app/node_modules` viejo sin `@nestjs/cli` (quedó persistido de un build anterior) | `docker compose -f docker-compose.yml -f docker-compose.dev.yml rm -fsv backend-negocio backend-iot` y luego `up -d --build backend-negocio backend-iot` |
+| `502 Bad Gateway` en `/api/iot/*` o `/api/negocio/*` | Uno o ambos backends crasheados | `docker compose ps` para confirmar que faltan, luego `docker compose logs backend-negocio` (suele ser el problema anterior) |
+| Celular no llega al backend en Wi-Fi local | Firewall Windows o VPN activo (ProtonVPN, etc.) | Abrir puerto 80 con `New-NetFirewallRule -DisplayName "SGT-Daystore HTTP" -Direction Inbound -LocalPort 80 -Protocol TCP -Action Allow` (admin) y apagar el VPN o configurar split-tunneling |
+| App muestra error de red al hacer login | `API_BASE_URL` apunta a una IP vieja de tu PC | Editar `mobile-app/app/utils/constants.ts` con tu IP Wi-Fi actual (`Get-NetIPAddress -AddressFamily IPv4 \| Where InterfaceAlias -eq 'Wi-Fi'`) y recompilar APK |
 | `Error: Unknown prop type for "accessibilityContainerViewIsModal"` | `react-native-screens` actualizado a 4.24+ | Pinear a `4.4.0`, reinstalar |
 | `Class 'ButtonViewGroup' is not abstract` en gesture-handler | Versión nueva que asume RN 0.77+ | Pinear a `2.21.2` |
 | `Could not move temporary workspace` | Defender/SearchIndexer bloquean rename | Usar `--project-cache-dir=C:\gc --no-daemon` |

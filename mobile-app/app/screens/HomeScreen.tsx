@@ -26,6 +26,9 @@ type HomeStackParamList = {
   DashboardDetalle: undefined;
   AlertasDetalle: undefined;
   ConfigTiendaDetalle: undefined;
+  TasasDetalle: undefined;
+  ClientesDetalle: undefined;
+  MiNegocioDetalle: undefined;
 };
 type Nav = StackNavigationProp<HomeStackParamList>;
 
@@ -110,6 +113,16 @@ export default function HomeScreen() {
 
       {esAdminOSuper && (
         <>
+          <Text style={styles.seccionTitulo}>Cómo va tu negocio</Text>
+
+          <QuickAccessCard
+            icono="📊"
+            titulo="Mi negocio"
+            subtitulo="Reportes, ventas, deudas, productos top"
+            color="#2563EB"
+            onPress={() => navigation.navigate('MiNegocioDetalle')}
+          />
+
           <Text style={styles.seccionTitulo}>Gestion de la tienda</Text>
 
           <QuickAccessCard
@@ -146,6 +159,22 @@ export default function HomeScreen() {
             subtitulo="Horario, vacaciones y cierre temprano"
             color="#10B981"
             onPress={() => navigation.navigate('ConfigTiendaDetalle')}
+          />
+
+          <QuickAccessCard
+            icono="💱"
+            titulo="Tasa del día"
+            subtitulo="Configura cuánto vale el dólar hoy en Bs y COP"
+            color="#0891B2"
+            onPress={() => navigation.navigate('TasasDetalle')}
+          />
+
+          <QuickAccessCard
+            icono="🧾"
+            titulo="Clientes / Deudores"
+            subtitulo="Registra clientes para ventas a crédito"
+            color="#DB2777"
+            onPress={() => navigation.navigate('ClientesDetalle')}
           />
         </>
       )}

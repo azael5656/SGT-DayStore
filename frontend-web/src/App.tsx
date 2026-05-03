@@ -3,6 +3,7 @@ import ProtectedRoute from './auth/ProtectedRoute';
 import Layout from './components/Layout';
 import AlertasPage from './pages/AlertasPage';
 import AuditoriaPage from './pages/AuditoriaPage';
+import ClientesPage from './pages/ClientesPage';
 import DashboardPage from './pages/DashboardPage';
 import HistoricoPage from './pages/HistoricoPage';
 import HomePage from './pages/HomePage';
@@ -10,6 +11,8 @@ import HorarioTiendaPage from './pages/HorarioTiendaPage';
 import InventarioPage from './pages/InventarioPage';
 import LoginPage from './pages/LoginPage';
 import PerfilPage from './pages/PerfilPage';
+import ReportesPage from './pages/ReportesPage';
+import TasasPage from './pages/TasasPage';
 import UsuariosPage from './pages/UsuariosPage';
 import VentasPage from './pages/VentasPage';
 
@@ -107,6 +110,36 @@ export default function App() {
           <ProtectedRoute roles={['admin', 'superadmin']}>
             <Layout>
               <HorarioTiendaPage />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/tasas"
+        element={
+          <ProtectedRoute roles={['admin', 'superadmin']}>
+            <Layout>
+              <TasasPage />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/clientes"
+        element={
+          <ProtectedRoute roles={['admin', 'superadmin']}>
+            <Layout>
+              <ClientesPage />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/reportes"
+        element={
+          <ProtectedRoute roles={['admin', 'superadmin']}>
+            <Layout>
+              <ReportesPage />
             </Layout>
           </ProtectedRoute>
         }

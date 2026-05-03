@@ -5,10 +5,12 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuditModule } from './audit/audit.module';
 import { AuthModule } from './auth/auth.module';
 import { CategoriesModule } from './categories/categories.module';
+import { CustomersModule } from './customers/customers.module';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 import { AuthGuard } from './common/guards/auth.guard';
 import { RolesGuard } from './common/guards/roles.guard';
 import { AuditInterceptor } from './common/interceptors/audit.interceptor';
+import { ExchangeRatesModule } from './exchange-rates/exchange-rates.module';
 import { HealthController } from './health.controller';
 import { ProductsModule } from './products/products.module';
 import { SalesModule } from './sales/sales.module';
@@ -50,6 +52,8 @@ import { UsersModule } from './users/users.module';
     UsersModule,
     CategoriesModule,
     ProductsModule,
+    CustomersModule,
+    ExchangeRatesModule,
     SalesModule,
     AuditModule,
     SyncModule,

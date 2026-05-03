@@ -62,12 +62,19 @@ export class MqttService implements OnModuleInit, OnModuleDestroy {
     });
 
     this.client.on('message', (topic, payload) => {
-      // TODO: rutear el mensaje al servicio correspondiente (telemetry,
-      // alerts, etc.) segun el topico. Por ahora solo logueamos.
+      // TODO: rutear el mensaje al servicio correspondiente según el
+      // tópico:
+      //   - tienda/+/sensores/+ → TelemetryService.guardarLectura()
+      //   - tienda/+/alertas    → AlertsService.crearDesdeMqtt()
+      // Hoy solo logueamos para inspección manual.
       this.logger.debug(`MQTT ${topic}: ${payload.toString()}`);
     });
   }
 
+  /**
+   * Cierra limpiamente la conexión al broker cuando el módulo se destruye
+   * (apagado del servicio). Sin esto el contenedor podría tardar en parar.
+   */
   async onModuleDestroy(): Promise<void> {
     if (this.client) {
       await this.client.endAsync();
@@ -83,7 +90,15 @@ export class MqttService implements OnModuleInit, OnModuleDestroy {
   }
 
   /**
-   * Publica un mensaje en un topico MQTT.
+   * Publica un mensaje en un tópico MQTT. Lo usa SimulatorService al
+   * emitir lecturas/alertas ficticias y, en el futuro, cualquier flujo
+   * que necesite hablar con dispositivos reales.
+   *
+   * Si el cliente aún no está conectado, mqtt.js lo encola y lo enviará
+   * cuando se establezca la conexión (sin garantía de orden estricta).
+   *
+   * @param topic   Tópico MQTT (ej. `tienda/123/sensores/temperatura`).
+   * @param message Payload serializado (típicamente JSON.stringify).
    */
   publish(topic: string, message: string): void {
     this.client.publish(topic, message);

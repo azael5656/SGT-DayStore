@@ -52,6 +52,17 @@ api.interceptors.request.use(
 // varias requests expiran a la vez.
 let refrescando: Promise<string | null> | null = null;
 
+/**
+ * Intenta obtener un nuevo accessToken usando el refreshToken guardado.
+ *
+ * - Si ya hay un refresh en curso (varias requests fallaron a la vez),
+ *   reusa la misma promesa para no spammear `/auth/refresh`.
+ * - Si el refreshToken también expiró o no existe, limpia la sesión
+ *   completa con `clearAuth()` para forzar al usuario a volver al login.
+ *
+ * @returns El nuevo accessToken si el refresh fue exitoso, o `null` si
+ *          hubo que cerrar la sesión.
+ */
 async function refrescarToken(): Promise<string | null> {
   if (refrescando) {
     return refrescando;

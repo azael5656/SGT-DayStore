@@ -79,7 +79,11 @@ api.interceptors.response.use(
         return api.request(original);
       }
       // Refresh fallido: forzamos relogin.
-      window.location.href = '/login';
+      // Si ya estamos en /login no recargamos (evita loop infinito si una
+      // request en background dispara este branch al montarse la app).
+      if (!window.location.pathname.startsWith('/login')) {
+        window.location.href = '/login';
+      }
     }
     return Promise.reject(error);
   },

@@ -3,10 +3,9 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
 import * as bcrypt from 'bcryptjs';
-import { Repository } from 'typeorm';
 import { Role, User } from '../auth/entities/user.entity';
+import { UsersRepository } from './users.repository';
 
 const BCRYPT_ROUNDS = 10;
 
@@ -17,51 +16,55 @@ interface CreateUserInput {
   role: Role;
 }
 
+/**
+ * Servicio de usuarios. Reglas de negocio (un único superadmin/admin
+ * activo, hashing de password, etc.) viven aquí. La persistencia se
+ * delega a UsersRepository.
+ */
 @Injectable()
 export class UsersService {
-  constructor(
-    @InjectRepository(User)
-    private readonly repo: Repository<User>,
-  ) {}
+  constructor(private readonly repo: UsersRepository) {}
 
-  async findByEmail(email: string): Promise<User | null> {
-    return this.repo.findOne({ where: { email: email.toLowerCase() } });
+  findByEmail(email: string): Promise<User | null> {
+    return this.repo.findByEmail(email);
   }
 
   async findById(id: string): Promise<User> {
-    const user = await this.repo.findOne({ where: { id } });
+    const user = await this.repo.findById(id);
     if (!user) throw new NotFoundException('Usuario no encontrado');
     return user;
   }
 
-  async findAll(): Promise<User[]> {
-    return this.repo.find({ order: { createdAt: 'DESC' } });
+  findAll(): Promise<User[]> {
+    return this.repo.findAllOrderedByCreated();
   }
 
-  async contarActivosPorRol(role: Role): Promise<number> {
-    return this.repo.count({ where: { role, activo: true } });
+  contarActivosPorRol(role: Role): Promise<number> {
+    return this.repo.countActiveByRole(role);
   }
 
   async create(input: CreateUserInput): Promise<User> {
     const email = input.email.toLowerCase();
-    const previa = await this.findByEmail(email);
+    const previa = await this.repo.findByEmail(email);
     if (previa) {
       throw new ConflictException('Ya existe un usuario con ese email');
     }
     const passwordHash = await bcrypt.hash(input.password, BCRYPT_ROUNDS);
-    const user = this.repo.create({
+    return this.repo.create({
       email,
       passwordHash,
       nombre: input.nombre,
       role: input.role,
       activo: true,
     });
-    return this.repo.save(user);
   }
 
-  /** Crea o actualiza por email. Idempotente, util para seeds. */
+  /**
+   * Crea o actualiza por email. Idempotente — útil para el script de
+   * bootstrap admin:create cuando se reusa el mismo email.
+   */
   async upsertByEmail(input: CreateUserInput): Promise<User> {
-    const existente = await this.findByEmail(input.email);
+    const existente = await this.repo.findByEmail(input.email);
     if (existente) {
       existente.nombre = input.nombre;
       existente.role = input.role;
@@ -84,7 +87,7 @@ export class UsersService {
     return this.repo.save(user);
   }
 
-  async verifyPassword(plain: string, hash: string): Promise<boolean> {
+  verifyPassword(plain: string, hash: string): Promise<boolean> {
     return bcrypt.compare(plain, hash);
   }
 

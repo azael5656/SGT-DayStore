@@ -10,7 +10,8 @@
     "start:debug": "nest start --debug --watch",
     "start:prod": "node dist/main.js",
     "seed:inventario": "ts-node -r tsconfig-paths/register src/seeds/seed-inventario.ts",
-    "seed:users": "node dist/seeds/seed-users.js",
+    "admin:create": "ts-node -r tsconfig-paths/register src/scripts/create-admin.ts",
+    "admin:delete": "ts-node -r tsconfig-paths/register src/scripts/delete-admin.ts",
     "lint": "eslint \"{src,test}/**/*.ts\" --fix",
     "format": "prettier --write \"src/**/*.ts\""
   },

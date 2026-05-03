@@ -46,6 +46,13 @@ export function RealtimeIoTProvider({ children }: { children: ReactNode }) {
   );
 
   useEffect(() => {
+    // Sin sesion no disparamos requests: evitamos un loop de 401 -> refresh
+    // -> redirect a /login en pantallas publicas (login).
+    if (!user) {
+      setConectado(false);
+      return;
+    }
+
     // Seed REST para no depender del timing del snapshot del socket.
     (async () => {
       try {
@@ -102,7 +109,7 @@ export function RealtimeIoTProvider({ children }: { children: ReactNode }) {
       s.off('alert.ack', onAlertAck);
       s.off('alerts.cleared', onAlertsCleared);
     };
-  }, []);
+  }, [user]);
 
   return createElement(
     RealtimeCtx.Provider,

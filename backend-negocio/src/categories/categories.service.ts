@@ -1,36 +1,31 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { CategoriesRepository } from './categories.repository';
 import { CreateCategoryDto } from './dto/create-category.dto';
 import { UpdateCategoryDto } from './dto/update-category.dto';
-import { Category } from './entities/category.entity';
 
 /**
- * Servicio de categorias.
- * CRUD basico sobre la tabla "categories".
+ * Servicio de categorías. Orquesta la lógica de negocio y delega la
+ * persistencia a CategoriesRepository — nunca toca TypeORM directo.
  */
 @Injectable()
 export class CategoriesService {
-  constructor(
-    @InjectRepository(Category) private readonly repo: Repository<Category>,
-  ) {}
+  constructor(private readonly repo: CategoriesRepository) {}
 
   findAll() {
-    return this.repo.find({ order: { nombre: 'ASC' } });
+    return this.repo.findAllOrderedByName();
   }
 
   async findOne(id: string) {
-    const cat = await this.repo.findOne({ where: { id } });
+    const cat = await this.repo.findById(id);
     if (!cat) throw new NotFoundException('Categoria no encontrada');
     return cat;
   }
 
   create(dto: CreateCategoryDto) {
-    const cat = this.repo.create({
+    return this.repo.create({
       nombre: dto.nombre,
       descripcion: dto.descripcion ?? null,
     });
-    return this.repo.save(cat);
   }
 
   async update(id: string, dto: UpdateCategoryDto) {

@@ -1,6 +1,4 @@
 import { Injectable, OnModuleInit } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
-import { FilterQuery, Model } from 'mongoose';
 import {
   InMemoryStoreService,
   StoredReading,
@@ -8,21 +6,20 @@ import {
 import { CreateSensorDto } from './dto/create-sensor.dto';
 import { QueryHistoricoDto } from './dto/query-historico.dto';
 import { UpdateSensorDto } from './dto/update-sensor.dto';
-import { Reading, ReadingDocument } from './schemas/reading.schema';
+import { SensorsRepository } from './sensors.repository';
 
 /**
- * CRUD del catalogo de sensores + acceso al historico de lecturas.
+ * CRUD del catálogo de sensores + acceso al histórico de lecturas.
  *
- * Catalogo (sensors): mockeado mientras los compañeros implementan
+ * Catálogo (sensors): mockeado mientras los compañeros implementan
  * SensorConfig en Mongo.
- * Historico (readings): real, escrito por InMemoryStoreService cuando
- * llega una lectura via simulator o MQTT.
+ * Histórico (readings): real, persistido en Mongo a través de
+ * SensorsRepository cuando llega una lectura via simulator o MQTT.
  */
 @Injectable()
 export class SensorsService implements OnModuleInit {
   constructor(
-    @InjectModel(Reading.name)
-    private readonly readingModel: Model<ReadingDocument>,
+    private readonly repo: SensorsRepository,
     private readonly store: InMemoryStoreService,
   ) {}
 
@@ -33,6 +30,12 @@ export class SensorsService implements OnModuleInit {
     });
   }
 
+  /**
+   * Lista el catálogo de sensores configurados.
+   *
+   * MOCK: retorna un único sensor de ejemplo. Pendiente: leer de la
+   * colección `sensor_config` (Mongo) cuando se implemente el schema.
+   */
   async findAll() {
     return [
       {
@@ -45,6 +48,11 @@ export class SensorsService implements OnModuleInit {
     ];
   }
 
+  /**
+   * Devuelve la configuración de un sensor por id.
+   *
+   * MOCK: retorna un sensor placeholder. Pendiente migrar a Mongo.
+   */
   async findOne(sensorId: string) {
     return {
       sensorId,
@@ -55,14 +63,29 @@ export class SensorsService implements OnModuleInit {
     };
   }
 
+  /**
+   * Registra un sensor nuevo en el catálogo.
+   *
+   * MOCK: solo devuelve el DTO con `activo: true` por default; no persiste.
+   */
   async create(dto: CreateSensorDto) {
     return { ...dto, activo: dto.activo ?? true };
   }
 
+  /**
+   * Actualiza la configuración de un sensor existente.
+   *
+   * MOCK: no persiste; solo refleja el DTO recibido.
+   */
   async update(sensorId: string, dto: UpdateSensorDto) {
     return { sensorId, ...dto };
   }
 
+  /**
+   * Desactiva un sensor del catálogo (soft-delete).
+   *
+   * MOCK: solo retorna un mensaje; no persiste.
+   */
   async remove(sensorId: string) {
     return { mensaje: `Sensor ${sensorId} desactivado` };
   }
@@ -70,24 +93,14 @@ export class SensorsService implements OnModuleInit {
   async listarHistorico(query: QueryHistoricoDto) {
     const page = query.page ?? 1;
     const limit = query.limit ?? 100;
-    const filter: FilterQuery<ReadingDocument> = {};
-    if (query.tipo) filter.tipo = query.tipo;
-    if (query.sensorId) filter.sensorId = query.sensorId;
-    if (query.desde || query.hasta) {
-      filter.fecha = {};
-      if (query.desde) filter.fecha.$gte = new Date(query.desde);
-      if (query.hasta) filter.fecha.$lte = new Date(query.hasta);
-    }
-    const [items, total] = await Promise.all([
-      this.readingModel
-        .find(filter)
-        .sort({ fecha: -1 })
-        .skip((page - 1) * limit)
-        .limit(limit)
-        .lean()
-        .exec(),
-      this.readingModel.countDocuments(filter).exec(),
-    ]);
+    const { items, total } = await this.repo.findHistorico({
+      tipo: query.tipo,
+      sensorId: query.sensorId,
+      desde: query.desde,
+      hasta: query.hasta,
+      page,
+      limit,
+    });
     return {
       items: items.map((d) => ({
         sensorId: d.sensorId,
@@ -110,18 +123,9 @@ export class SensorsService implements OnModuleInit {
     fecha: string | Date;
   }) {
     try {
-      await this.readingModel.create({
-        sensorId: lectura.sensorId,
-        tipo: lectura.tipo,
-        valor: lectura.valor,
-        unidad: lectura.unidad,
-        fecha:
-          typeof lectura.fecha === 'string'
-            ? new Date(lectura.fecha)
-            : lectura.fecha,
-      });
+      await this.repo.insertReading(lectura);
     } catch {
-      // No queremos romper el flujo realtime si Mongo esta caido.
+      // No queremos romper el flujo realtime si Mongo está caído.
     }
   }
 }

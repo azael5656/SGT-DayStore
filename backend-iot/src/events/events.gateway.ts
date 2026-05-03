@@ -11,17 +11,24 @@ import { InMemoryStoreService } from '../shared/in-memory-store.service';
 /**
  * Gateway Socket.IO para eventos IoT en tiempo real.
  *
- * Clientes (el móvil) se conectan a `/socket.io/` a través del gateway nginx
- * y reciben eventos cada vez que:
- *  - llega una lectura de sensor nueva  →  'reading'
- *  - se genera una alerta              →  'alert'
- *  - se reconoce una alerta            →  'alert.ack'
- *  - se limpian todas las alertas      →  'alerts.cleared'
+ * Clientes (el móvil y el panel web) se conectan a `/socket.io/` a través
+ * del gateway nginx y reciben los siguientes eventos:
  *
- * Al conectarse, enviamos un snapshot inicial para que el cliente no tenga
- * que hacer un GET extra.
+ *  - `'reading'` (StoredReading): cada vez que llega una lectura nueva.
+ *      Payload: `{ sensorId, tipo, valor, unidad, fecha }`.
+ *  - `'alert'` (StoredAlert): cuando se dispara una alerta.
+ *      Payload: `{ id, tipo, severidad, mensaje, fecha, reconocida }`.
+ *  - `'alert.ack'` (StoredAlert): cuando un usuario reconoce una alerta.
+ *      Payload: la alerta ya con `reconocida=true` y `reconocidaPor`.
+ *  - `'alerts.cleared'` (sin payload): cuando se limpian todas las alertas
+ *      (acción administrativa).
  *
- * TODO: añadir auth (validar JWT por handshake). Para demo se deja abierto.
+ * Al conectarse, el gateway emite un evento `'snapshot'` con
+ * `{ readings, alerts }` para que la UI no arranque vacía.
+ *
+ * AUTH: hoy está abierto a cualquier cliente — TODO validar JWT en
+ * `handleConnection` (extraer `auth.token` del handshake con
+ * `client.handshake.auth.token` y verificarlo con la llave pública).
  */
 @WebSocketGateway({
   cors: { origin: '*' },
