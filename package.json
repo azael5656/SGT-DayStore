@@ -9,7 +9,11 @@
     "dev:negocio": "cd backend-negocio && npm run start:dev",
     "dev:iot": "cd backend-iot && npm run start:dev",
     "docker:up": "docker compose up --build -d",
-    "docker:down": "docker compose down"
+    "docker:up:dev": "docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build",
+    "docker:down": "docker compose down",
+    "docker:logs": "docker compose logs -f",
+    "docker:reset": "docker compose down -v",
+    "docker:seed": "docker compose exec -T backend-negocio node dist/seeds/seed-users.js && docker compose exec -T backend-negocio node dist/seeds/seed-inventario.js"
   }
 }
 

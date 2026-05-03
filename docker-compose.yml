@@ -117,6 +117,22 @@ services:
     networks:
       - sgt-network
 
+  # --- Frontend Web (admin panel) ---
+  # En produccion sirve el bundle compilado por nginx en :5173 (host).
+  # En dev, docker-compose.dev.yml override esto con Vite + HMR.
+  frontend-web:
+    build:
+      context: ./frontend-web
+      dockerfile: Dockerfile
+      target: production
+    container_name: sgt-frontend-web
+    ports:
+      - "5173:80"
+    depends_on:
+      - nginx
+    networks:
+      - sgt-network
+
 volumes:
   pgdata:
   mongodata:

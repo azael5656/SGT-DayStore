@@ -40,24 +40,25 @@ services:
       - "${IOT_PORT:-3002}:3002"
       - "9230:9229"
 
-  # Vite dev server con HMR. Proxy interno apunta al servicio nginx por DNS.
+  # Vite dev server con HMR. Build target=dev cachea las deps en la imagen
+  # (mucho mas rapido en arranques sucesivos que reinstalar en runtime).
+  # Proxy interno apunta al servicio nginx por DNS dentro de sgt-network.
+  # CHOKIDAR_USEPOLLING evita que HMR se cuelgue en bind-mounts de Windows.
   # Para correr en host (sin Docker) usa: cd frontend-web && npm run dev
   frontend-web:
-    image: node:20-alpine
-    container_name: sgt-frontend-web
-    working_dir: /app
-    command: sh -c "npm install && npm run dev -- --host 0.0.0.0"
+    build:
+      context: ./frontend-web
+      dockerfile: Dockerfile
+      target: dev
+    command: npm run dev
     environment:
       VITE_PROXY_TARGET: http://nginx
+      CHOKIDAR_USEPOLLING: "true"
     volumes:
       - ./frontend-web:/app
       - frontend_node_modules:/app/node_modules
     ports:
       - "${WEB_PORT:-5173}:5173"
-    depends_on:
-      - nginx
-    networks:
-      - sgt-network
 
 volumes:
   frontend_node_modules:

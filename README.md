@@ -6,6 +6,7 @@ Sistema distribuido de gestión comercial y seguridad IoT con microservicios, pe
 
 - **backend-negocio** (NestJS + PostgreSQL): auth, productos, ventas, categorías, sync. Firma tokens JWT RS256.
 - **backend-iot** (NestJS + MongoDB + Redis + MQTT): telemetría, sensores, alertas, notificaciones. Verifica tokens con llave pública.
+- **frontend-web** (React 18 + Vite + Tailwind): panel de administración accesible en `http://localhost:5173`. En dev corre con HMR; en prod se sirve compilado por nginx.
 - **mobile-app** (React Native 0.76.5): app Android offline-first.
 - **nginx**: API gateway en `:80` que enruta `/api/negocio/*` y `/api/iot/*`.
 - **mosquitto**: broker MQTT para sensores IoT.
@@ -38,15 +39,29 @@ Esto crea `infra/keys/jwt-private.pem` y `infra/keys/jwt-public.pem`. `backend-n
 
 ## Correr el sistema completo
 
-### Backends + infra (Docker)
+### Stack completo (Docker, dev con hot-reload)
 
 Desde la raíz del proyecto:
 
 ```bash
-docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d
+npm run docker:up:dev
 ```
 
-Levanta: postgres, mongo, redis, mosquitto, backend-negocio (:3001), backend-iot (:3002), nginx (:80). Los backends corren con `npm run start:dev` (hot-reload).
+Equivale a `docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build`. Levanta: postgres, mongo, redis, mosquitto, backend-negocio (:3001), backend-iot (:3002), nginx (:80) y **frontend-web** (Vite dev server en :5173 con HMR). Los backends corren con `npm run start:dev`.
+
+Para modo producción (bundle compilado en lugar de Vite dev):
+
+```bash
+npm run docker:up    # docker compose up --build -d
+```
+
+Una vez arriba, **siembra los datos demo** (solo la primera vez o tras un `docker:reset`):
+
+```bash
+npm run docker:seed
+```
+
+Crea las cuentas demo (`super@daystore.local / super1234`, `owner@daystore.local / 123456`, `vendedor@daystore.local / 123456`) y los productos de inventario.
 
 Verifica que esté todo arriba:
 
@@ -65,8 +80,24 @@ curl -o /dev/null -w "%{http_code}\n" http://localhost/api/negocio/auth/me   # 4
 Para parar todo:
 
 ```bash
-docker compose down
+npm run docker:down       # apaga conservando volumenes (datos sobreviven)
+npm run docker:reset      # apaga + BORRA volumenes (DBs vacias al volver)
+npm run docker:logs       # logs en vivo de todos los servicios
 ```
+
+### Frontend web
+
+Una vez `docker:up:dev` esté corriendo, el panel está en `http://localhost:5173`.
+
+HMR está activo: editar archivos en `frontend-web/src/` refresca el navegador automáticamente. Si prefieres correr Vite fuera de Docker:
+
+```bash
+cd frontend-web
+npm install
+npm run dev
+```
+
+(Necesitarás la infra dockerizada para que el proxy a `/api` funcione contra `http://localhost`.)
 
 ### Mobile app (emulador Android)
 
