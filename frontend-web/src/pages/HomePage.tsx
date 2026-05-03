@@ -208,7 +208,7 @@ export default function HomePage() {
         </>
       )}
 
-      <div className="text-center text-xs text-gray-400 mt-8">DayStore · v0.2</div>
+      <div className="text-center text-xs text-gray-400 mt-8">Dayisaactore · v0.2</div>
     </div>
   );
 }
