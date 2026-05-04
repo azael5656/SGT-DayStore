@@ -18,6 +18,7 @@ import {
   type StoreConfig,
 } from '../services/storeConfig.service';
 import { COLORS } from '../utils/constants';
+import { parseApiError } from '../utils/errors';
 
 const DIAS = [
   { v: 1, label: 'Lun' },
@@ -91,10 +92,7 @@ export default function ConfiguracionTiendaScreen() {
       await refrescarEstado();
       Alert.alert('Listo', 'Configuracion guardada.');
     } catch (err) {
-      const m =
-        (err as { response?: { data?: { message?: string } } }).response?.data
-          ?.message || (err as Error).message;
-      Alert.alert('No se pudo guardar', String(m));
+      Alert.alert('No se pudo guardar', parseApiError(err));
     } finally {
       setGuardando(false);
     }

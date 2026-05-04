@@ -14,6 +14,22 @@ import {
 import { useAuth } from '../context/AuthContext';
 import { Customer, customersService } from '../services/customers.service';
 import { COLORS } from '../utils/constants';
+import { parseApiError } from '../utils/errors';
+
+// Filtros que se aplican letra-a-letra mientras el usuario escribe.
+// Mas restrictivos que las validaciones finales: cualquier caracter que
+// no encaje se descarta antes de tocar el state, asi el usuario nunca
+// "ve" letras en un campo numerico.
+const limpiarCedula = (s: string): string =>
+  s.toUpperCase().replace(/[^VEJGP0-9-]/g, '');
+const soloDigitos = (s: string): string => s.replace(/\D/g, '');
+const soloLetrasYEspacios = (s: string): string =>
+  s.replace(/[^A-Za-zÁÉÍÓÚáéíóúÑñ\s]/g, '');
+
+// Validaciones que corren al hacer submit, no en cada keystroke.
+const REGEX_CEDULA = /^[VEJGP]?-?[0-9]{6,9}$/;
+const REGEX_TELEFONO = /^[0-9]{7,15}$/;
+const REGEX_EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 /**
  * Pantalla de Clientes / Deudores (mobile).
@@ -38,10 +54,7 @@ export default function ClientesScreen() {
       const lista = await customersService.list(busqueda || undefined);
       setItems(lista);
     } catch (err) {
-      RNAlert.alert(
-        'Error',
-        err instanceof Error ? err.message : 'No se pudo cargar',
-      );
+      RNAlert.alert('Error', parseApiError(err, 'No se pudo cargar'));
     } finally {
       setCargando(false);
     }
@@ -68,10 +81,7 @@ export default function ClientesScreen() {
             await customersService.desactivar(c.id);
             await cargar();
           } catch (err) {
-            RNAlert.alert(
-              'Error',
-              err instanceof Error ? err.message : 'No se pudo',
-            );
+            RNAlert.alert('Error', parseApiError(err, 'No se pudo'));
           }
         },
       },
@@ -182,17 +192,45 @@ function ClienteFormModal({
   const [enviando, setEnviando] = useState(false);
 
   const submit = async () => {
-    if (!cedula.trim() || !nombre.trim()) {
+    const cedulaLimpia = cedula.trim();
+    const nombreLimpio = nombre.trim();
+    const telefonoLimpio = telefono.trim();
+    const emailLimpio = email.trim();
+
+    if (!cedulaLimpia || !nombreLimpio) {
       RNAlert.alert('Faltan datos', 'Cédula y nombre son obligatorios.');
       return;
     }
+    if (!REGEX_CEDULA.test(cedulaLimpia)) {
+      RNAlert.alert(
+        'Cédula inválida',
+        'Formato esperado: V12345678 (letra opcional V/E/J/G/P y 6 a 9 dígitos).',
+      );
+      return;
+    }
+    if (nombreLimpio.length < 2) {
+      RNAlert.alert('Nombre inválido', 'El nombre debe tener al menos 2 caracteres.');
+      return;
+    }
+    if (telefonoLimpio && !REGEX_TELEFONO.test(telefonoLimpio)) {
+      RNAlert.alert(
+        'Teléfono inválido',
+        'El teléfono debe tener entre 7 y 15 dígitos, sin espacios ni guiones.',
+      );
+      return;
+    }
+    if (emailLimpio && !REGEX_EMAIL.test(emailLimpio)) {
+      RNAlert.alert('Email inválido', 'Revisa el formato del correo.');
+      return;
+    }
+
     setEnviando(true);
     try {
       const payload = {
-        cedula: cedula.trim(),
-        nombre: nombre.trim(),
-        telefono: telefono.trim() || undefined,
-        email: email.trim() || undefined,
+        cedula: cedulaLimpia,
+        nombre: nombreLimpio,
+        telefono: telefonoLimpio || undefined,
+        email: emailLimpio || undefined,
         notas: notas.trim() || undefined,
       };
       if (cliente) {
@@ -202,12 +240,7 @@ function ClienteFormModal({
       }
       onGuardado();
     } catch (err) {
-      const e = err as { response?: { data?: { message?: string } } };
-      RNAlert.alert(
-        'Error',
-        e.response?.data?.message ??
-          (err instanceof Error ? err.message : 'No se pudo guardar'),
-      );
+      RNAlert.alert('Error', parseApiError(err, 'No se pudo guardar'));
     } finally {
       setEnviando(false);
     }
@@ -230,28 +263,39 @@ function ClienteFormModal({
           <TextInput
             style={form.input}
             value={cedula}
-            onChangeText={setCedula}
-            placeholder="V-12345678"
+            onChangeText={(t) => setCedula(limpiarCedula(t))}
+            placeholder="V12345678"
             placeholderTextColor={COLORS.textMuted}
             autoFocus
+            autoCapitalize="characters"
+            maxLength={11}
+            multiline={false}
+            numberOfLines={1}
           />
 
           <Text style={form.label}>Nombre completo *</Text>
           <TextInput
             style={form.input}
             value={nombre}
-            onChangeText={setNombre}
+            onChangeText={(t) => setNombre(soloLetrasYEspacios(t))}
             placeholderTextColor={COLORS.textMuted}
+            autoCapitalize="words"
+            maxLength={80}
+            multiline={false}
+            numberOfLines={1}
           />
 
           <Text style={form.label}>Teléfono</Text>
           <TextInput
             style={form.input}
             value={telefono}
-            onChangeText={setTelefono}
+            onChangeText={(t) => setTelefono(soloDigitos(t))}
             placeholder="04141234567"
             placeholderTextColor={COLORS.textMuted}
             keyboardType="phone-pad"
+            maxLength={15}
+            multiline={false}
+            numberOfLines={1}
           />
 
           <Text style={form.label}>Email</Text>
@@ -262,11 +306,17 @@ function ClienteFormModal({
             placeholderTextColor={COLORS.textMuted}
             keyboardType="email-address"
             autoCapitalize="none"
+            maxLength={120}
+            multiline={false}
+            numberOfLines={1}
           />
 
           <Text style={form.label}>Notas</Text>
           <TextInput
-            style={[form.input, { minHeight: 60 }]}
+            style={[
+              form.input,
+              { minHeight: 60, maxHeight: 120, textAlignVertical: 'top' },
+            ]}
             value={notas}
             onChangeText={setNotas}
             placeholderTextColor={COLORS.textMuted}
