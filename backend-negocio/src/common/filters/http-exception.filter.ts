@@ -26,7 +26,17 @@ export class HttpExceptionFilter implements ExceptionFilter {
         : (exceptionResponse as Record<string, unknown>).message ||
           'Error interno del servidor';
 
+    // Si la excepcion trae un objeto con propiedades extra (ej:
+    // ConflictException con `code`, `cantidad`, `totalUsd`), las
+    // preservamos para que el frontend pueda diferenciar errores y
+    // mostrar UI adecuada (ej: modal con cifras de deudas pendientes).
+    const extras =
+      typeof exceptionResponse === 'object' && exceptionResponse !== null
+        ? (exceptionResponse as Record<string, unknown>)
+        : {};
+
     response.status(status).json({
+      ...extras,
       statusCode: status,
       message,
       timestamp: new Date().toISOString(),

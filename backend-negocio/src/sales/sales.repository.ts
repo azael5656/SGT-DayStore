@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { Between, DataSource, EntityManager, FindOptionsWhere } from 'typeorm';
+import { Between, DataSource, EntityManager, FindOptionsWhere, In } from 'typeorm';
 import { Customer } from '../customers/entities/customer.entity';
 import { Sale } from './entities/sale.entity';
 import { SaleItem } from './entities/sale-item.entity';
@@ -280,6 +280,44 @@ export class SalesRepository {
         .getRawMany<{ method: string; totalUsd: string; cantidad: string }>(),
     ]);
     return { porMoneda, porMetodo };
+  }
+
+  /**
+   * Lista las ventas activas con saldo pendiente de un cliente especifico.
+   * La usa CustomersService al desactivar un cliente para detectar deudas
+   * vivas y decidir si anular o pedir confirmacion al usuario.
+   *
+   * Si recibe `manager`, corre dentro de una transaccion (usado para que
+   * la lectura sea consistente con las anulaciones que vienen despues).
+   */
+  async findPendingByCustomer(
+    customerId: string,
+    manager?: EntityManager,
+  ): Promise<Sale[]> {
+    const repo = manager
+      ? manager.getRepository(Sale)
+      : this.dataSource.getRepository(Sale);
+    return repo.find({
+      where: { customerId, estado: 'pendiente', activo: true },
+      order: { fecha: 'ASC' },
+    });
+  }
+
+  /**
+   * Marca varias ventas como anuladas dentro de una transaccion.
+   * Pone `saldoUsd=0` para que dejen de contar como deuda viva en
+   * cualquier reporte agregado. Usado al desactivar un cliente con
+   * deudas pendientes (`cancelDebts=true`).
+   */
+  async cancelSalesInTransaction(
+    manager: EntityManager,
+    saleIds: string[],
+  ): Promise<void> {
+    if (saleIds.length === 0) return;
+    await manager.getRepository(Sale).update(
+      { id: In(saleIds) },
+      { estado: 'anulada', saldoUsd: '0.00' },
+    );
   }
 
   /**

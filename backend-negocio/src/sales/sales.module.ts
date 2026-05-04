@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { forwardRef, Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuditModule } from '../audit/audit.module';
 import { User } from '../auth/entities/user.entity';
@@ -28,12 +28,12 @@ import { SalesService } from './sales.service';
   imports: [
     TypeOrmModule.forFeature([Sale, SaleItem, SalePayment, User]),
     ProductsModule,
-    CustomersModule,
+    forwardRef(() => CustomersModule),
     ExchangeRatesModule,
     AuditModule,
   ],
   controllers: [SalesController],
   providers: [SalesService, SalesRepository],
-  exports: [SalesService],
+  exports: [SalesService, SalesRepository],
 })
 export class SalesModule {}
