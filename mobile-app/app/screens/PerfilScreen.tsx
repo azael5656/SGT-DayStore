@@ -13,6 +13,7 @@ import {
 import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
 import { COLORS } from '../utils/constants';
+import { parseApiError } from '../utils/errors';
 
 const ROLE_LABELS: Record<string, { label: string; color: string; desc: string }> = {
   superadmin: {
@@ -61,10 +62,7 @@ export default function PerfilScreen() {
       setNueva('');
       setConfirmar('');
     } catch (e) {
-      const msg =
-        (e as { response?: { data?: { message?: string } } }).response?.data
-          ?.message || 'Error al cambiar la contrasena';
-      Alert.alert('No se pudo', msg);
+      Alert.alert('No se pudo', parseApiError(e, 'Error al cambiar la contrasena'));
     } finally {
       setGuardando(false);
     }

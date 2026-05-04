@@ -18,6 +18,7 @@ import {
 } from '../services/exchangeRates.service';
 import { CurrentRates } from '../services/sales.service';
 import { COLORS } from '../utils/constants';
+import { parseApiError } from '../utils/errors';
 
 /**
  * Pantalla de Tasas de cambio (mobile).
@@ -236,12 +237,7 @@ function CrearTasaModal({
       });
       onCreada();
     } catch (err) {
-      const e = err as { response?: { data?: { message?: string } } };
-      RNAlert.alert(
-        'No se pudo guardar',
-        e.response?.data?.message ??
-          (err instanceof Error ? err.message : 'Error'),
-      );
+      RNAlert.alert('No se pudo guardar', parseApiError(err, 'Error'));
     } finally {
       setEnviando(false);
     }
