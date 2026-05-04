@@ -473,12 +473,14 @@ function CrearVentaModal({
     setPaso(2);
   };
 
-  /** Al cambiar tipoVenta, ajustar pagos (crédito puede tener 0). */
+  /**
+   * Cambia el tipo de venta. El cliente seleccionado NO se borra al
+   * pasar a contado: una venta de contado tambien puede asociar un
+   * cliente (opcional) para que quede en su historial de compras y
+   * sirva para fidelidad / descuentos a recurrentes.
+   */
   const cambiarTipoVenta = (t: TipoVenta) => {
     setTipoVenta(t);
-    if (t === 'contado') {
-      setCliente(null);
-    }
   };
 
   const updatePago = (id: string, patch: Partial<PagoBorrador>) => {
@@ -1101,35 +1103,34 @@ function Paso2Pagos({
         </TouchableOpacity>
       </View>
 
-      {/* Cliente (solo si crédito) */}
-      {tipoVenta === 'credito' && (
-        <>
-          <Text style={paso2.section}>Cliente *</Text>
-          {cliente ? (
-            <View style={paso2.clienteCard}>
-              <View style={{ flex: 1 }}>
-                <Text style={paso2.clienteNombre}>{cliente.nombre}</Text>
-                <Text style={paso2.clienteCedula}>{cliente.cedula}</Text>
-                {cliente.telefono && (
-                  <Text style={paso2.clienteTel}>📞 {cliente.telefono}</Text>
-                )}
-              </View>
-              <TouchableOpacity onPress={onLimpiarCliente}>
-                <Text style={{ color: '#DC2626', fontSize: 12, fontWeight: '700' }}>
-                  Cambiar
-                </Text>
-              </TouchableOpacity>
-            </View>
-          ) : (
-            <TouchableOpacity
-              onPress={onAbrirPickerCliente}
-              style={paso2.elegirClienteBtn}>
-              <Text style={paso2.elegirClienteTxt}>
-                🔍 Buscar / crear cliente
-              </Text>
-            </TouchableOpacity>
-          )}
-        </>
+      {/* Cliente: requerido si credito, opcional si contado (para
+          historial y fidelidad). */}
+      <Text style={paso2.section}>
+        {tipoVenta === 'credito' ? 'Cliente *' : 'Cliente (opcional)'}
+      </Text>
+      {cliente ? (
+        <View style={paso2.clienteCard}>
+          <View style={{ flex: 1 }}>
+            <Text style={paso2.clienteNombre}>{cliente.nombre}</Text>
+            <Text style={paso2.clienteCedula}>{cliente.cedula}</Text>
+            {cliente.telefono && (
+              <Text style={paso2.clienteTel}>📞 {cliente.telefono}</Text>
+            )}
+          </View>
+          <TouchableOpacity onPress={onLimpiarCliente}>
+            <Text style={{ color: '#DC2626', fontSize: 12, fontWeight: '700' }}>
+              {tipoVenta === 'credito' ? 'Cambiar' : 'Quitar'}
+            </Text>
+          </TouchableOpacity>
+        </View>
+      ) : (
+        <TouchableOpacity
+          onPress={onAbrirPickerCliente}
+          style={paso2.elegirClienteBtn}>
+          <Text style={paso2.elegirClienteTxt}>
+            🔍 Buscar / crear cliente
+          </Text>
+        </TouchableOpacity>
       )}
 
       {/* Resumen */}

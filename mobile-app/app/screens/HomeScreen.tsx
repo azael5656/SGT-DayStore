@@ -27,7 +27,7 @@ type HomeStackParamList = {
   AlertasDetalle: undefined;
   ConfigTiendaDetalle: undefined;
   TasasDetalle: undefined;
-  ClientesDetalle: undefined;
+  Clientes: undefined;
   MiNegocioDetalle: undefined;
 };
 type Nav = StackNavigationProp<HomeStackParamList>;
@@ -174,7 +174,7 @@ export default function HomeScreen() {
             titulo="Clientes / Deudores"
             subtitulo="Registra clientes para ventas a crédito"
             color="#DB2777"
-            onPress={() => navigation.navigate('ClientesDetalle')}
+            onPress={() => navigation.navigate('Clientes')}
           />
         </>
       )}
