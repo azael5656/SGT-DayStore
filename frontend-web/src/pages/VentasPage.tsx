@@ -394,9 +394,9 @@ function CrearVentaForm({
 
   useEffect(() => {
     Promise.all([
-      api.get<Producto[] | Page<Producto>>('/api/negocio/products', {
-        params: { limit: 200 },
-      }),
+      // El endpoint products no acepta `limit` en query (whitelist
+      // estricta del ValidationPipe). Devuelve todos los activos.
+      api.get<Producto[] | Page<Producto>>('/api/negocio/products'),
       api.get<CurrentRates>('/api/negocio/exchange-rates/current'),
     ]).then(([prods, rates]) => {
       const lista = Array.isArray(prods.data) ? prods.data : prods.data.items;
@@ -593,10 +593,10 @@ function CrearVentaForm({
             cliente={cliente}
             notas={notas}
             onTipoChange={(t) => {
+              // El cliente NO se limpia al pasar a contado: una venta de
+              // contado tambien puede asociar cliente para historial y
+              // beneficios de fidelidad.
               setTipoVenta(t);
-              if (t === 'contado') {
-                setCliente(null);
-              }
             }}
             onClienteChange={setCliente}
             onNotasChange={setNotas}
@@ -1448,44 +1448,46 @@ function TipoVentaSelector({
         </button>
       </div>
 
-      {tipoVenta === 'credito' && (
-        <>
-          <label className="block text-xs uppercase font-bold text-gray-500 tracking-wide mb-2">
-            Cliente *
-          </label>
-          {cliente ? (
-            <div className="flex items-center justify-between bg-gray-50 border border-gray-200 rounded-md p-3 mb-2">
-              <div>
-                <div className="font-bold text-sm">{cliente.nombre}</div>
-                <div className="text-xs text-gray-500 font-mono">
-                  {cliente.cedula}
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => onClienteChange(null)}
-                className="text-xs text-red-600 hover:underline">
-                Cambiar
-              </button>
+      {/* Cliente: requerido en credito, opcional en contado (para
+          historial de compras y futuros beneficios de fidelidad). */}
+      <label className="block text-xs uppercase font-bold text-gray-500 tracking-wide mb-2">
+        {tipoVenta === 'credito' ? 'Cliente *' : 'Cliente (opcional)'}
+      </label>
+      {cliente ? (
+        <div className="flex items-center justify-between bg-gray-50 border border-gray-200 rounded-md p-3 mb-2">
+          <div>
+            <div className="font-bold text-sm">{cliente.nombre}</div>
+            <div className="text-xs text-gray-500 font-mono">
+              {cliente.cedula}
             </div>
-          ) : (
-            <button
-              type="button"
-              onClick={() => setPickerAbierto(true)}
-              className="w-full border-2 border-dashed border-amber-400 text-amber-700 rounded-md py-3 text-sm font-bold hover:bg-amber-50">
-              🔍 Buscar / crear cliente
-            </button>
-          )}
-          {pickerAbierto && (
-            <ClientePicker
-              onCerrar={() => setPickerAbierto(false)}
-              onElegir={(c) => {
-                onClienteChange(c);
-                setPickerAbierto(false);
-              }}
-            />
-          )}
-        </>
+          </div>
+          <button
+            type="button"
+            onClick={() => onClienteChange(null)}
+            className="text-xs text-red-600 hover:underline">
+            {tipoVenta === 'credito' ? 'Cambiar' : 'Quitar'}
+          </button>
+        </div>
+      ) : (
+        <button
+          type="button"
+          onClick={() => setPickerAbierto(true)}
+          className={`w-full border-2 border-dashed rounded-md py-3 text-sm font-bold ${
+            tipoVenta === 'credito'
+              ? 'border-amber-400 text-amber-700 hover:bg-amber-50'
+              : 'border-gray-300 text-gray-600 hover:bg-gray-50'
+          }`}>
+          🔍 Buscar / crear cliente
+        </button>
+      )}
+      {pickerAbierto && (
+        <ClientePicker
+          onCerrar={() => setPickerAbierto(false)}
+          onElegir={(c) => {
+            onClienteChange(c);
+            setPickerAbierto(false);
+          }}
+        />
       )}
 
       <label className="block text-xs uppercase font-bold text-gray-500 tracking-wide mt-3 mb-1">

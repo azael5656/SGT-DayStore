@@ -127,7 +127,10 @@ export class SalesRepository {
   /**
    * Lista ventas paginadas con filtros. Por defecto:
    *  - Solo `activo=true`.
-   *  - Solo `estado='completada'` (anuladas se ven con `incluirAnuladas`).
+   *  - Excluye `estado='anulada'` (se incluyen con `incluirAnuladas=true`).
+   *  - Devuelve pendientes y completadas; las pendientes son las ventas
+   *    a credito con saldo vivo y antes quedaban ocultas en el filtro
+   *    "Todas" del frontend.
    *
    * Devuelve `{ items, total, page, limit }`.
    */
@@ -145,7 +148,7 @@ export class SalesRepository {
     if (filter.estado) {
       qb.andWhere('s.estado = :estado', { estado: filter.estado });
     } else if (!filter.incluirAnuladas) {
-      qb.andWhere('s.estado = :estado', { estado: 'completada' });
+      qb.andWhere(`s.estado != 'anulada'`);
     }
 
     if (filter.userId) qb.andWhere('s.user_id = :userId', { userId: filter.userId });
