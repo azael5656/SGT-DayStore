@@ -17,8 +17,10 @@ export default function InventarioPage() {
     setCargando(true);
     try {
       const [prodResp, catResp] = await Promise.all([
-        api.get<Page<Producto>>('/api/negocio/products', {
-          params: { busqueda: busqueda || undefined, limit: 200 },
+        // El backend acepta solo `search` (no `busqueda`) y NO acepta
+        // `limit` (whitelist + forbidNonWhitelisted en ValidationPipe).
+        api.get<Page<Producto> | Producto[]>('/api/negocio/products', {
+          params: busqueda ? { search: busqueda } : {},
         }),
         api.get<Categoria[]>('/api/negocio/categories'),
       ]);

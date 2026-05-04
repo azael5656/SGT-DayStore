@@ -3,6 +3,7 @@ import ProtectedRoute from './auth/ProtectedRoute';
 import Layout from './components/Layout';
 import AlertasPage from './pages/AlertasPage';
 import AuditoriaPage from './pages/AuditoriaPage';
+import ClienteDetallePage from './pages/ClienteDetallePage';
 import ClientesPage from './pages/ClientesPage';
 import DashboardPage from './pages/DashboardPage';
 import HistoricoPage from './pages/HistoricoPage';
@@ -130,6 +131,16 @@ export default function App() {
           <ProtectedRoute roles={['admin', 'superadmin']}>
             <Layout>
               <ClientesPage />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/clientes/:id"
+        element={
+          <ProtectedRoute roles={['admin', 'superadmin']}>
+            <Layout>
+              <ClienteDetallePage />
             </Layout>
           </ProtectedRoute>
         }

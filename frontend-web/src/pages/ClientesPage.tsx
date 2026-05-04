@@ -1,32 +1,45 @@
-import { FormEvent, useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import api from '../api/client';
 import { useAuth } from '../auth/AuthContext';
+import ClienteForm from '../components/ClienteForm';
 import type { Customer } from '../types';
+import { pedirConfirmacionYDesactivar } from '../utils/clienteActions';
+
+type FiltroEstado = 'activos' | 'inactivos' | 'todos';
+const FILTROS: { value: FiltroEstado; label: string }[] = [
+  { value: 'activos', label: 'Activos' },
+  { value: 'inactivos', label: 'Inactivos' },
+  { value: 'todos', label: 'Todos' },
+];
 
 /**
  * Página de Clientes / Deudores.
  *
- * Solo accesible para admin/superadmin. Permite buscar por cédula o
- * nombre, crear, editar y desactivar (soft-delete) clientes.
- *
- * Las ventas a crédito se asocian a un cliente registrado aquí. Las
- * ventas de contado anónimas no requieren registrarlo.
+ * Solo accesible para admin/superadmin. Permite buscar, filtrar por
+ * estado (Activos/Inactivos/Todos) y crear clientes. El click en una
+ * fila abre la pantalla de detalle (`/clientes/:id`) con el historial
+ * completo, donde se puede editar, desactivar y reactivar.
  */
 export default function ClientesPage() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const puedeEditar = user?.role === 'admin' || user?.role === 'superadmin';
 
   const [items, setItems] = useState<Customer[]>([]);
   const [busqueda, setBusqueda] = useState('');
-  const [editando, setEditando] = useState<Customer | null>(null);
+  const [filtro, setFiltro] = useState<FiltroEstado>('activos');
   const [creando, setCreando] = useState(false);
   const [cargando, setCargando] = useState(false);
 
   const cargar = async () => {
     setCargando(true);
     try {
+      const params: Record<string, string> = {};
+      if (busqueda) params.q = busqueda;
+      if (filtro !== 'activos') params.incluirInactivos = 'true';
       const { data } = await api.get<Customer[]>('/api/negocio/customers', {
-        params: busqueda ? { q: busqueda } : {},
+        params,
       });
       setItems(data);
     } finally {
@@ -35,14 +48,22 @@ export default function ClientesPage() {
   };
 
   useEffect(() => {
-    cargar();
+    void cargar();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [filtro]);
 
-  const desactivar = async (c: Customer) => {
-    if (!confirm(`Desactivar cliente ${c.nombre}?`)) return;
-    await api.delete(`/api/negocio/customers/${c.id}`);
-    cargar();
+  const visibles = useMemo(() => {
+    if (filtro === 'inactivos') return items.filter((c) => !c.activo);
+    return items;
+  }, [items, filtro]);
+
+  const onDesactivar = (c: Customer) => {
+    void pedirConfirmacionYDesactivar(
+      { id: c.id, nombre: c.nombre },
+      () => {
+        void cargar();
+      },
+    );
   };
 
   return (
@@ -56,6 +77,21 @@ export default function ClientesPage() {
             + Nuevo cliente
           </button>
         )}
+      </div>
+
+      <div className="flex gap-2 mb-3">
+        {FILTROS.map((f) => (
+          <button
+            key={f.value}
+            onClick={() => setFiltro(f.value)}
+            className={`px-4 py-1.5 rounded-full text-xs font-bold border ${
+              filtro === f.value
+                ? 'bg-primary text-white border-primary'
+                : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
+            }`}>
+            {f.label}
+          </button>
+        ))}
       </div>
 
       <div className="flex gap-2 mb-4">
@@ -92,15 +128,20 @@ export default function ClientesPage() {
                 </td>
               </tr>
             )}
-            {!cargando && items.length === 0 && (
+            {!cargando && visibles.length === 0 && (
               <tr>
                 <td colSpan={6} className="px-3 py-6 text-center text-gray-500">
-                  Sin clientes registrados.
+                  Sin clientes para este filtro.
                 </td>
               </tr>
             )}
-            {items.map((c) => (
-              <tr key={c.id} className="hover:bg-gray-50">
+            {visibles.map((c) => (
+              <tr
+                key={c.id}
+                className={`hover:bg-gray-50 cursor-pointer ${
+                  !c.activo ? 'opacity-70' : ''
+                }`}
+                onClick={() => navigate(`/clientes/${c.id}`)}>
                 <td className="px-3 py-2 font-mono text-xs">{c.cedula}</td>
                 <td className="px-3 py-2 font-medium">{c.nombre}</td>
                 <td className="px-3 py-2 text-gray-600 text-xs">
@@ -121,15 +162,12 @@ export default function ClientesPage() {
                   )}
                 </td>
                 {puedeEditar && (
-                  <td className="px-3 py-2 text-right whitespace-nowrap">
-                    <button
-                      onClick={() => setEditando(c)}
-                      className="text-primary text-xs mr-3 hover:underline">
-                      Editar
-                    </button>
+                  <td
+                    className="px-3 py-2 text-right whitespace-nowrap"
+                    onClick={(e) => e.stopPropagation()}>
                     {c.activo && (
                       <button
-                        onClick={() => desactivar(c)}
+                        onClick={() => onDesactivar(c)}
                         className="text-red-600 text-xs hover:underline">
                         Desactivar
                       </button>
@@ -142,149 +180,16 @@ export default function ClientesPage() {
         </table>
       </div>
 
-      {(creando || editando) && (
+      {creando && (
         <ClienteForm
-          cliente={editando}
-          onCerrar={() => {
-            setCreando(false);
-            setEditando(null);
-          }}
+          cliente={null}
+          onCerrar={() => setCreando(false)}
           onGuardado={() => {
             setCreando(false);
-            setEditando(null);
-            cargar();
+            void cargar();
           }}
         />
       )}
     </div>
-  );
-}
-
-function ClienteForm({
-  cliente,
-  onCerrar,
-  onGuardado,
-}: {
-  cliente: Customer | null;
-  onCerrar: () => void;
-  onGuardado: () => void;
-}) {
-  const [cedula, setCedula] = useState(cliente?.cedula ?? '');
-  const [nombre, setNombre] = useState(cliente?.nombre ?? '');
-  const [telefono, setTelefono] = useState(cliente?.telefono ?? '');
-  const [email, setEmail] = useState(cliente?.email ?? '');
-  const [notas, setNotas] = useState(cliente?.notas ?? '');
-  const [error, setError] = useState('');
-  const [guardando, setGuardando] = useState(false);
-
-  const submit = async (e: FormEvent) => {
-    e.preventDefault();
-    setError('');
-    setGuardando(true);
-    try {
-      const payload = {
-        cedula,
-        nombre,
-        telefono: telefono || undefined,
-        email: email || undefined,
-        notas: notas || undefined,
-      };
-      if (cliente) {
-        await api.patch(`/api/negocio/customers/${cliente.id}`, payload);
-      } else {
-        await api.post('/api/negocio/customers', payload);
-      }
-      onGuardado();
-    } catch (err) {
-      setError(
-        (err as { response?: { data?: { message?: string } } }).response?.data
-          ?.message ?? 'Error guardando',
-      );
-    } finally {
-      setGuardando(false);
-    }
-  };
-
-  return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-20 p-4">
-      <form
-        onSubmit={submit}
-        className="bg-white rounded-xl shadow-xl p-6 w-full max-w-md">
-        <h3 className="text-lg font-bold mb-4">
-          {cliente ? 'Editar cliente' : 'Nuevo cliente'}
-        </h3>
-        {error && (
-          <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-md px-3 py-2 mb-3">
-            {error}
-          </div>
-        )}
-        <div className="space-y-3">
-          <Field label="Cédula *">
-            <input
-              value={cedula}
-              onChange={(e) => setCedula(e.target.value)}
-              placeholder="V-12345678"
-              className={inputCls}
-              required
-            />
-          </Field>
-          <Field label="Nombre *">
-            <input
-              value={nombre}
-              onChange={(e) => setNombre(e.target.value)}
-              className={inputCls}
-              required
-            />
-          </Field>
-          <Field label="Teléfono">
-            <input
-              value={telefono}
-              onChange={(e) => setTelefono(e.target.value)}
-              placeholder="04141234567"
-              className={inputCls}
-            />
-          </Field>
-          <Field label="Email">
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className={inputCls}
-            />
-          </Field>
-          <Field label="Notas">
-            <textarea
-              value={notas}
-              onChange={(e) => setNotas(e.target.value)}
-              className={inputCls + ' min-h-[60px]'}
-              maxLength={500}
-            />
-          </Field>
-        </div>
-        <div className="flex justify-end gap-2 mt-5">
-          <button type="button" onClick={onCerrar} className="px-4 py-2 text-sm">
-            Cancelar
-          </button>
-          <button
-            type="submit"
-            disabled={guardando}
-            className="px-5 py-2 bg-primary text-white rounded-md text-sm font-semibold disabled:opacity-60">
-            {guardando ? 'Guardando...' : 'Guardar'}
-          </button>
-        </div>
-      </form>
-    </div>
-  );
-}
-
-const inputCls =
-  'w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary';
-
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <label className="block">
-      <span className="text-xs text-gray-600 mb-1 block">{label}</span>
-      {children}
-    </label>
   );
 }
