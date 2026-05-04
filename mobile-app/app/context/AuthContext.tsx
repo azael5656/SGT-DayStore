@@ -8,6 +8,7 @@ import React, {
   useState,
 } from 'react';
 import api from '../services/api';
+import { setSessionExpiredHandler } from '../services/authBus';
 import {
   clearAuth,
   getToken,
@@ -66,6 +67,19 @@ export function AuthProvider({ children }: ProviderProps) {
       }
     };
     restaurarSesion();
+  }, []);
+
+  // Cuando el interceptor de api.ts detecta que el refresh token expiro,
+  // dispara este handler para limpiar el estado React y forzar al
+  // AppNavigator a mostrar AuthNavigator (login). Sin esto, clearAuth()
+  // del interceptor solo borra el storage y la UI queda atrapada con
+  // errores 401 silenciosos.
+  useEffect(() => {
+    setSessionExpiredHandler(() => {
+      setTokenState(null);
+      setUser(null);
+    });
+    return () => setSessionExpiredHandler(null);
   }, []);
 
   const login = useCallback(async (email: string, password: string) => {

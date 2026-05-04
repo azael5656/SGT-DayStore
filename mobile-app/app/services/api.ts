@@ -7,6 +7,7 @@ import {
   setRefreshToken,
   setToken,
 } from '../utils/storage';
+import { notifySessionExpired } from './authBus';
 
 /**
  * Cliente HTTP compartido por toda la app.
@@ -86,8 +87,12 @@ async function refrescarToken(): Promise<string | null> {
       await setRefreshToken(nuevoRefresh);
       return nuevoAccess;
     } catch {
-      // Si el refresh token tambien expiro, borramos la sesion.
+      // Si el refresh token tambien expiro, borramos la sesion y avisamos
+      // al AuthContext para que limpie su estado React y el AppNavigator
+      // saque al usuario al login. Sin notifySessionExpired() el storage
+      // queda vacio pero la UI sigue creyendo que hay sesion activa.
       await clearAuth();
+      notifySessionExpired();
       return null;
     } finally {
       refrescando = null;
