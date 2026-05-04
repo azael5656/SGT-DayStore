@@ -70,7 +70,27 @@ export class CustomersController {
   async desactivar(
     @CurrentUser() user: JwtUser,
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+    @Query('cancelDebts') cancelDebts?: string,
   ) {
-    return this.service.desactivar(user, id);
+    return this.service.desactivar(user, id, {
+      cancelDebts: cancelDebts === 'true',
+    });
+  }
+
+  @Patch(':id/activar')
+  @Roles('superadmin', 'admin')
+  async activar(
+    @CurrentUser() user: JwtUser,
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+  ) {
+    return this.service.activar(user, id);
+  }
+
+  @Get(':id/historial')
+  @Roles('superadmin', 'admin', 'vendedor')
+  async historial(
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+  ) {
+    return this.service.getHistorial(id);
   }
 }

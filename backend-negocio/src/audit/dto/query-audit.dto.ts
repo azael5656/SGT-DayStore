@@ -4,6 +4,7 @@ import {
   IsInt,
   IsOptional,
   IsString,
+  IsUUID,
   Max,
   Min,
 } from 'class-validator';
@@ -20,6 +21,15 @@ export class QueryAuditDto {
   @IsOptional()
   @IsString()
   resource?: string;
+
+  /**
+   * Filtra logs ligados a un recurso especifico (ej: id del cliente
+   * para mostrar su historial). Es opcional; si no viene, se devuelven
+   * logs de todos los recursos como antes.
+   */
+  @IsOptional()
+  @IsUUID('4')
+  resourceId?: string;
 
   @IsOptional()
   @IsDateString()

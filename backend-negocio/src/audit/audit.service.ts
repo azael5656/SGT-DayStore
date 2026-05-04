@@ -80,6 +80,7 @@ export class AuditService {
     if (query.userEmail) where.userEmail = ILike(`%${query.userEmail}%`);
     if (query.action) where.action = ILike(`%${query.action}%`);
     if (query.resource) where.resource = query.resource;
+    if (query.resourceId) where.resourceId = query.resourceId;
     if (query.desde && query.hasta) {
       where.createdAt = Between(new Date(query.desde), new Date(query.hasta));
     }
