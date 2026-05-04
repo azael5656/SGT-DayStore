@@ -1,6 +1,7 @@
 import { createStackNavigator } from '@react-navigation/stack';
 import React from 'react';
 import AuditoriaScreen from '../screens/AuditoriaScreen';
+import ClienteDetalleScreen from '../screens/ClienteDetalleScreen';
 import ClientesScreen from '../screens/ClientesScreen';
 import ConfiguracionTiendaScreen from '../screens/ConfiguracionTiendaScreen';
 import DashboardScreen from '../screens/DashboardScreen';
@@ -68,9 +69,14 @@ export default function HomeStack() {
         options={{ title: 'Tasas de cambio' }}
       />
       <Stack.Screen
-        name="ClientesDetalle"
+        name="Clientes"
         component={ClientesScreen}
         options={{ title: 'Clientes / Deudores' }}
+      />
+      <Stack.Screen
+        name="ClienteDetalle"
+        component={ClienteDetalleScreen}
+        options={{ title: 'Detalle del cliente' }}
       />
       <Stack.Screen
         name="MiNegocioDetalle"
