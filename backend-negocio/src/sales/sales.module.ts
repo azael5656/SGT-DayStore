@@ -4,6 +4,7 @@ import { AuditModule } from '../audit/audit.module';
 import { User } from '../auth/entities/user.entity';
 import { CustomersModule } from '../customers/customers.module';
 import { ExchangeRatesModule } from '../exchange-rates/exchange-rates.module';
+import { PdfModule } from '../pdf/pdf.module';
 import { ProductsModule } from '../products/products.module';
 import { Sale } from './entities/sale.entity';
 import { SaleItem } from './entities/sale-item.entity';
@@ -31,6 +32,7 @@ import { SalesService } from './sales.service';
     forwardRef(() => CustomersModule),
     ExchangeRatesModule,
     AuditModule,
+    PdfModule,
   ],
   controllers: [SalesController],
   providers: [SalesService, SalesRepository],

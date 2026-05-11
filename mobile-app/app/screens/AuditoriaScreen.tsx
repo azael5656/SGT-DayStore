@@ -1,3 +1,5 @@
+import { useNavigation } from '@react-navigation/native';
+import type { StackNavigationProp } from '@react-navigation/stack';
 import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
@@ -7,9 +9,11 @@ import {
   StyleSheet,
   Text,
   TextInput,
+  TouchableOpacity,
   View,
 } from 'react-native';
 import { auditService, type AuditLog } from '../services/audit.service';
+import { pdfService } from '../services/pdf.service';
 import { COLORS } from '../utils/constants';
 import { labelAccion } from '../utils/labels';
 
@@ -30,12 +34,29 @@ const COLOR_POR_ACCION = (action: string): string => {
   return COLORS.textMuted;
 };
 
+type PDFNav = StackNavigationProp<{
+  PDFViewer: { url: string; baseFilename: string; title: string };
+}>;
+
 export default function AuditoriaScreen() {
   const [items, setItems] = useState<AuditLog[]>([]);
   const [filtroAccion, setFiltroAccion] = useState<string>('');
   const [filtroEmail, setFiltroEmail] = useState<string>('');
   const [cargando, setCargando] = useState(false);
   const [total, setTotal] = useState(0);
+  const navigation = useNavigation<PDFNav>();
+
+  const abrirPdf = () => {
+    const url = pdfService.buildUrl('/api/negocio/audit/logs/export.pdf', {
+      action: filtroAccion || undefined,
+      userEmail: filtroEmail || undefined,
+    });
+    navigation.navigate('PDFViewer', {
+      url,
+      baseFilename: 'bitacora-auditoria',
+      title: 'Bitácora de auditoría',
+    });
+  };
 
   const cargar = useCallback(async () => {
     setCargando(true);
@@ -61,7 +82,12 @@ export default function AuditoriaScreen() {
     <View style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.titulo}>Auditoria</Text>
-        <Text style={styles.contador}>{total} eventos</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <Text style={styles.contador}>{total} eventos</Text>
+          <TouchableOpacity onPress={abrirPdf} style={styles.btnPdf}>
+            <Text style={styles.btnPdfTxt}>📄 PDF</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       <TextInput
@@ -155,6 +181,15 @@ const styles = StyleSheet.create({
   },
   titulo: { fontSize: 20, fontWeight: '700', color: COLORS.text },
   contador: { fontSize: 12, color: COLORS.textMuted },
+  btnPdf: {
+    backgroundColor: COLORS.surface,
+    borderColor: COLORS.border,
+    borderWidth: 1,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
+  },
+  btnPdfTxt: { color: COLORS.text, fontWeight: '600', fontSize: 12 },
   input: {
     backgroundColor: COLORS.surface,
     borderColor: COLORS.border,

@@ -8,6 +8,7 @@ import DashboardScreen from '../screens/DashboardScreen';
 import HistoricoScreen from '../screens/HistoricoScreen';
 import HomeScreen from '../screens/HomeScreen';
 import MiNegocioScreen from '../screens/MiNegocioScreen';
+import PDFViewerScreen from '../screens/PDFViewerScreen';
 import TasasScreen from '../screens/TasasScreen';
 import UsuariosScreen from '../screens/UsuariosScreen';
 import VentasScreen from '../screens/VentasScreen';
@@ -82,6 +83,11 @@ export default function HomeStack() {
         name="MiNegocioDetalle"
         component={MiNegocioScreen}
         options={{ title: 'Mi negocio' }}
+      />
+      <Stack.Screen
+        name="PDFViewer"
+        component={PDFViewerScreen}
+        options={{ title: 'PDF' }}
       />
     </Stack.Navigator>
   );

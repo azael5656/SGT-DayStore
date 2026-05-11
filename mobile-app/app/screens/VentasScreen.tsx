@@ -1,3 +1,5 @@
+import { useNavigation } from '@react-navigation/native';
+import type { StackNavigationProp } from '@react-navigation/stack';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
@@ -16,6 +18,7 @@ import { useAuth } from '../context/AuthContext';
 import { Customer, customersService } from '../services/customers.service';
 import { exchangeRatesService } from '../services/exchangeRates.service';
 import { Product, productsService } from '../services/negocio.service';
+import { pdfService } from '../services/pdf.service';
 import {
   COMBINACIONES_VALIDAS,
   CreateSaleItemInput,
@@ -46,10 +49,15 @@ import { COLORS } from '../utils/constants';
  * Al cambiar la moneda en un pago, el monto se ajusta automáticamente
  * al equivalente — el vendedor no calcula nada a mano.
  */
+type PDFNav = StackNavigationProp<{
+  PDFViewer: { url: string; baseFilename: string; title: string };
+}>;
+
 export default function VentasScreen() {
   const { user } = useAuth();
   const esGerencia = user?.role === 'admin' || user?.role === 'superadmin';
   const esSuperadmin = user?.role === 'superadmin';
+  const navigation = useNavigation<PDFNav>();
 
   const [ventas, setVentas] = useState<Sale[]>([]);
   const [cargando, setCargando] = useState(true);
@@ -133,17 +141,44 @@ export default function VentasScreen() {
     );
   }
 
+  const abrirHistorialPdf = () => {
+    const params: Record<string, string | boolean> = {};
+    if (estadoFiltro === 'pendiente') params.estado = 'pendiente';
+    else if (estadoFiltro === 'anulada') {
+      params.estado = 'anulada';
+      params.incluirAnuladas = 'true';
+    } else if (estadoFiltro === 'completada') params.estado = 'completada';
+    else if (estadoFiltro === 'todas') params.incluirAnuladas = 'true';
+
+    const url = pdfService.buildUrl(
+      '/api/negocio/sales/reports/historial.pdf',
+      params,
+    );
+    navigation.navigate('PDFViewer', {
+      url,
+      baseFilename: 'historial-ventas',
+      title: 'Historial de ventas',
+    });
+  };
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.subtitulo}>
           {ventas.length} {ventas.length === 1 ? 'venta' : 'ventas'}
         </Text>
-        <TouchableOpacity
-          style={styles.btnAdd}
-          onPress={() => setCrearAbierto(true)}>
-          <Text style={styles.btnAddTxt}>+ Nueva venta</Text>
-        </TouchableOpacity>
+        <View style={{ flexDirection: 'row', gap: 6 }}>
+          <TouchableOpacity
+            style={styles.btnPdf}
+            onPress={abrirHistorialPdf}>
+            <Text style={styles.btnPdfTxt}>📄 PDF</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.btnAdd}
+            onPress={() => setCrearAbierto(true)}>
+            <Text style={styles.btnAddTxt}>+ Nueva venta</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       <View style={styles.chipsRow}>
@@ -1331,15 +1366,36 @@ function DetalleVentaModal({
   onCerrar: () => void;
 }) {
   const saldo = Number(venta.saldoUsd);
+  const navigation = useNavigation<PDFNav>();
+
+  const verComprobantePdf = () => {
+    const url = pdfService.buildUrl(
+      `/api/negocio/sales/${venta.id}/comprobante.pdf`,
+    );
+    // Cerramos el modal antes para que la pantalla se vea limpia.
+    onCerrar();
+    navigation.navigate('PDFViewer', {
+      url,
+      baseFilename: `comprobante-${venta.id.slice(0, 8)}`,
+      title: 'Comprobante de venta',
+    });
+  };
 
   return (
     <Modal animationType="slide" onRequestClose={onCerrar}>
       <View style={modal.cont}>
         <View style={modal.header}>
           <Text style={modal.titulo}>Venta · {venta.id.slice(0, 8)}</Text>
-          <TouchableOpacity onPress={onCerrar}>
-            <Text style={{ fontSize: 24, color: COLORS.textMuted }}>✕</Text>
-          </TouchableOpacity>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+            <TouchableOpacity onPress={verComprobantePdf}>
+              <Text style={{ fontSize: 14, color: COLORS.primary, fontWeight: '700' }}>
+                📄 PDF
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={onCerrar}>
+              <Text style={{ fontSize: 24, color: COLORS.textMuted }}>✕</Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
         <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 110 }}>
@@ -1795,6 +1851,15 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   btnAddTxt: { color: '#FFF', fontWeight: '600' },
+  btnPdf: {
+    backgroundColor: COLORS.surface,
+    borderColor: COLORS.border,
+    borderWidth: 1,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  btnPdfTxt: { color: COLORS.text, fontWeight: '600', fontSize: 12 },
   chipsRow: {
     flexDirection: 'row',
     gap: 6,
