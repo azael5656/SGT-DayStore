@@ -1,5 +1,10 @@
 import { Injectable } from '@nestjs/common';
-import PdfPrinter from 'pdfmake';
+// `pdfmake` se publica como modulo CommonJS sin `default` export, asi que
+// no podemos usar `import PdfPrinter from 'pdfmake'` (TS compilaria un
+// `.default` que es undefined). Usamos la forma `import = require` que
+// preserva el objeto exportado tal cual.
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+import PdfPrinter = require('pdfmake');
 import type {
   TDocumentDefinitions,
   StyleDictionary,
