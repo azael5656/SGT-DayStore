@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import api from '../api/client';
 import type { AuditLog, Page } from '../types';
+import { downloadPdf } from '../utils/downloadPdf';
 import { labelAccion } from '../utils/labels';
 
 const ACCIONES = [
@@ -30,6 +31,26 @@ export default function AuditoriaPage() {
   const [page, setPage] = useState(1);
   const limit = 25;
   const [cargando, setCargando] = useState(false);
+  const [descargandoPdf, setDescargandoPdf] = useState(false);
+
+  const descargarPdf = async () => {
+    setDescargandoPdf(true);
+    try {
+      await downloadPdf(
+        '/api/negocio/audit/logs/export.pdf',
+        {
+          action: filtroAccion || undefined,
+          userEmail: filtroEmail || undefined,
+        },
+        'bitacora-auditoria.pdf',
+      );
+    } catch (err) {
+      alert('No se pudo generar el PDF.');
+      console.error(err);
+    } finally {
+      setDescargandoPdf(false);
+    }
+  };
 
   const cargar = async () => {
     setCargando(true);
@@ -60,7 +81,15 @@ export default function AuditoriaPage() {
     <div>
       <div className="flex items-center justify-between mb-5">
         <h1 className="text-2xl font-bold">Auditoria</h1>
-        <span className="text-sm text-gray-500">{total} eventos</span>
+        <div className="flex items-center gap-3">
+          <span className="text-sm text-gray-500">{total} eventos</span>
+          <button
+            onClick={descargarPdf}
+            disabled={descargandoPdf}
+            className="bg-white border border-gray-300 text-gray-700 px-3 py-1.5 rounded-md text-xs font-semibold hover:bg-gray-50 disabled:opacity-50">
+            {descargandoPdf ? 'Generando…' : '📄 Descargar PDF'}
+          </button>
+        </div>
       </div>
 
       <div className="flex flex-wrap gap-2 mb-3">

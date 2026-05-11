@@ -13,6 +13,7 @@ import {
   type Sale,
   type TipoVenta,
 } from '../types';
+import { downloadPdf } from '../utils/downloadPdf';
 
 /**
  * Página de Ventas multi-moneda.
@@ -117,6 +118,28 @@ function ListaVentas({
     cargar(page);
   };
 
+  const [descargandoPdf, setDescargandoPdf] = useState(false);
+  const descargarHistorialPdf = async () => {
+    setDescargandoPdf(true);
+    try {
+      await downloadPdf(
+        '/api/negocio/sales/reports/historial.pdf',
+        {
+          estado: estado || undefined,
+          desde: desde || undefined,
+          hasta: hasta || undefined,
+          incluirAnuladas: incluirAnuladas ? 'true' : undefined,
+        },
+        'historial-ventas.pdf',
+      );
+    } catch (err) {
+      alert('No se pudo generar el PDF. Revisa la consola.');
+      console.error(err);
+    } finally {
+      setDescargandoPdf(false);
+    }
+  };
+
   const totalPaginas = Math.max(1, Math.ceil(total / limit));
 
   return (
@@ -158,6 +181,12 @@ function ListaVentas({
           Incluir anuladas
         </label>
         <div className="flex-1" />
+        <button
+          onClick={descargarHistorialPdf}
+          disabled={descargandoPdf}
+          className="bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-md text-sm font-semibold hover:bg-gray-50 disabled:opacity-50">
+          {descargandoPdf ? 'Generando…' : '📄 Descargar PDF'}
+        </button>
         <button
           onClick={() => setCrearAbierto(true)}
           className="bg-primary text-white px-4 py-2 rounded-md text-sm font-semibold">
@@ -1036,8 +1065,32 @@ function DetalleVenta({
   venta: Sale;
   onCerrar: () => void;
 }) {
+  const [descargando, setDescargando] = useState(false);
+  const descargarComprobante = async () => {
+    setDescargando(true);
+    try {
+      await downloadPdf(
+        `/api/negocio/sales/${venta.id}/comprobante.pdf`,
+        {},
+        `comprobante-${venta.id.slice(0, 8)}.pdf`,
+      );
+    } catch (err) {
+      alert('No se pudo generar el comprobante.');
+      console.error(err);
+    } finally {
+      setDescargando(false);
+    }
+  };
   return (
     <Modal title={`Venta · ${venta.id.slice(0, 8)}`} onCerrar={onCerrar} ancho="max-w-2xl">
+      <div className="flex justify-end mb-2">
+        <button
+          onClick={descargarComprobante}
+          disabled={descargando}
+          className="bg-white border border-gray-300 text-gray-700 px-3 py-1.5 rounded-md text-xs font-semibold hover:bg-gray-50 disabled:opacity-50">
+          {descargando ? 'Generando…' : '📄 Comprobante PDF'}
+        </button>
+      </div>
       <div className="space-y-2 text-sm">
         <Row label="Fecha">{new Date(venta.fecha).toLocaleString()}</Row>
         <Row label="Tipo">

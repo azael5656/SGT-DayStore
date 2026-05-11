@@ -8,9 +8,13 @@ import {
   Patch,
   Post,
   Query,
+  Res,
 } from '@nestjs/common';
+import type { Response } from 'express';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { Roles } from '../common/decorators/roles.decorator';
+import { PdfService } from '../pdf/pdf.service';
+import { SalesPdfService } from '../pdf/sales-pdf.service';
 import { CancelSaleDto } from './dto/cancel-sale.dto';
 import { CreateSaleDto } from './dto/create-sale.dto';
 import { QueryReportDto } from './dto/query-report.dto';
@@ -38,7 +42,11 @@ interface JwtUser {
 @Controller('sales')
 @Roles('superadmin', 'admin', 'vendedor')
 export class SalesController {
-  constructor(private readonly salesService: SalesService) {}
+  constructor(
+    private readonly salesService: SalesService,
+    private readonly pdf: PdfService,
+    private readonly salesPdf: SalesPdfService,
+  ) {}
 
   /**
    * Registra una nueva venta. La transacción ACID garantiza atomicidad
@@ -85,6 +93,49 @@ export class SalesController {
     return this.salesService.reportMonthly(query);
   }
 
+  /**
+   * Genera un PDF con el historial de ventas segun los filtros recibidos.
+   *
+   * Respeta el rol del actor: si es vendedor, solo aparecen sus propias
+   * ventas (el service reescribe el filtro `userId` para forzar esto).
+   *
+   * Limita a 200 ventas por reporte — se asume que el usuario filtra por
+   * rango de fechas razonable.
+   */
+  @Get('reports/historial.pdf')
+  @Roles('superadmin', 'admin', 'vendedor')
+  async historialPdf(
+    @CurrentUser() user: JwtUser,
+    @Query() query: QuerySalesDto,
+    @Res() res: Response,
+  ): Promise<void> {
+    const data = await this.salesService.findAll(user, {
+      ...query,
+      page: 1,
+      limit: 200,
+    });
+    const docDef = this.salesPdf.historialDocDef(
+      data.items,
+      {
+        desde: query.desde ? new Date(query.desde) : undefined,
+        hasta: query.hasta ? new Date(query.hasta) : undefined,
+        estado: query.estado,
+        tipoVenta: query.tipoVenta,
+        incluirAnuladas: query.incluirAnuladas === 'true',
+      },
+      { email: user.email, role: user.role },
+    );
+    const buffer = await this.pdf.generate(docDef);
+    const filename = PdfService.makeFilename('historial-ventas');
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="${filename}"`,
+    );
+    res.setHeader('Content-Length', buffer.length.toString());
+    res.end(buffer);
+  }
+
   /** Detalle de una venta. */
   @Get(':id')
   @Roles('superadmin', 'admin', 'vendedor')
@@ -93,6 +144,35 @@ export class SalesController {
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
   ) {
     return this.salesService.findOne(user, id);
+  }
+
+  /**
+   * Genera el comprobante PDF (no fiscal) de una venta individual.
+   * Items, pagos, saldo y notas. Util para entregar al cliente.
+   *
+   * Respeta el mismo control de acceso que `findOne`: un vendedor solo
+   * puede sacar comprobantes de las ventas que el mismo creo.
+   */
+  @Get(':id/comprobante.pdf')
+  @Roles('superadmin', 'admin', 'vendedor')
+  async comprobantePdf(
+    @CurrentUser() user: JwtUser,
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+    @Res() res: Response,
+  ): Promise<void> {
+    const venta = await this.salesService.findOne(user, id);
+    const docDef = this.salesPdf.comprobanteDocDef(venta);
+    const buffer = await this.pdf.generate(docDef);
+    const filename = PdfService.makeFilename(
+      `comprobante-${id.slice(0, 8)}`,
+    );
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="${filename}"`,
+    );
+    res.setHeader('Content-Length', buffer.length.toString());
+    res.end(buffer);
   }
 
   /**
