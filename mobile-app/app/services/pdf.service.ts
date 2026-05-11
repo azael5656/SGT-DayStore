@@ -114,32 +114,25 @@ export const pdfService = {
   },
 
   /**
-   * Copia el PDF desde cache a la carpeta publica de Descargas, dejando
-   * notificacion del sistema visible para el usuario (DownloadManager).
+   * Copia el PDF desde cache a la carpeta publica de Descargas usando la
+   * MediaStore API de Android. Es la unica forma que tiene una app de
+   * "drop-in" un archivo en `/Download/` en Android 10+ sin pedir
+   * permisos especiales (`WRITE_EXTERNAL_STORAGE` esta deprecado).
    *
-   * Devuelve el path final en Descargas.
+   * Devuelve un path "logico" para mostrar en el toast (`Downloads/...`);
+   * MediaStore esconde la ruta real fisica.
    */
   async saveToDownloads(file: PdfFetchedFile): Promise<string> {
-    const destino = `${RNBlobUtil.fs.dirs.DownloadDir}/${file.filename}`;
-    // Si ya existe (por una descarga previa), lo borramos para no
-    // duplicar con `(1)`.
-    try {
-      const existe = await RNBlobUtil.fs.exists(destino);
-      if (existe) await RNBlobUtil.fs.unlink(destino);
-    } catch {
-      /* ignore */
-    }
-    await RNBlobUtil.fs.cp(file.localPath, destino);
-    // Hacemos un ping a MediaScanner para que el archivo aparezca en la
-    // app "Descargas" / galeria.
-    try {
-      await RNBlobUtil.fs.scanFile([
-        { path: destino, mime: 'application/pdf' },
-      ]);
-    } catch {
-      /* ignore */
-    }
-    return destino;
+    await RNBlobUtil.MediaCollection.copyToMediaStore(
+      {
+        name: file.filename,
+        parentFolder: '',
+        mimeType: 'application/pdf',
+      },
+      'Download',
+      file.localPath,
+    );
+    return `Downloads/${file.filename}`;
   },
 
   /**
