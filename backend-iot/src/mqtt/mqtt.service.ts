@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as mqtt from 'mqtt';
+import { InMemoryStoreService } from '../shared/in-memory-store.service';
 
 /**
  * Servicio MQTT. Se conecta al broker Mosquitto cuando arranca el modulo
@@ -20,7 +21,10 @@ export class MqttService implements OnModuleInit, OnModuleDestroy {
   private conectado = false;
   private readonly logger = new Logger(MqttService.name);
 
-  constructor(private readonly config: ConfigService) {}
+  constructor(
+    private readonly config: ConfigService,
+    private readonly store: InMemoryStoreService,
+  ) {}
 
   onModuleInit(): void {
     const brokerUrl = this.config.get<string>(
@@ -38,7 +42,6 @@ export class MqttService implements OnModuleInit, OnModuleDestroy {
       this.logger.log(`Conectado al broker MQTT: ${brokerUrl}`);
 
       // Nos suscribimos a todos los topicos que empiecen con "tienda/".
-      // Ejemplos: tienda/temperatura, tienda/puerta, tienda/movimiento.
       this.client.subscribe('tienda/#', (err) => {
         if (err) {
           this.logger.error('No se pudo suscribir a tienda/#', err);
@@ -62,18 +65,71 @@ export class MqttService implements OnModuleInit, OnModuleDestroy {
     });
 
     this.client.on('message', (topic, payload) => {
-      // TODO: rutear el mensaje al servicio correspondiente según el
-      // tópico:
-      //   - tienda/+/sensores/+ → TelemetryService.guardarLectura()
-      //   - tienda/+/alertas    → AlertsService.crearDesdeMqtt()
-      // Hoy solo logueamos para inspección manual.
-      this.logger.debug(`MQTT ${topic}: ${payload.toString()}`);
+      this.rutearMensaje(topic, payload.toString());
     });
   }
 
   /**
-   * Cierra limpiamente la conexión al broker cuando el módulo se destruye
-   * (apagado del servicio). Sin esto el contenedor podría tardar en parar.
+   * Procesa un mensaje recibido del broker. Mapea los topicos del ESP32
+   * (firmware en infra/hardware/firmware/main.ino) al store en memoria
+   * para que el dashboard del movil vea datos reales.
+   *
+   *   tienda/ambiente/temperatura -> guarda StoredReading temperatura
+   *   tienda/ambiente/humedad     -> guarda StoredReading humedad
+   *   tienda/sistema/status       -> heartbeat (online/offline), solo log
+   *   tienda/comandos/buzzer      -> comando saliente, ignorar al recibirlo
+   */
+  private rutearMensaje(topic: string, payload: string): void {
+    const fecha = new Date().toISOString();
+
+    if (topic === 'tienda/ambiente/temperatura') {
+      const valor = parseFloat(payload);
+      if (Number.isNaN(valor)) {
+        this.logger.warn(`Payload invalido en ${topic}: ${payload}`);
+        return;
+      }
+      this.store.setReading({
+        sensorId: 'dht22-ambiente',
+        tipo: 'temperatura',
+        valor,
+        unidad: '°C',
+        fecha,
+      });
+      return;
+    }
+
+    if (topic === 'tienda/ambiente/humedad') {
+      const valor = parseFloat(payload);
+      if (Number.isNaN(valor)) {
+        this.logger.warn(`Payload invalido en ${topic}: ${payload}`);
+        return;
+      }
+      this.store.setReading({
+        sensorId: 'dht22-ambiente',
+        tipo: 'humedad',
+        valor,
+        unidad: '%',
+        fecha,
+      });
+      return;
+    }
+
+    if (topic === 'tienda/sistema/status') {
+      this.logger.log(`Heartbeat ESP32: ${payload}`);
+      return;
+    }
+
+    if (topic === 'tienda/comandos/buzzer') {
+      // Es un comando que NOSOTROS publicamos al ESP32. Lo vemos rebotar
+      // por la suscripcion a tienda/# y lo ignoramos.
+      return;
+    }
+
+    this.logger.debug(`MQTT no ruteado ${topic}: ${payload}`);
+  }
+
+  /**
+   * Cierra limpiamente la conexión al broker cuando el módulo se destruye.
    */
   async onModuleDestroy(): Promise<void> {
     if (this.client) {
@@ -90,15 +146,9 @@ export class MqttService implements OnModuleInit, OnModuleDestroy {
   }
 
   /**
-   * Publica un mensaje en un tópico MQTT. Lo usa SimulatorService al
-   * emitir lecturas/alertas ficticias y, en el futuro, cualquier flujo
-   * que necesite hablar con dispositivos reales.
-   *
-   * Si el cliente aún no está conectado, mqtt.js lo encola y lo enviará
-   * cuando se establezca la conexión (sin garantía de orden estricta).
-   *
-   * @param topic   Tópico MQTT (ej. `tienda/123/sensores/temperatura`).
-   * @param message Payload serializado (típicamente JSON.stringify).
+   * Publica un mensaje en un tópico MQTT. Lo usa SimulatorService y
+   * cualquier flujo que necesite enviar comandos a dispositivos reales
+   * (ej. tienda/comandos/buzzer).
    */
   publish(topic: string, message: string): void {
     this.client.publish(topic, message);
