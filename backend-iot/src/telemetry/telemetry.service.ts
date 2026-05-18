@@ -4,13 +4,12 @@ import { InMemoryStoreService } from '../shared/in-memory-store.service';
 /**
  * Servicio de telemetria.
  *
- * Estado actual: mientras la persistencia en Mongo sigue como TODO (ver
- * sensor-reading.schema.ts del PR #2), leemos del InMemoryStoreService,
- * que es donde MockPublisherService deja sus lecturas en vivo.
+ * Lee del InMemoryStoreService, que es donde MqttService deposita las
+ * lecturas reales del ESP32 (firmware en infra/hardware/firmware/main.ino).
  *
- * Si el store está vacío (ej. backend arrancó sin MOCK_SENSORS=true y aún
- * no llegó ningún ESP32 real), respondemos con datos mock estáticos para
- * que el móvil no se rompa en blanco.
+ * Si el store esta vacio (ESP32 apagado o sin red) devolvemos arreglos
+ * vacios / ceros: NO inventamos datos. El movil debe interpretar "0
+ * sensoresActivos" como "no hay telemetria".
  *
  * TODO: cuando se implemente @InjectModel(SensorReading.name), preferir
  * Mongo y dejar el store solo como cache.
@@ -20,13 +19,10 @@ export class TelemetryService {
   constructor(private readonly store: InMemoryStoreService) {}
 
   async findLatest() {
-    if (this.store.isEmpty()) return this.mockLatest();
     return this.store.getReadings();
   }
 
   async getDashboard() {
-    if (this.store.isEmpty()) return this.mockDashboard();
-
     const temperatura = this.store.getLatestByTipo('temperatura');
     const humedad = this.store.getLatestByTipo('humedad');
     const puerta = this.store.getLatestByTipo('puerta');
@@ -52,50 +48,13 @@ export class TelemetryService {
   async getHistory(sensorId: string) {
     const actual = this.store.getReading(sensorId);
     if (!actual) {
-      // Fallback: histórico mock.
-      return {
-        sensorId,
-        lecturas: [
-          { valor: 22.5, fecha: new Date().toISOString() },
-          { valor: 22.7, fecha: new Date(Date.now() - 60_000).toISOString() },
-        ],
-      };
+      return { sensorId, lecturas: [] };
     }
     // TODO: cuando haya Mongo devolver la serie temporal real. Por ahora
-    // solo la última lectura.
+    // solo la ultima lectura.
     return {
       sensorId,
       lecturas: [{ valor: actual.valor, fecha: actual.fecha }],
-    };
-  }
-
-  private mockLatest() {
-    return [
-      {
-        sensorId: 'esp32-temperatura-bodega',
-        tipo: 'temperatura',
-        valor: 22.5,
-        unidad: '°C',
-        fecha: new Date().toISOString(),
-      },
-      {
-        sensorId: 'esp32-puerta-principal',
-        tipo: 'puerta',
-        valor: 0,
-        unidad: 'estado',
-        fecha: new Date().toISOString(),
-      },
-    ];
-  }
-
-  private mockDashboard() {
-    return {
-      temperaturaActual: 22.5,
-      humedadActual: 58,
-      puertaAbierta: false,
-      movimientoUltimoMinuto: false,
-      sensoresActivos: 0,
-      alertasSinRevisar: 0,
     };
   }
 }
