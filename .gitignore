@@ -27,6 +27,12 @@ Thumbs.db
 # Coverage
 coverage/
 
+# Playwright (e2e desktop)
+frontend-web/playwright-report/
+frontend-web/test-results/
+frontend-web/blob-report/
+frontend-web/.cache/
+
 # Docker volumes (locales)
 infra/mosquitto/data/*
 !infra/mosquitto/data/.gitkeep
@@ -35,5 +41,17 @@ infra/mosquitto/log/*
 # Certificados TLS
 infra/nginx/ssl/
 
-# Claude Code (tooling local)
-.claude/
+# Llaves JWT (se generan con infra/scripts/generate-jwt-keys.sh)
+# Excluye tanto infra/keys como cualquier keys/ dentro de los servicios
+# que pudiera aparecer por montajes Docker temporales.
+infra/keys/*.pem
+backend-iot/keys/
+backend-negocio/keys/
+
+# Android build cache
+mobile-app/android/app/.cxx/
+mobile-app/android/.gradle/
+mobile-app/android/build/
+mobile-app/android/app/build/
+
+

@@ -1,15 +1,26 @@
-import { Controller } from '@nestjs/common';
+import { Controller, Get, Param, Put } from '@nestjs/common';
+import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { NotificationsService } from './notifications.service';
 
 /**
- * Controlador de notificaciones.
- * Endpoints: GET /notifications, PUT /notifications/:id/read
- *
- * TODO: Implementar endpoints de consulta de notificaciones
+ * Endpoints de notificaciones push.
  */
 @Controller('notifications')
 export class NotificationsController {
   constructor(
     private readonly notificationsService: NotificationsService,
   ) {}
+
+  @Get()
+  async findAll(@CurrentUser() user: { sub: string }) {
+    return this.notificationsService.findByUser(user.sub);
+  }
+
+  @Put(':id/read')
+  async markAsRead(
+    @Param('id') id: string,
+    @CurrentUser() user: { sub: string },
+  ) {
+    return this.notificationsService.markAsRead(id, user.sub);
+  }
 }

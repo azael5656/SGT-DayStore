@@ -1,17 +1,33 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
+import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { HealthController } from './health.controller';
+import { AuditModule } from './audit/audit.module';
 import { AuthModule } from './auth/auth.module';
 import { CategoriesModule } from './categories/categories.module';
+import { CustomersModule } from './customers/customers.module';
+import { HttpExceptionFilter } from './common/filters/http-exception.filter';
+import { AuthGuard } from './common/guards/auth.guard';
+import { RolesGuard } from './common/guards/roles.guard';
+import { AuditInterceptor } from './common/interceptors/audit.interceptor';
+import { ExchangeRatesModule } from './exchange-rates/exchange-rates.module';
+import { HealthController } from './health.controller';
 import { ProductsModule } from './products/products.module';
 import { SalesModule } from './sales/sales.module';
-import { AuditModule } from './audit/audit.module';
 import { SyncModule } from './sync/sync.module';
+import { UsersModule } from './users/users.module';
 
 /**
  * Modulo raiz del microservicio de negocio.
- * Configura la conexion a PostgreSQL via TypeORM e importa todos los modulos.
+ *
+ * Aqui conectamos todo: la BD, los modulos de funcionalidad, y los
+ * componentes globales (guards, filtros, interceptores).
+ *
+ * - AuthGuard es global: todas las rutas requieren token JWT excepto las
+ *   que esten marcadas con @Public().
+ * - RolesGuard tambien es global: valida @Roles() cuando aplique.
+ * - HttpExceptionFilter estandariza el formato de error en toda la API.
+ * - AuditInterceptor registra las operaciones de escritura.
  */
 @Module({
   imports: [
@@ -27,16 +43,27 @@ import { SyncModule } from './sync/sync.module';
         password: config.get<string>('POSTGRES_PASSWORD', 'sgt_password_dev'),
         database: config.get<string>('POSTGRES_DB', 'sgt_daystore'),
         autoLoadEntities: true,
-        synchronize: false,
+        // synchronize=true crea/actualiza el schema en cada arranque; apto
+        // solo para dev. En prod se usan migraciones.
+        synchronize: config.get<string>('TYPEORM_SYNC', 'false') === 'true',
       }),
     }),
     AuthModule,
+    UsersModule,
     CategoriesModule,
     ProductsModule,
+    CustomersModule,
+    ExchangeRatesModule,
     SalesModule,
     AuditModule,
     SyncModule,
   ],
   controllers: [HealthController],
+  providers: [
+    { provide: APP_GUARD, useClass: AuthGuard },
+    { provide: APP_GUARD, useClass: RolesGuard },
+    { provide: APP_FILTER, useClass: HttpExceptionFilter },
+    { provide: APP_INTERCEPTOR, useClass: AuditInterceptor },
+  ],
 })
 export class AppModule {}

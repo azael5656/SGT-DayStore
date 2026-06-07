@@ -39,3 +39,29 @@ services:
     ports:
       - "${IOT_PORT:-3002}:3002"
       - "9230:9229"
+
+  # Vite dev server con HMR. Build target=dev cachea las deps en la imagen
+  # (mucho mas rapido en arranques sucesivos que reinstalar en runtime).
+  # Proxy interno apunta al servicio nginx por DNS dentro de sgt-network.
+  # CHOKIDAR_USEPOLLING evita que HMR se cuelgue en bind-mounts de Windows.
+  # Para correr en host (sin Docker) usa: cd frontend-web && npm run dev
+  frontend-web:
+    build:
+      context: ./frontend-web
+      dockerfile: Dockerfile
+      target: dev
+    command: npm run dev
+    environment:
+      VITE_PROXY_TARGET: http://nginx
+      CHOKIDAR_USEPOLLING: "true"
+    volumes:
+      - ./frontend-web:/app
+      - frontend_node_modules:/app/node_modules
+    # !override reemplaza la lista de ports del compose base (5173:80, modo
+    # prod) por la de dev. Sin esto, Compose concatena ambas listas y el
+    # contenedor intenta bindear 5173 dos veces -> "port is already allocated".
+    ports: !override
+      - "${WEB_PORT:-5173}:5173"
+
+volumes:
+  frontend_node_modules:

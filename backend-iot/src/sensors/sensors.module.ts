@@ -1,14 +1,32 @@
 import { Module } from '@nestjs/common';
+import { MongooseModule } from '@nestjs/mongoose';
+import { StoreConfigModule } from '../store-config/store-config.module';
+import { MockPublisherService } from './mock-publisher.service';
+import { SantaMariaService } from './santa-maria.service';
+import { Reading, ReadingSchema } from './schemas/reading.schema';
+import {
+  SensorConfig,
+  SensorConfigSchema,
+} from './schemas/sensor-config.schema';
 import { SensorsController } from './sensors.controller';
+import { SensorsRepository } from './sensors.repository';
 import { SensorsService } from './sensors.service';
 
-/**
- * Modulo de sensores.
- * Gestiona la configuracion de sensores IoT en MongoDB.
- */
 @Module({
+  imports: [
+    MongooseModule.forFeature([
+      { name: SensorConfig.name, schema: SensorConfigSchema },
+      { name: Reading.name, schema: ReadingSchema },
+    ]),
+    StoreConfigModule,
+  ],
   controllers: [SensorsController],
-  providers: [SensorsService],
+  providers: [
+    SensorsService,
+    SensorsRepository,
+    MockPublisherService,
+    SantaMariaService,
+  ],
   exports: [SensorsService],
 })
 export class SensorsModule {}

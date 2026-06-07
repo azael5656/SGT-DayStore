@@ -1,14 +1,26 @@
-import { Controller } from '@nestjs/common';
+import { Controller, Get, Param } from '@nestjs/common';
 import { TelemetryService } from './telemetry.service';
 
 /**
- * Controlador de telemetria.
- * Endpoints: GET /telemetry/latest, GET /telemetry/history/:sensor_id,
- * GET /telemetry/dashboard
- *
- * TODO: Implementar endpoints de consulta de telemetria
+ * Endpoints de consulta de telemetria.
+ * Todas las rutas requieren token JWT (AuthGuard global).
  */
 @Controller('telemetry')
 export class TelemetryController {
   constructor(private readonly telemetryService: TelemetryService) {}
+
+  @Get('latest')
+  async latest() {
+    return this.telemetryService.findLatest();
+  }
+
+  @Get('dashboard')
+  async dashboard() {
+    return this.telemetryService.getDashboard();
+  }
+
+  @Get('history/:sensorId')
+  async history(@Param('sensorId') sensorId: string) {
+    return this.telemetryService.getHistory(sensorId);
+  }
 }
