@@ -170,6 +170,26 @@ export class InMemoryStoreService {
     return a;
   }
 
+  /**
+   * Resuelve (auto-reconoce) todas las alertas NO reconocidas de un tipo.
+   * Lo usa SantaMariaService al cerrarse la puerta: el riesgo termino, asi
+   * que la alerta "puerta_fuera_horario" se cierra sola sin intervencion
+   * manual. Emite 'alert.ack' por cada una para que la UI la actualice por
+   * el mismo canal que el ack manual.
+   */
+  resolveAlertsByTipo(tipo: string, userId = 'sistema'): StoredAlert[] {
+    const resueltas: StoredAlert[] = [];
+    for (const a of this.alerts) {
+      if (a.tipo !== tipo || a.reconocida) continue;
+      a.reconocida = true;
+      a.reconocidaPor = userId;
+      a.reconocidaEn = new Date().toISOString();
+      this.events.emit('alert.ack', a);
+      resueltas.push(a);
+    }
+    return resueltas;
+  }
+
   clearAlerts(): void {
     this.alerts.length = 0;
     this.events.emit('alerts.cleared');

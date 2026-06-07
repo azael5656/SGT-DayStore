@@ -20,10 +20,20 @@ import { InMemoryStoreService } from '../shared/in-memory-store.service';
  *  - incendio: temperatura alta (>=38°C) + humedad baja + buzzer ON
  *  - forzado: puerta abierta + vibracion en vitrinas + movimiento + buzzer ON
  *  - corte_luz: corriente = 0 W + buzzer ON
+ *  - santamaria_abierta: abre la santa maria (MC-38). Si la tienda esta
+ *      cerrada, SantaMariaService levanta 'puerta_fuera_horario' (alta).
+ *  - santamaria_cerrada: cierra la santa maria. SantaMariaService auto-resuelve
+ *      la alerta de puerta si la habia.
  *  - normal: limpia alertas, apaga buzzer, valores saludables
  */
 
-export type Escenario = 'incendio' | 'forzado' | 'corte_luz' | 'normal';
+export type Escenario =
+  | 'incendio'
+  | 'forzado'
+  | 'corte_luz'
+  | 'santamaria_abierta'
+  | 'santamaria_cerrada'
+  | 'normal';
 
 const DURACION_EMERGENCIA_MS = 15_000;
 const INTERVALO_BURST_MS = 2_000;
@@ -57,9 +67,36 @@ export class SimulatorService implements OnModuleDestroy {
         return this.forzado();
       case 'corte_luz':
         return this.corteLuz();
+      case 'santamaria_abierta':
+        return this.santaMaria(true);
+      case 'santamaria_cerrada':
+        return this.santaMaria(false);
       case 'normal':
         return this.normal();
     }
+  }
+
+  /**
+   * Abre o cierra la santa maria (MC-38) en un solo disparo, sin marcar
+   * emergencia. La alerta "fuera de horario" la decide SantaMariaService al
+   * recibir esta lectura, segun el horario real de la tienda.
+   */
+  private santaMaria(abierta: boolean) {
+    this.limpiarBurst();
+    this.publicarLectura({
+      sensorId: 'mc38-santa-maria',
+      tipo: 'puerta',
+      valor: abierta ? 1 : 0,
+      unidad: 'estado',
+      fecha: new Date().toISOString(),
+    });
+    this.logger.log(
+      `🚪 Santa maria ${abierta ? 'ABIERTA' : 'CERRADA'} (escenario)`,
+    );
+    return {
+      escenario: abierta ? 'santamaria_abierta' : 'santamaria_cerrada',
+      puerta: abierta ? 'abierta' : 'cerrada',
+    };
   }
 
   private incendio() {
@@ -78,8 +115,10 @@ export class SimulatorService implements OnModuleDestroy {
 
     this.burstTimer = setInterval(() => {
       if (Date.now() >= hasta) {
+        // Fin del burst: dejamos de sostener valores extremos, pero NO apagamos
+        // el buzzer aqui. La alarma vive mientras la alerta siga sin reconocer
+        // (la apaga MqttService.syncBuzzer al reconocerla/resolverla).
         this.limpiarBurst();
-        this.apagarBuzzer();
         return;
       }
       const temp = 38 + Math.random() * 4;
@@ -111,8 +150,10 @@ export class SimulatorService implements OnModuleDestroy {
 
     this.burstTimer = setInterval(() => {
       if (Date.now() >= hasta) {
+        // Fin del burst: dejamos de sostener valores extremos, pero NO apagamos
+        // el buzzer aqui. La alarma vive mientras la alerta siga sin reconocer
+        // (la apaga MqttService.syncBuzzer al reconocerla/resolverla).
         this.limpiarBurst();
-        this.apagarBuzzer();
         return;
       }
       this.publicarEmergenciaForzado();
@@ -142,8 +183,10 @@ export class SimulatorService implements OnModuleDestroy {
 
     this.burstTimer = setInterval(() => {
       if (Date.now() >= hasta) {
+        // Fin del burst: dejamos de sostener valores extremos, pero NO apagamos
+        // el buzzer aqui. La alarma vive mientras la alerta siga sin reconocer
+        // (la apaga MqttService.syncBuzzer al reconocerla/resolverla).
         this.limpiarBurst();
-        this.apagarBuzzer();
         return;
       }
       this.publicarEmergenciaCorte();
@@ -208,14 +251,7 @@ export class SimulatorService implements OnModuleDestroy {
       unidad: 'W',
       fecha: ts,
     });
-    this.publicarLectura({
-      sensorId: 'buzzer-5v-principal',
-      tipo: 'buzzer',
-      valor: 0,
-      unidad: 'estado',
-      fecha: ts,
-    });
-
+    // El buzzer lo apaga MqttService.syncBuzzer al limpiarse las alertas.
     this.store.clearAlerts();
     this.logger.log('✅ Escenario NORMAL aplicado (alertas limpiadas, emergencia desactivada)');
     return { escenario: 'normal', mensaje: 'Estado estable, alertas limpiadas' };
@@ -229,32 +265,16 @@ export class SimulatorService implements OnModuleDestroy {
   }
 
   /**
-   * Detiene un escenario activo (si lo hay) y apaga el buzzer.
-   * Lo usa AlertsService al reconocer una alerta critica: si el dueno
-   * ya se entero, no tiene sentido sostener valores extremos por 15s.
+   * Detiene un escenario activo (si lo hay): deja de sostener valores extremos.
+   * Lo usa AlertsService al reconocer una alerta critica. El buzzer NO se toca
+   * aqui: lo apaga MqttService.syncBuzzer en respuesta al 'alert.ack'.
    */
   public stopIfActive(): boolean {
     if (!this.burstTimer && !this.store.isEmergencyActive()) return false;
     this.limpiarBurst();
     this.store.clearEmergency();
-    this.apagarBuzzer();
     this.logger.log('⏹ Escenario detenido por ack de alerta critica');
     return true;
-  }
-
-  /**
-   * Apaga el buzzer explicitamente al terminar el burst. El MockPublisher
-   * tambien lo haria en su proxima iteracion de 3s, pero preferimos cerrar
-   * la alarma sin lag visible para el usuario.
-   */
-  private apagarBuzzer(): void {
-    this.publicarLectura({
-      sensorId: 'buzzer-5v-principal',
-      tipo: 'buzzer',
-      valor: 0,
-      unidad: 'estado',
-      fecha: new Date().toISOString(),
-    });
   }
 
   private publicarEmergenciaIncendio(temperatura: number): void {
@@ -272,13 +292,6 @@ export class SimulatorService implements OnModuleDestroy {
       tipo: 'humedad',
       valor: 25 + Math.round(Math.random() * 5),
       unidad: '%',
-      fecha: ts,
-    });
-    this.publicarLectura({
-      sensorId: 'buzzer-5v-principal',
-      tipo: 'buzzer',
-      valor: 1,
-      unidad: 'estado',
       fecha: ts,
     });
   }
@@ -313,13 +326,6 @@ export class SimulatorService implements OnModuleDestroy {
       unidad: 'evento',
       fecha: ts,
     });
-    this.publicarLectura({
-      sensorId: 'buzzer-5v-principal',
-      tipo: 'buzzer',
-      valor: 1,
-      unidad: 'estado',
-      fecha: ts,
-    });
   }
 
   private publicarEmergenciaCorte(): void {
@@ -329,13 +335,6 @@ export class SimulatorService implements OnModuleDestroy {
       tipo: 'corriente',
       valor: 0,
       unidad: 'W',
-      fecha: ts,
-    });
-    this.publicarLectura({
-      sensorId: 'buzzer-5v-principal',
-      tipo: 'buzzer',
-      valor: 1,
-      unidad: 'estado',
       fecha: ts,
     });
   }

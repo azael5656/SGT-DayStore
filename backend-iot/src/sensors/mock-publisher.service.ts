@@ -30,8 +30,9 @@ import { StoreConfigService } from '../store-config/store-config.service';
  *    ruido inutil (esperamos movimiento). Fuera de horario genera alerta
  *    severidad 'alta' (visual, SIN sonido).
  *
- * El sonido del buzzer se controla desde SimulatorService cuando corre un
- * escenario critico (incendio/forzado/corte_luz).
+ * El buzzer NO se publica desde aqui ni desde el simulador: lo gobierna
+ * MqttService.syncBuzzer segun haya alertas sin reconocer que ameriten alarma
+ * (cualquier critica o la puerta abierta fuera de horario).
  */
 @Injectable()
 export class MockPublisherService implements OnModuleInit, OnModuleDestroy {

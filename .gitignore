@@ -27,6 +27,12 @@ Thumbs.db
 # Coverage
 coverage/
 
+# Playwright (e2e desktop)
+frontend-web/playwright-report/
+frontend-web/test-results/
+frontend-web/blob-report/
+frontend-web/.cache/
+
 # Docker volumes (locales)
 infra/mosquitto/data/*
 !infra/mosquitto/data/.gitkeep

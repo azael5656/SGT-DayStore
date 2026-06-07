@@ -1,23 +1,19 @@
 import { Module } from '@nestjs/common';
+import { SimulatorController } from './simulator.controller';
 import { SimulatorService } from './simulator.service';
 
 /**
  * Modulo del simulador de escenarios.
  *
- * NOTA: el SimulatorController quedo desregistrado a proposito para que en
- * el modo "datos reales ESP32" no quede expuesto POST /simulator/escenario/*.
- * El SimulatorService sigue exportado porque AlertsService lo inyecta para
- * llamar stopIfActive() al reconocer alertas; con el burst inactivo es un
- * no-op seguro.
- *
- * Para reactivar el simulador (demos sin hardware), volver a poner
- * SimulatorController en `controllers`.
+ * SimulatorController expone POST /simulator/escenario/{incendio|forzado|
+ * corte_luz|normal} para demos sin hardware.
  *
  * Depende de:
  *  - SharedModule (global) -> InMemoryStoreService
  *  - MqttModule (global)   -> MqttService
  */
 @Module({
+  controllers: [SimulatorController],
   providers: [SimulatorService],
   exports: [SimulatorService],
 })

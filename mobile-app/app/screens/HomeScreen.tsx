@@ -10,7 +10,6 @@ import {
   Text,
   View,
 } from 'react-native';
-import BuzzerVibrator from '../components/BuzzerVibrator';
 import LiveStats from '../components/LiveStats';
 import QuickAccessCard from '../components/QuickAccessCard';
 import { useAuth } from '../context/AuthContext';
@@ -90,8 +89,6 @@ export default function HomeScreen() {
           <Text style={styles.alertBannerArrow}>›</Text>
         </Pressable>
       )}
-
-      <BuzzerVibrator />
 
       <LiveStats readings={readings} conectado={conectado} alertasSinRevisar={sinRevisar} />
 

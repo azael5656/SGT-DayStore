@@ -25,6 +25,24 @@ export function labelSensor(sensorId: string): string {
   return map[sensorId] ?? sensorId;
 }
 
+/**
+ * Etiqueta legible para el `tipo` de una alerta (el badge de AlertasPage).
+ * Sin entrada en el mapa, devuelve el tipo crudo (sigue siendo informativo).
+ */
+export function labelTipoAlerta(tipo: string): string {
+  const map: Record<string, string> = {
+    incendio: 'Incendio',
+    forzado: 'Intento de forzado',
+    corte_luz: 'Corte de energia',
+    movimiento: 'Movimiento sospechoso',
+    puerta_fuera_horario: 'Santa maria fuera de horario',
+    calor_peligroso: 'Calor peligroso',
+    alta_temperatura: 'Temperatura alta',
+    alta_humedad: 'Humedad alta',
+  };
+  return map[tipo] ?? tipo;
+}
+
 export function labelTipo(tipo: string): string {
   const map: Record<string, string> = {
     temperatura: 'Temperatura',

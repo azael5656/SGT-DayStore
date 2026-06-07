@@ -1,5 +1,6 @@
 import React from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
+import BuzzerVibrator from '../components/BuzzerVibrator';
 import { useAuth } from '../context/AuthContext';
 import { RealtimeIoTProvider } from '../context/RealtimeIoTContext';
 import { COLORS } from '../utils/constants';
@@ -25,6 +26,9 @@ export default function AppNavigator() {
 
   return isAuthenticated ? (
     <RealtimeIoTProvider>
+      {/* Alarma global: suena en cualquier pantalla mientras el buzzer este
+          activo, no solo en Home. */}
+      <BuzzerVibrator />
       <TabNavigator />
     </RealtimeIoTProvider>
   ) : (

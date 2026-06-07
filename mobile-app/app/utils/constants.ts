@@ -28,7 +28,7 @@
  * Para emulador Android Studio: usar `10.0.2.2:80` (alias especial al host).
  * Para teléfono físico en la misma WiFi: cambiar a la IP LAN (ej. http://192.168.0.100:80).
  */
-export const API_BASE_URL = 'http://10.0.2.2:80';
+export const API_BASE_URL = 'http://10.147.200.40:80';
 
 /**
  * Nombres de las rutas de navegacion. Los usamos para navegar de forma

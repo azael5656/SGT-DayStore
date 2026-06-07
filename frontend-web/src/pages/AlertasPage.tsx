@@ -1,5 +1,6 @@
 import api from '../api/client';
 import { useRealtimeIoT } from '../hooks/useRealtimeIoT';
+import { labelTipoAlerta } from '../utils/labels';
 
 const SEVERIDAD_COLOR: Record<string, string> = {
   baja: 'bg-blue-100 text-blue-700',
@@ -42,7 +43,7 @@ export default function AlertasPage() {
                   }`}>
                   {a.severidad}
                 </span>
-                <span className="text-sm font-semibold">{a.tipo}</span>
+                <span className="text-sm font-semibold">{labelTipoAlerta(a.tipo)}</span>
               </div>
               <div className="text-sm text-gray-700">{a.mensaje}</div>
               <div className="text-xs text-gray-500 mt-1">
