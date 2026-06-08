@@ -177,9 +177,9 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     borderRadius: 12,
   },
-  estadoOn: { backgroundColor: '#DCFCE7' },
-  estadoOff: { backgroundColor: '#FEE2E2' },
-  estadoTxt: { fontSize: 10, fontWeight: '700', letterSpacing: 0.5 },
+  estadoOn: { backgroundColor: COLORS.success },
+  estadoOff: { backgroundColor: COLORS.danger },
+  estadoTxt: { fontSize: 10, fontWeight: '700', letterSpacing: 0.5, color: COLORS.accentContrast },
   gridResumen: {
     flexDirection: 'row',
     flexWrap: 'wrap',

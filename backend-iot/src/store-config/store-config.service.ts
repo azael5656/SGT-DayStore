@@ -64,6 +64,14 @@ export class StoreConfigService implements OnModuleInit {
       doc.cerrarHoyFecha = dto.cerrarHoyA ? this.hoyISO(doc.zonaHoraria) : null;
     }
     if (dto.diasCerrados !== undefined) doc.diasCerrados = dto.diasCerrados;
+    // Si el usuario configura un cierre (cierre temprano, vacaciones o un dia
+    // cerrado), salimos del "abierto forzado" para que esa regla pueda aplicar:
+    // antes, "Abrir ahora" pisaba cualquier cierre y la tienda nunca cerraba.
+    const configuraCierre =
+      !!dto.cerrarHoyA ||
+      !!dto.vacacionesHasta ||
+      (dto.diasCerrados !== undefined && dto.diasCerrados.length > 0);
+    if (configuraCierre) doc.abiertoForzado = false;
     if (dto.umbralesAlerta !== undefined) {
       doc.umbralesAlerta = {
         temperaturaMax:
@@ -177,6 +185,21 @@ export class StoreConfigService implements OnModuleInit {
     doc.vacacionesHasta = null;
     doc.cerrarHoyA = null;
     doc.cerrarHoyFecha = null;
+    const saved = await doc.save();
+    this.cacheDoc = saved;
+    this.cacheExpires = Date.now() + this.CACHE_TTL_MS;
+    return this.serialize(saved);
+  }
+
+  /**
+   * Vuelve al modo AUTOMATICO: apaga ambos overrides manuales (abierto forzado
+   * y modo nocturno) para que la tienda siga el horario, dias cerrados,
+   * vacaciones y cierre temprano configurados.
+   */
+  async seguirHorario() {
+    const doc = await this.ensureExists();
+    doc.abiertoForzado = false;
+    doc.modoNocturno = false;
     const saved = await doc.save();
     this.cacheDoc = saved;
     this.cacheExpires = Date.now() + this.CACHE_TTL_MS;

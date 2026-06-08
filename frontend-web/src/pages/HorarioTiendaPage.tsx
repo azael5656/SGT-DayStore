@@ -1,5 +1,16 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { CalendarClock, Clock, DoorOpen, DoorClosed } from 'lucide-react';
 import api from '../api/client';
+import Alert from '../components/ui/Alert';
+import Badge from '../components/ui/Badge';
+import Button from '../components/ui/Button';
+import Card from '../components/ui/Card';
+import Chip from '../components/ui/Chip';
+import DatePicker from '../components/ui/DatePicker';
+import Field from '../components/ui/Field';
+import Input from '../components/ui/Input';
+import PageHeader from '../components/ui/PageHeader';
+import TimePicker from '../components/ui/TimePicker';
 
 interface StoreConfig {
   horarioApertura: string;
@@ -121,203 +132,181 @@ export default function HorarioTiendaPage() {
     await refrescarEstado();
   };
 
+  const seguirHorario = async () => {
+    const { data } = await api.post<StoreConfig>(
+      '/api/iot/store/config/seguir-horario',
+      {},
+    );
+    setCfg(data);
+    await refrescarEstado();
+  };
+
   if (!cfg || !estado)
-    return <div className="text-gray-500">Cargando configuracion...</div>;
+    return <div className="text-text-muted">Cargando configuracion...</div>;
 
   return (
-    <div className="max-w-3xl">
-      <h1 className="text-2xl font-bold mb-5">Horario de la tienda</h1>
+    <div className="max-w-6xl">
+      <PageHeader title="Horario de la tienda" icon={<Clock size={22} strokeWidth={1.75} />} />
 
-      <div
-        className={`p-4 rounded-xl mb-3 flex items-center gap-3 ${
-          estado.abierta ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'
-        }`}>
-        <span className="text-3xl">{estado.abierta ? '🟢' : '🔴'}</span>
+      <Card className="mb-3 flex items-center gap-3">
+        {estado.abierta ? (
+          <DoorOpen size={28} strokeWidth={1.75} className="text-success shrink-0" />
+        ) : (
+          <DoorClosed size={28} strokeWidth={1.75} className="text-danger shrink-0" />
+        )}
         <div>
-          <div className="font-bold">
-            Tienda {estado.abierta ? 'ABIERTA' : 'CERRADA'}
+          <div className="mb-1">
+            <Badge tone={estado.abierta ? 'success' : 'danger'}>
+              Tienda {estado.abierta ? 'ABIERTA' : 'CERRADA'}
+            </Badge>
           </div>
-          <div className="text-sm text-gray-700 mt-0.5">{estado.motivo}</div>
-          <div className="text-xs text-gray-500 mt-0.5">
+          <div className="text-sm text-text mt-0.5">{estado.motivo}</div>
+          <div className="text-xs text-text-muted mt-0.5">
             Son las {estado.horaActual} en {cfg.zonaHoraria}
           </div>
         </div>
-      </div>
+      </Card>
 
-      <div className="grid grid-cols-2 gap-2 mb-2">
-        <button
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mb-2">
+        <Button
+          variant="secondary"
           onClick={abrirAhora}
-          className="py-2.5 rounded-lg border border-green-300 bg-green-50 text-green-700 font-bold hover:bg-green-100">
-          🟢 Abrir ahora
-        </button>
-        <button
+          leftIcon={<DoorOpen size={16} strokeWidth={1.75} />}
+          className="w-full">
+          Abrir ahora
+        </Button>
+        <Button
+          variant="secondary"
           onClick={cerrarAhora}
-          className="py-2.5 rounded-lg border border-red-300 bg-red-50 text-red-700 font-bold hover:bg-red-100">
-          🔴 Cerrar ahora
-        </button>
+          leftIcon={<DoorClosed size={16} strokeWidth={1.75} />}
+          className="w-full">
+          Cerrar ahora
+        </Button>
+        <Button
+          variant="secondary"
+          onClick={seguirHorario}
+          leftIcon={<CalendarClock size={16} strokeWidth={1.75} />}
+          className="w-full">
+          Seguir horario
+        </Button>
       </div>
-      <p className="text-xs text-gray-500 italic text-center mb-6">
-        "Abrir ahora" desactiva modo nocturno, vacaciones y cierre temprano.
-        "Cerrar ahora" activa modo nocturno.
+      <p className="text-xs text-text-muted italic text-center mb-6">
+        "Abrir/Cerrar ahora" fuerzan el estado al instante. "Seguir horario" vuelve al
+        automático: usa el horario, días cerrados, vacaciones y cierre temprano de abajo.
       </p>
 
       {mensaje && (
-        <div
-          className={`mb-4 px-3 py-2 rounded-md text-sm ${
-            mensaje.tipo === 'ok'
-              ? 'bg-green-100 text-green-700'
-              : 'bg-red-100 text-red-700'
-          }`}>
-          {mensaje.txt}
+        <div className="mb-4">
+          <Alert tone={mensaje.tipo === 'ok' ? 'success' : 'danger'}>
+            {mensaje.txt}
+          </Alert>
         </div>
       )}
 
-      <h3 className="text-xs uppercase tracking-widest font-bold text-gray-500 mb-3">
-        Horario normal
-      </h3>
-      <div className="bg-white rounded-xl border border-gray-200 p-4 mb-5 space-y-3">
+      <div className="grid lg:grid-cols-3 gap-6 items-start mb-6">
+        <section className="lg:col-span-2">
+          <h3 className="text-xs uppercase tracking-widest font-bold text-text-muted mb-3">
+            Horario normal
+          </h3>
+          <Card className="space-y-3">
         <div className="grid grid-cols-2 gap-3">
-          <label className="block">
-            <span className="text-xs text-gray-600 mb-1 block">Abre a las</span>
-            <input
-              type="time"
-              value={cfg.horarioApertura}
-              onChange={(e) => actualizar({ horarioApertura: e.target.value })}
-              className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
-            />
-          </label>
-          <label className="block">
-            <span className="text-xs text-gray-600 mb-1 block">Cierra a las</span>
-            <input
-              type="time"
-              value={cfg.horarioCierre}
-              onChange={(e) => actualizar({ horarioCierre: e.target.value })}
-              className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
-            />
-          </label>
+          <Field label="Abre a las">
+            <TimePicker value={cfg.horarioApertura} onChange={(v) => actualizar({ horarioApertura: v })} />
+          </Field>
+          <Field label="Cierra a las">
+            <TimePicker value={cfg.horarioCierre} onChange={(v) => actualizar({ horarioCierre: v })} />
+          </Field>
         </div>
-        <label className="block">
-          <span className="text-xs text-gray-600 mb-1 block">Zona horaria</span>
-          <input
+        <Field label="Zona horaria">
+          <Input
             type="text"
             value={cfg.zonaHoraria}
             onChange={(e) => actualizar({ zonaHoraria: e.target.value })}
             placeholder="America/Bogota"
-            className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
           />
-        </label>
-      </div>
-
-      <h3 className="text-xs uppercase tracking-widest font-bold text-gray-500 mb-3">
-        Dias cerrados
-      </h3>
-      <div className="bg-white rounded-xl border border-gray-200 p-4 mb-5">
-        <p className="text-xs text-gray-500 mb-2">
+        </Field>
+          </Card>
+        </section>
+        <section>
+          <h3 className="text-xs uppercase tracking-widest font-bold text-text-muted mb-3">
+            Dias cerrados
+          </h3>
+          <Card>
+        <p className="text-xs text-text-muted mb-2">
           Marca los dias fijos que la tienda no abre.
         </p>
         <div className="flex flex-wrap gap-2">
           {DIAS.map((d) => {
             const activo = cfg.diasCerrados.includes(d.v);
             return (
-              <button
+              <Chip
                 key={d.v}
-                type="button"
-                onClick={() => toggleDia(d.v)}
-                className={`px-3 py-1.5 rounded-full text-sm font-semibold border ${
-                  activo
-                    ? 'bg-red-600 border-red-600 text-white'
-                    : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50'
-                }`}>
+                active={activo}
+                onClick={() => toggleDia(d.v)}>
                 {d.label}
-              </button>
+              </Chip>
             );
           })}
         </div>
-      </div>
-
-      <h3 className="text-xs uppercase tracking-widest font-bold text-gray-500 mb-3">
-        Cierres puntuales
-      </h3>
-      <div className="bg-white rounded-xl border border-gray-200 p-4 mb-6 space-y-4">
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <div className="font-semibold text-sm">Modo nocturno</div>
-            <p className="text-xs text-gray-500 mt-0.5">
-              Fuerza "cerrado" ahora mismo.
-            </p>
-          </div>
-          <label className="inline-flex items-center cursor-pointer">
-            <input
-              type="checkbox"
-              checked={cfg.modoNocturno}
-              onChange={(e) => actualizar({ modoNocturno: e.target.checked })}
-              className="sr-only peer"
-            />
-            <div className="w-11 h-6 bg-gray-200 rounded-full peer-checked:bg-primary relative">
-              <div
-                className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition ${
-                  cfg.modoNocturno ? 'translate-x-5' : ''
-                }`}
-              />
-            </div>
-          </label>
-        </div>
-
-        <hr className="border-gray-200" />
-
+          </Card>
+        </section>
+        <section className="lg:col-span-2">
+          <h3 className="text-xs uppercase tracking-widest font-bold text-text-muted mb-3">
+            Cierres puntuales
+          </h3>
+          <Card className="space-y-4">
         <div>
-          <div className="font-semibold text-sm">Cerrar hoy antes de la hora normal</div>
-          <p className="text-xs text-gray-500 mt-0.5 mb-2">
+          <div className="font-semibold text-sm text-text">Cerrar hoy antes de la hora normal</div>
+          <p className="text-xs text-text-muted mt-0.5 mb-2">
             Hoy cierras a las 16:00 en vez del horario habitual, por ejemplo.
           </p>
           <div className="flex gap-2">
-            <input
-              type="time"
-              value={cfg.cerrarHoyA ?? ''}
-              onChange={(e) => actualizar({ cerrarHoyA: e.target.value || null })}
-              className="flex-1 border border-gray-300 rounded-md px-3 py-2 text-sm"
-            />
-            <button
-              type="button"
-              onClick={() => actualizar({ cerrarHoyA: null })}
-              className="px-3 py-2 text-sm bg-gray-100 rounded-md border border-gray-200">
+            <div className="flex-1">
+              <TimePicker
+                value={cfg.cerrarHoyA ?? ''}
+                onChange={(v) => actualizar({ cerrarHoyA: v || null })}
+              />
+            </div>
+            <Button
+              variant="secondary"
+              onClick={() => actualizar({ cerrarHoyA: null })}>
               Limpiar
-            </button>
+            </Button>
           </div>
         </div>
 
-        <hr className="border-gray-200" />
+        <hr className="border-border" />
 
         <div>
-          <div className="font-semibold text-sm">Vacaciones hasta</div>
-          <p className="text-xs text-gray-500 mt-0.5 mb-2">
+          <div className="font-semibold text-sm text-text">Vacaciones hasta</div>
+          <p className="text-xs text-text-muted mt-0.5 mb-2">
             Durante las vacaciones cualquier movimiento genera alerta.
           </p>
           <div className="flex gap-2">
-            <input
-              type="date"
-              value={cfg.vacacionesHasta ?? ''}
-              onChange={(e) =>
-                actualizar({ vacacionesHasta: e.target.value || null })
-              }
-              className="flex-1 border border-gray-300 rounded-md px-3 py-2 text-sm"
-            />
-            <button
-              type="button"
-              onClick={() => actualizar({ vacacionesHasta: null })}
-              className="px-3 py-2 text-sm bg-gray-100 rounded-md border border-gray-200">
+            <div className="flex-1">
+              <DatePicker
+                value={cfg.vacacionesHasta ?? ''}
+                onChange={(v) => actualizar({ vacacionesHasta: v || null })}
+              />
+            </div>
+            <Button
+              variant="secondary"
+              onClick={() => actualizar({ vacacionesHasta: null })}>
               Limpiar
-            </button>
+            </Button>
           </div>
         </div>
+          </Card>
+        </section>
       </div>
 
-      <button
+      <Button
         onClick={guardar}
         disabled={guardando}
-        className="bg-primary text-white px-6 py-3 rounded-md font-semibold disabled:opacity-60">
-        {guardando ? 'Guardando...' : 'Guardar configuracion'}
-      </button>
+        leftIcon={<Clock size={16} strokeWidth={1.75} />}
+        className="mt-6">
+        {guardando ? 'Guardando…' : 'Guardar configuracion'}
+      </Button>
     </div>
   );
 }

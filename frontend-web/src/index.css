@@ -2,6 +2,46 @@
 @tailwind components;
 @tailwind utilities;
 
+/*
+ * Tokens de marca Dayisaacstore — paleta "Pizarra fría" (gris azulado + naranja).
+ * Fuente de verdad de colores: variables CSS aqui + mapeo en tailwind.config.js.
+ * El modo se controla con la clase `dark` en cualquier ancestro (darkMode: 'class').
+ * El naranja de relleno (--accent-fill) es el del logo (#FF7A00) en ambos modos.
+ */
+:root {
+  /* Modo claro */
+  --bg: #F6F8FA;
+  --surface: #FFFFFF;
+  --surface-alt: #EDF1F5;
+  --border: #D9E0E7;
+  --text: #1A2129;
+  --text-muted: #66707B;
+  --accent: #E96B00;          /* naranja accesible para texto/iconos sobre claro (AA) */
+  --accent-fill: #FF7A00;     /* relleno naranja de marca (logo) */
+  --accent-contrast: #FFFFFF; /* texto/icono encima del relleno naranja */
+  --success: #16A34A;
+  --warning: #B45309;
+  --danger: #DC2626;
+  --info: #0369A1;
+}
+
+.dark {
+  /* Modo oscuro */
+  --bg: #0E1116;
+  --surface: #161B22;
+  --surface-alt: #1D232C;
+  --border: #2A323D;
+  --text: #E7EDF3;
+  --text-muted: #8A97A5;
+  --accent: #FF8419;
+  --accent-fill: #FF7A00;
+  --accent-contrast: #0E1116;
+  --success: #22C55E;
+  --warning: #F59E0B;
+  --danger: #EF4444;
+  --info: #0EA5E9;
+}
+
 html, body, #root {
   height: 100%;
   margin: 0;

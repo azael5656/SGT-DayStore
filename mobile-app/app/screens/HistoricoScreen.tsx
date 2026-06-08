@@ -155,7 +155,7 @@ const styles = StyleSheet.create({
   },
   chipActive: { backgroundColor: COLORS.primary, borderColor: COLORS.primary },
   chipText: { fontSize: 12, color: COLORS.text },
-  chipTextActive: { color: '#fff', fontWeight: '600' },
+  chipTextActive: { color: COLORS.accentContrast, fontWeight: '600' },
   resumen: {
     flexDirection: 'row',
     backgroundColor: COLORS.surface,

@@ -11,6 +11,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import Icon from '../components/Icon';
 import { useAuth } from '../context/AuthContext';
 import {
   ExchangeRate,
@@ -104,10 +105,13 @@ export default function TasasScreen() {
                 onCambiar={() => setCrearAbierto('COP')}
               />
             </View>
-            <Text style={styles.tipText}>
-              💡 La tasa USD es siempre 1 (es la moneda base del sistema).
-              Las tasas viejas se conservan para auditoría.
-            </Text>
+            <View style={styles.tipText}>
+              <Icon name="tip" color={COLORS.primary} size={16} />
+              <Text style={styles.tipTextTxt}>
+                La tasa USD es siempre 1 (es la moneda base del sistema).
+                Las tasas viejas se conservan para auditoría.
+              </Text>
+            </View>
             <Text style={styles.section}>Historial de cambios</Text>
           </>
         }
@@ -280,8 +284,9 @@ function CrearTasaModal({
           />
 
           <View style={styles.tip}>
+            <Icon name="tip" color={COLORS.info} size={16} />
             <Text style={styles.tipTxt}>
-              💡 Las tasas anteriores no se borran — quedan para que las
+              Las tasas anteriores no se borran — quedan para que las
               ventas de ayer mantengan su tasa real al revisarlas.
             </Text>
           </View>
@@ -300,7 +305,7 @@ function CrearTasaModal({
                 styles.dialogBtnPrimary,
                 enviando && { opacity: 0.6 },
               ]}>
-              <Text style={{ color: '#FFF', fontWeight: '700' }}>
+              <Text style={{ color: COLORS.accentContrast, fontWeight: '700' }}>
                 {enviando ? 'Guardando...' : 'Guardar tasa'}
               </Text>
             </TouchableOpacity>
@@ -333,8 +338,8 @@ const styles = StyleSheet.create({
     borderColor: COLORS.border,
   },
   cardWarning: {
-    borderColor: '#FCD34D',
-    backgroundColor: '#FFFBEB',
+    borderColor: COLORS.warning,
+    backgroundColor: COLORS.surfaceAlt,
   },
   cardLabel: {
     fontSize: 11,
@@ -362,12 +367,18 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     alignItems: 'center',
   },
-  cardBtnTxt: { color: '#FFF', fontWeight: '700', fontSize: 14 },
+  cardBtnTxt: { color: COLORS.accentContrast, fontWeight: '700', fontSize: 14 },
   tipText: {
-    fontSize: 12,
-    color: COLORS.textMuted,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 6,
     marginTop: 12,
     marginBottom: 6,
+  },
+  tipTextTxt: {
+    flex: 1,
+    fontSize: 12,
+    color: COLORS.textMuted,
     lineHeight: 17,
   },
   section: {
@@ -396,7 +407,7 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   histLeft: {
-    backgroundColor: '#F3F4F6',
+    backgroundColor: COLORS.surfaceAlt,
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 8,
@@ -460,14 +471,17 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.background,
   },
   tip: {
-    backgroundColor: '#EFF6FF',
-    borderColor: '#BFDBFE',
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 6,
+    backgroundColor: COLORS.surfaceAlt,
+    borderColor: COLORS.border,
     borderWidth: 1,
     borderRadius: 8,
     padding: 10,
     marginTop: 14,
   },
-  tipTxt: { fontSize: 11, color: '#1E40AF', lineHeight: 16 },
+  tipTxt: { flex: 1, fontSize: 11, color: COLORS.info, lineHeight: 16 },
   dialogBotones: {
     flexDirection: 'row',
     justifyContent: 'flex-end',

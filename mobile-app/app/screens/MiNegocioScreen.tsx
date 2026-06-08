@@ -11,6 +11,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import Icon from '../components/Icon';
 import { exchangeRatesService } from '../services/exchangeRates.service';
 import { DashboardData, reportesService } from '../services/reportes.service';
 import { CurrentRates } from '../services/sales.service';
@@ -119,33 +120,33 @@ export default function MiNegocioScreen() {
       <View style={styles.kpiRow}>
         <KpiCard
           label="Esta semana"
-          icono="📈"
+          icono="tendencias"
           valor={`$${data.ventas.semana.totalUsd.toFixed(0)}`}
           sub={`${data.ventas.semana.cantidad} ventas`}
-          color="#7C3AED"
+          color={COLORS.primary}
         />
         <KpiCard
           label="Este mes"
-          icono="🗓️"
+          icono="horario"
           valor={`$${data.ventas.mes.totalUsd.toFixed(0)}`}
           sub={`${data.ventas.mes.cantidad} ventas`}
-          color="#16A34A"
+          color={COLORS.primary}
         />
       </View>
       <View style={styles.kpiRow}>
         <KpiCard
           label="Ticket promedio"
-          icono="🎯"
+          icono="recibo"
           valor={`$${data.ventas.ticketPromedio.toFixed(2)}`}
           sub="Por venta este mes"
-          color="#F59E0B"
+          color={COLORS.primary}
         />
         <KpiCard
           label="Stock bajo"
-          icono="📦"
+          icono="inventario"
           valor={`${data.stockBajo}`}
           sub={data.stockBajo === 0 ? 'OK' : 'Reabastecer'}
-          color={data.stockBajo > 0 ? '#DC2626' : '#16A34A'}
+          color={data.stockBajo > 0 ? COLORS.danger : COLORS.success}
         />
       </View>
 
@@ -154,7 +155,9 @@ export default function MiNegocioScreen() {
         <TouchableOpacity
           style={styles.alertCard}
           onPress={() => navigation.navigate('VentasDetalle')}>
-          <Text style={styles.alertIcon}>💰</Text>
+          <View style={styles.alertIcon}>
+            <Icon name="clientes" color={COLORS.warning} size={28} />
+          </View>
           <View style={{ flex: 1 }}>
             <Text style={styles.alertTitulo}>
               {data.deudas.cantidad}{' '}
@@ -166,11 +169,15 @@ export default function MiNegocioScreen() {
                 ` · ${(data.deudas.totalSaldoUsd * tasas.VES).toLocaleString()} Bs`}
             </Text>
           </View>
-          <Text style={styles.alertChevron}>›</Text>
+          <View style={styles.alertChevron}>
+            <Icon name="flecha" color={COLORS.warning} size={24} />
+          </View>
         </TouchableOpacity>
       ) : (
         <View style={[styles.alertCard, styles.alertOk]}>
-          <Text style={styles.alertIcon}>✅</Text>
+          <View style={styles.alertIcon}>
+            <Icon name="check" color={COLORS.success} size={28} />
+          </View>
           <View style={{ flex: 1 }}>
             <Text style={styles.alertTituloOk}>Sin deudas pendientes</Text>
             <Text style={styles.alertSub}>
@@ -181,12 +188,12 @@ export default function MiNegocioScreen() {
       )}
 
       {/* Tendencia */}
-      <Section titulo="📊 Tendencia 14 días">
+      <Section titulo="Tendencia 14 días" icono="tendencias">
         <Tendencia data={data.serieDiaria} />
       </Section>
 
       {/* Top productos */}
-      <Section titulo="🏆 Top productos del mes">
+      <Section titulo="Top productos del mes" icono="figura">
         {data.topProductos.length === 0 ? (
           <Text style={styles.vacio}>Aún no hay ventas este mes.</Text>
         ) : (
@@ -217,19 +224,19 @@ export default function MiNegocioScreen() {
       </Section>
 
       {/* Distribución por moneda */}
-      <Section titulo="💱 Por moneda">
+      <Section titulo="Por moneda" icono="cambio">
         <Distribucion
           items={data.distribucion.porMoneda.map((m) => ({
             label: m.currency,
             total: m.totalUsd,
             cantidad: m.cantidad,
           }))}
-          color="#2563EB"
+          color={COLORS.primary}
         />
       </Section>
 
       {/* Distribución por método */}
-      <Section titulo="💳 Por método">
+      <Section titulo="Por método" icono="credito">
         <Distribucion
           items={data.distribucion.porMetodo.map((m) => ({
             label:
@@ -239,7 +246,7 @@ export default function MiNegocioScreen() {
             total: m.totalUsd,
             cantidad: m.cantidad,
           }))}
-          color="#7C3AED"
+          color={COLORS.primary}
         />
       </Section>
 
@@ -267,7 +274,9 @@ function KpiCard({
 }) {
   return (
     <View style={[styles.kpiCard, { borderLeftColor: color }]}>
-      <Text style={styles.kpiIcono}>{icono}</Text>
+      <View style={styles.kpiIcono}>
+        <Icon name={icono} color={color} size={18} />
+      </View>
       <Text style={styles.kpiLabel}>{label}</Text>
       <Text style={[styles.kpiValor, { color }]}>{valor}</Text>
       <Text style={styles.kpiSub}>{sub}</Text>
@@ -277,14 +286,19 @@ function KpiCard({
 
 function Section({
   titulo,
+  icono,
   children,
 }: {
   titulo: string;
+  icono?: string;
   children: React.ReactNode;
 }) {
   return (
     <View style={styles.section}>
-      <Text style={styles.sectionTitle}>{titulo}</Text>
+      <View style={styles.sectionHeader}>
+        {icono && <Icon name={icono} color={COLORS.primary} size={16} />}
+        <Text style={styles.sectionTitle}>{titulo}</Text>
+      </View>
       {children}
     </View>
   );
@@ -398,7 +412,7 @@ const styles = StyleSheet.create({
   heroValor: {
     fontSize: 48,
     fontWeight: '900',
-    color: '#FFF',
+    color: COLORS.accentContrast,
     marginTop: 6,
   },
   heroUsd: {
@@ -432,7 +446,7 @@ const styles = StyleSheet.create({
     borderColor: COLORS.border,
     borderLeftWidth: 4,
   },
-  kpiIcono: { fontSize: 18 },
+  kpiIcono: { height: 18, justifyContent: 'center' },
   kpiLabel: {
     fontSize: 10,
     fontWeight: '700',
@@ -451,20 +465,20 @@ const styles = StyleSheet.create({
   alertCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FEF3C7',
-    borderColor: '#FCD34D',
+    backgroundColor: COLORS.surfaceAlt,
+    borderColor: COLORS.warning,
     borderWidth: 1,
     borderRadius: 12,
     padding: 14,
     marginVertical: 8,
     gap: 12,
   },
-  alertOk: { backgroundColor: '#DCFCE7', borderColor: '#86EFAC' },
-  alertIcon: { fontSize: 28 },
-  alertTitulo: { fontSize: 14, fontWeight: '800', color: '#92400E' },
-  alertTituloOk: { fontSize: 14, fontWeight: '800', color: '#166534' },
+  alertOk: { backgroundColor: COLORS.surfaceAlt, borderColor: COLORS.success },
+  alertIcon: { height: 28, justifyContent: 'center' },
+  alertTitulo: { fontSize: 14, fontWeight: '800', color: COLORS.warning },
+  alertTituloOk: { fontSize: 14, fontWeight: '800', color: COLORS.success },
   alertSub: { fontSize: 11, color: COLORS.textMuted, marginTop: 2 },
-  alertChevron: { fontSize: 24, color: '#92400E', fontWeight: '300' },
+  alertChevron: { justifyContent: 'center' },
   // Sections
   section: {
     backgroundColor: COLORS.surface,
@@ -474,11 +488,16 @@ const styles = StyleSheet.create({
     borderColor: COLORS.border,
     marginTop: 12,
   },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 10,
+  },
   sectionTitle: {
     fontSize: 13,
     fontWeight: '800',
     color: COLORS.text,
-    marginBottom: 10,
   },
   vacio: {
     textAlign: 'center',
@@ -527,7 +546,7 @@ const styles = StyleSheet.create({
   rankInfo: { fontSize: 11, color: COLORS.textMuted, fontWeight: '600' },
   rankBarBg: {
     height: 6,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: COLORS.surfaceAlt,
     borderRadius: 3,
     overflow: 'hidden',
   },
@@ -546,7 +565,7 @@ const styles = StyleSheet.create({
   distInfo: { fontSize: 11, color: COLORS.textMuted },
   distBarBg: {
     height: 6,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: COLORS.surfaceAlt,
     borderRadius: 3,
     overflow: 'hidden',
   },

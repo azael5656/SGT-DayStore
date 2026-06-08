@@ -3,19 +3,20 @@ import { StyleSheet, Text, View } from 'react-native';
 import { COLORS } from '../utils/constants';
 import type { SensorReading } from '../services/iot.service';
 import { labelSensor, labelTipo } from '../utils/labels';
+import Icon from './Icon';
 
 /**
  * Tarjeta de visualizacion de una lectura de sensor.
  * Colorea el valor segun el tipo y umbral basico.
  */
 const ICONOS: Record<string, string> = {
-  temperatura: '🌡️',
-  humedad: '💧',
-  puerta: '🚪',
-  movimiento: '🏃',
-  vibracion: '📳',
-  corriente: '⚡',
-  buzzer: '🔊',
+  temperatura: 'temperatura',
+  humedad: 'humedad',
+  puerta: 'puerta',
+  movimiento: 'movimiento',
+  vibracion: 'vibracion',
+  corriente: 'corriente',
+  buzzer: 'buzzer',
 };
 
 function colorValor(tipo: string, valor: number): string {
@@ -44,12 +45,14 @@ interface Props {
 }
 
 export default function SensorCard({ lectura }: Props) {
-  const icono = ICONOS[lectura.tipo] ?? '📡';
+  const icono = ICONOS[lectura.tipo] ?? 'alertas';
   const color = colorValor(lectura.tipo, lectura.valor);
   return (
     <View style={styles.card}>
       <View style={styles.header}>
-        <Text style={styles.icono}>{icono}</Text>
+        <View style={styles.icono}>
+          <Icon name={icono} color={COLORS.primary} size={22} />
+        </View>
         <Text style={styles.tipo}>{labelTipo(lectura.tipo)}</Text>
       </View>
       <Text style={[styles.valor, { color }]}>
@@ -75,7 +78,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 8,
   },
-  icono: { fontSize: 22, marginRight: 10 },
+  icono: { marginRight: 10 },
   tipo: {
     fontSize: 13,
     fontWeight: '700',

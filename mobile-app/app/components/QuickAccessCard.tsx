@@ -1,6 +1,22 @@
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { COLORS } from '../utils/constants';
+import Icon from './Icon';
+
+/**
+ * Mapea los emojis que recibe el prop `icono` al nombre de Icon (Lucide)
+ * equivalente, para renderizar el icono de marca sin cambiar a los callers.
+ */
+const ICONO_MAP: Record<string, string> = {
+  '💰': 'ventas',
+  '📊': 'reportes',
+  '📋': 'auditoria',
+  '📈': 'tendencias',
+  '👥': 'usuarios',
+  '🕒': 'horario',
+  '💱': 'cambio',
+  '🧾': 'clientes',
+};
 
 interface Props {
   icono: string;
@@ -28,12 +44,12 @@ export default function QuickAccessCard({
       onPress={onPress}
       style={({ pressed }) => [
         styles.card,
-        { borderLeftColor: color },
+        { borderLeftColor: COLORS.primary },
         pressed && { opacity: 0.75, transform: [{ scale: 0.98 }] },
       ]}>
       <View style={styles.row}>
-        <View style={[styles.iconWrap, { backgroundColor: color + '18' }]}>
-          <Text style={styles.icono}>{icono}</Text>
+        <View style={[styles.iconWrap, { backgroundColor: COLORS.primary + '18' }]}>
+          <Icon name={ICONO_MAP[icono] ?? 'flecha'} color={COLORS.primary} size={22} />
         </View>
         <View style={{ flex: 1 }}>
           <Text style={styles.titulo}>{titulo}</Text>
@@ -44,7 +60,7 @@ export default function QuickAccessCard({
           ) : null}
         </View>
         {badge !== undefined && badge !== 0 && badge !== '0' && (
-          <View style={[styles.badge, { backgroundColor: color }]}>
+          <View style={[styles.badge, { backgroundColor: COLORS.primary }]}>
             <Text style={styles.badgeTxt}>{badge}</Text>
           </View>
         )}
@@ -83,6 +99,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  badgeTxt: { color: '#fff', fontSize: 11, fontWeight: '800' },
+  badgeTxt: { color: COLORS.accentContrast, fontSize: 11, fontWeight: '800' },
   arrow: { fontSize: 24, color: COLORS.textMuted, fontWeight: '300' },
 });

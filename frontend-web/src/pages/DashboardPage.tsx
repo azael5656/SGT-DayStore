@@ -1,157 +1,177 @@
-import { useMemo } from 'react';
+import { useMemo, ReactNode } from 'react';
+import {
+  Thermometer,
+  Droplet,
+  Zap,
+  DoorOpen,
+  Activity,
+  Siren,
+  Radio,
+  BellRing,
+  type LucideIcon,
+} from 'lucide-react';
 import { useRealtimeIoT } from '../hooks/useRealtimeIoT';
 import type { SensorReading } from '../types';
 import { labelSensor, labelTipo } from '../utils/labels';
+import Badge from '../components/ui/Badge';
+import KpiCard from '../components/ui/KpiCard';
+import PageHeader from '../components/ui/PageHeader';
 
-const ICONOS: Record<string, string> = {
-  temperatura: '🌡️',
-  humedad: '💧',
-  puerta: '🚪',
-  movimiento: '🏃',
-  vibracion: '📳',
-  corriente: '⚡',
-  buzzer: '🔊',
+type KpiTone = 'neutral' | 'success' | 'warning' | 'danger';
+
+interface SensorConf {
+  label: string;
+  Icon: LucideIcon;
+  render: (r: SensorReading) => { valor: string; tone: KpiTone };
+}
+
+// Una lectura binaria (movimiento/vibracion) solo cuenta como "activa" si su
+// ultimo evento en 1 fue hace < 20s. Mantiene la logica original.
+const reciente = (r: SensorReading) =>
+  r.valor === 1 && Date.now() - new Date(r.fecha).getTime() < 20_000;
+
+// Config por tipo de sensor conocido. Los tipos NO listados aqui (sensores
+// nuevos que conectes despues) se muestran con un formato generico.
+const CONF: Record<string, SensorConf> = {
+  temperatura: {
+    label: 'Temperatura',
+    Icon: Thermometer,
+    render: (r) => ({ valor: `${r.valor}°C`, tone: r.valor > 28 ? 'danger' : 'success' }),
+  },
+  humedad: {
+    label: 'Humedad',
+    Icon: Droplet,
+    render: (r) => ({ valor: `${r.valor}%`, tone: 'neutral' }),
+  },
+  corriente: {
+    label: 'Corriente',
+    Icon: Zap,
+    render: (r) => ({
+      valor: r.valor === 0 ? 'SIN ENERGIA' : `${r.valor} W`,
+      tone: r.valor === 0 ? 'danger' : 'success',
+    }),
+  },
+  puerta: {
+    label: 'Puerta',
+    Icon: DoorOpen,
+    render: (r) => ({
+      valor: r.valor === 1 ? 'Abierta' : 'Cerrada',
+      tone: r.valor === 1 ? 'danger' : 'success',
+    }),
+  },
+  movimiento: {
+    label: 'Movimiento',
+    Icon: Activity,
+    render: (r) => ({ valor: reciente(r) ? 'Detectado' : 'Tranquilo', tone: reciente(r) ? 'warning' : 'success' }),
+  },
+  vibracion: {
+    label: 'Vibracion',
+    Icon: Activity,
+    render: (r) => ({ valor: reciente(r) ? 'GOLPE' : 'Estable', tone: reciente(r) ? 'danger' : 'success' }),
+  },
+  buzzer: {
+    label: 'Buzzer',
+    Icon: Siren,
+    render: (r) => ({ valor: r.valor === 1 ? 'Sonando' : 'Silencio', tone: r.valor === 1 ? 'danger' : 'success' }),
+  },
 };
 
-interface MetricaProps {
-  label: string;
-  valor: string;
-  icono: string;
-  color?: string;
-}
-function Metrica({ label, valor, icono, color = 'border-gray-300' }: MetricaProps) {
-  return (
-    <div className={`bg-white rounded-xl p-4 border-l-4 ${color} shadow-sm`}>
-      <div className="text-xs text-gray-500 uppercase tracking-wide flex items-center gap-1">
-        <span>{icono}</span>
-        <span>{label}</span>
-      </div>
-      <div className="text-2xl font-bold mt-1">{valor}</div>
-    </div>
-  );
-}
-
-function computar(readings: SensorReading[]) {
-  const porTipo: Record<string, SensorReading> = {};
-  for (const r of readings) {
-    const previa = porTipo[r.tipo];
-    if (!previa || r.fecha > previa.fecha) porTipo[r.tipo] = r;
-  }
-  const ventana = Date.now() - 20_000;
-  const recienteY1 = (tipo: string) => {
-    const r = porTipo[tipo];
-    return Boolean(r && r.valor === 1 && new Date(r.fecha).getTime() >= ventana);
-  };
-  const alguna = (tipo: string) =>
-    readings.some((x) => x.tipo === tipo && x.valor === 1);
-  return {
-    temperatura: porTipo.temperatura?.valor ?? null,
-    humedad: porTipo.humedad?.valor ?? null,
-    puertaAbierta: alguna('puerta'),
-    movimiento: recienteY1('movimiento'),
-    vibracion: recienteY1('vibracion'),
-    corriente: porTipo.corriente?.valor ?? null,
-    buzzer: porTipo.buzzer?.valor === 1,
-  };
-}
+// Orden de aparicion de los tipos conocidos.
+const ORDEN = ['temperatura', 'humedad', 'corriente', 'puerta', 'movimiento', 'vibracion', 'buzzer'];
 
 export default function DashboardPage() {
   const { readings, alerts, conectado } = useRealtimeIoT();
-  const r = useMemo(() => computar(readings), [readings]);
   const sinReconocer = alerts.filter((a) => !a.reconocida).length;
+
+  // Ultima lectura por tipo. Solo se muestran los sensores que REALMENTE
+  // reportan datos; si conectas uno nuevo, aparece solo.
+  const porTipo = useMemo(() => {
+    const m: Record<string, SensorReading> = {};
+    for (const r of readings) {
+      const prev = m[r.tipo];
+      if (!prev || r.fecha > prev.fecha) m[r.tipo] = r;
+    }
+    return m;
+  }, [readings]);
+
+  // Tipos presentes: primero los conocidos en orden, luego cualquier tipo nuevo.
+  const tipos = useMemo(() => {
+    const presentes = Object.keys(porTipo);
+    const conocidos = ORDEN.filter((t) => presentes.includes(t));
+    const extra = presentes.filter((t) => !ORDEN.includes(t)).sort();
+    return [...conocidos, ...extra];
+  }, [porTipo]);
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-5">
-        <h1 className="text-2xl font-bold">Dashboard en vivo</h1>
-        <span
-          className={`text-xs font-bold px-3 py-1 rounded-md ${
-            conectado ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
-          }`}>
-          {conectado ? '● EN VIVO' : '○ desconectado'}
-        </span>
-      </div>
+      <PageHeader
+        title="Dashboard en vivo"
+        actions={
+          <Badge tone={conectado ? 'success' : 'danger'}>
+            {conectado ? '● EN VIVO' : '○ desconectado'}
+          </Badge>
+        }
+      />
 
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-        <Metrica
-          icono={ICONOS.temperatura}
-          label="Temperatura"
-          valor={r.temperatura !== null ? `${r.temperatura}°C` : '—'}
-          color={r.temperatura !== null && r.temperatura > 28 ? 'border-red-500' : 'border-green-500'}
-        />
-        <Metrica
-          icono={ICONOS.humedad}
-          label="Humedad"
-          valor={r.humedad !== null ? `${r.humedad}%` : '—'}
-        />
-        <Metrica
-          icono={ICONOS.corriente}
-          label="Corriente"
-          valor={r.corriente === null ? '—' : r.corriente === 0 ? 'SIN ENERGIA' : `${r.corriente} W`}
-          color={r.corriente === 0 ? 'border-red-500' : 'border-green-500'}
-        />
-        <Metrica
-          icono={ICONOS.puerta}
-          label="Puerta"
-          valor={r.puertaAbierta ? 'Abierta' : 'Cerrada'}
-          color={r.puertaAbierta ? 'border-red-500' : 'border-green-500'}
-        />
-        <Metrica
-          icono={ICONOS.movimiento}
-          label="Movimiento"
-          valor={r.movimiento ? 'Detectado' : 'Tranquilo'}
-          color={r.movimiento ? 'border-yellow-500' : 'border-green-500'}
-        />
-        <Metrica
-          icono={ICONOS.vibracion}
-          label="Vibracion"
-          valor={r.vibracion ? 'GOLPE' : 'Estable'}
-          color={r.vibracion ? 'border-red-500' : 'border-green-500'}
-        />
-        <Metrica
-          icono={ICONOS.buzzer}
-          label="Buzzer"
-          valor={r.buzzer ? 'Sonando' : 'Silencio'}
-          color={r.buzzer ? 'border-red-500' : 'border-green-500'}
-        />
-        <Metrica
-          icono="🚨"
+        {tipos.map((tipo) => {
+          const r = porTipo[tipo];
+          const conf = CONF[tipo];
+          const Icon = conf?.Icon ?? Radio;
+          const out = conf
+            ? conf.render(r)
+            : { valor: `${r.valor}${r.unidad ? ` ${r.unidad}` : ''}`, tone: 'neutral' as KpiTone };
+          return (
+            <KpiCard
+              key={tipo}
+              tone={out.tone}
+              label={conf?.label ?? labelTipo(tipo)}
+              value={out.valor}
+              icon={<Icon size={18} strokeWidth={1.75} />}
+            />
+          );
+        })}
+        <KpiCard
+          tone={sinReconocer > 0 ? 'danger' : 'success'}
           label="Alertas sin revisar"
-          valor={String(sinReconocer)}
-          color={sinReconocer > 0 ? 'border-red-500' : 'border-green-500'}
+          value={String(sinReconocer)}
+          icon={<BellRing size={18} strokeWidth={1.75} />}
         />
       </div>
 
-      <h2 className="mt-8 mb-3 text-sm uppercase tracking-wide text-gray-500 font-semibold">
+      <h2 className="mt-8 mb-3 text-sm uppercase tracking-wide text-text-muted font-semibold">
         Ultimas lecturas por sensor
       </h2>
-      <div className="bg-white rounded-xl border border-gray-200 divide-y divide-gray-100">
+      <div className="bg-surface rounded-2xl border border-border divide-y divide-border">
         {readings.length === 0 ? (
-          <div className="px-4 py-8 text-center text-gray-500">
-            Esperando lecturas del simulador...
+          <div className="px-4 py-8 text-center text-text-muted">
+            Esperando lecturas de los sensores...
           </div>
         ) : (
-          readings.map((l) => (
-            <div
-              key={l.sensorId + '::' + l.tipo}
-              className="px-4 py-3 flex justify-between items-center">
-              <div>
-                <div className="text-sm font-medium">
-                  {ICONOS[l.tipo] ?? '📡'} {labelSensor(l.sensorId)}
+          readings.map((l) => {
+            const IconoSensor = CONF[l.tipo]?.Icon ?? Radio;
+            return (
+              <div
+                key={l.sensorId + '::' + l.tipo}
+                className="px-4 py-3 flex justify-between items-center">
+                <div>
+                  <div className="text-sm font-medium flex items-center gap-1.5">
+                    <IconoSensor size={16} strokeWidth={1.75} className="text-accent" />
+                    {labelSensor(l.sensorId)}
+                  </div>
+                  <div className="text-xs text-text-muted">
+                    {new Date(l.fecha).toLocaleTimeString()}
+                  </div>
                 </div>
-                <div className="text-xs text-gray-500">
-                  {new Date(l.fecha).toLocaleTimeString()}
+                <div className="text-right">
+                  <div className="text-lg font-bold text-accent">
+                    {l.valor} <span className="text-xs text-text-muted">{l.unidad}</span>
+                  </div>
+                  <div className="text-xs text-text-muted">{labelTipo(l.tipo)}</div>
                 </div>
               </div>
-              <div className="text-right">
-                <div className="text-lg font-bold text-primary">
-                  {l.valor}{' '}
-                  <span className="text-xs text-gray-400">{l.unidad}</span>
-                </div>
-                <div className="text-xs text-gray-500">{labelTipo(l.tipo)}</div>
-              </div>
-            </div>
-          ))
+            );
+          })
         )}
       </div>
     </div>
