@@ -1,15 +1,21 @@
 import { useEffect, useMemo, useState } from 'react';
+import { TrendingUp } from 'lucide-react';
 import api from '../api/client';
 import type { Page, SensorReading } from '../types';
 import { labelSensor } from '../utils/labels';
+import { CHART_COLORS } from '../utils/chartColors';
+import PageHeader from '../components/ui/PageHeader';
+import Card from '../components/ui/Card';
+import Chip from '../components/ui/Chip';
+import { Table, THead, TBody, TR, TH, TD } from '../components/ui/Table';
 
 const TIPOS = [
-  { label: 'Temperatura', value: 'temperatura', unidad: '°C', color: '#DC2626' },
-  { label: 'Humedad', value: 'humedad', unidad: '%', color: '#2563EB' },
-  { label: 'Corriente', value: 'corriente', unidad: 'W', color: '#F59E0B' },
-  { label: 'Puerta', value: 'puerta', unidad: '', color: '#7C3AED' },
-  { label: 'Vibracion', value: 'vibracion', unidad: '', color: '#DB2777' },
-  { label: 'Movimiento', value: 'movimiento', unidad: '', color: '#0EA5E9' },
+  { label: 'Temperatura', value: 'temperatura', unidad: '°C' },
+  { label: 'Humedad', value: 'humedad', unidad: '%' },
+  { label: 'Corriente', value: 'corriente', unidad: 'W' },
+  { label: 'Puerta', value: 'puerta', unidad: '' },
+  { label: 'Vibracion', value: 'vibracion', unidad: '' },
+  { label: 'Movimiento', value: 'movimiento', unidad: '' },
 ];
 
 interface SparklineProps {
@@ -59,72 +65,68 @@ export default function HistoricoPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tipo]);
 
-  const tipoActivo = TIPOS.find((t) => t.value === tipo)!;
+  const tipoIndex = TIPOS.findIndex((t) => t.value === tipo);
+  const tipoActivo = TIPOS[tipoIndex];
+  const tipoColor = CHART_COLORS[tipoIndex];
   const valores = useMemo(() => [...items].reverse().map((r) => r.valor), [items]);
   const ultimo = items[0];
 
   return (
     <div>
-      <h1 className="text-2xl font-bold mb-5">Historico IoT</h1>
+      <PageHeader title="Historico IoT" icon={<TrendingUp size={22} strokeWidth={1.75} />} />
 
       <div className="flex flex-wrap gap-2 mb-4">
         {TIPOS.map((t) => (
-          <button
+          <Chip
             key={t.value}
-            onClick={() => setTipo(t.value)}
-            className={`px-3 py-1.5 rounded-full text-xs font-medium ${
-              tipo === t.value
-                ? 'bg-primary text-white'
-                : 'bg-white border border-gray-200 text-gray-700'
-            }`}>
+            active={tipo === t.value}
+            onClick={() => setTipo(t.value)}>
             {t.label}
-          </button>
+          </Chip>
         ))}
       </div>
 
-      <div className="bg-white rounded-xl border border-gray-200 p-4 mb-4 flex justify-between items-center">
+      <Card className="p-4 mb-4 flex justify-between items-center">
         <div>
-          <div className="text-xs uppercase text-gray-500">Ultimo valor</div>
-          <div className="text-3xl font-bold text-primary mt-1">
+          <div className="text-xs uppercase text-text-muted">Ultimo valor</div>
+          <div className="text-3xl font-heading font-extrabold text-accent mt-1">
             {ultimo ? `${ultimo.valor}${tipoActivo.unidad}` : '—'}
           </div>
-          <div className="text-xs text-gray-500">{total} lecturas guardadas</div>
+          <div className="text-xs text-text-muted">{total} lecturas guardadas</div>
         </div>
-        <Sparkline values={valores} width={420} height={70} color={tipoActivo.color} />
-      </div>
+        <Sparkline values={valores} width={420} height={70} color={tipoColor} />
+      </Card>
 
-      <div className="bg-white rounded-xl border border-gray-200 overflow-x-auto">
-        <table className="w-full text-sm min-w-[500px]">
-          <thead className="bg-gray-50 border-b border-gray-200">
-            <tr className="text-left text-xs uppercase text-gray-500">
-              <th className="px-3 py-2">Cuando</th>
-              <th className="px-3 py-2">Sensor</th>
-              <th className="px-3 py-2 text-right">Valor</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-100">
-            {cargando && (
-              <tr>
-                <td colSpan={3} className="px-3 py-6 text-center text-gray-500">
-                  Cargando...
-                </td>
-              </tr>
-            )}
-            {items.map((r, i) => (
-              <tr key={r.sensorId + i}>
-                <td className="px-3 py-2 text-xs text-gray-600 whitespace-nowrap">
-                  {new Date(r.fecha).toLocaleString()}
-                </td>
-                <td className="px-3 py-2 font-medium">{labelSensor(r.sensorId)}</td>
-                <td className="px-3 py-2 text-right font-bold">
-                  {r.valor}
-                  <span className="ml-1 text-xs text-gray-400">{r.unidad}</span>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      <Table className="min-w-[500px]">
+        <THead>
+          <TR className="hover:bg-transparent">
+            <TH>Cuando</TH>
+            <TH>Sensor</TH>
+            <TH className="text-right">Valor</TH>
+          </TR>
+        </THead>
+        <TBody>
+          {cargando && (
+            <TR className="hover:bg-transparent">
+              <TD colSpan={3} className="py-6 text-center text-text-muted">
+                Cargando...
+              </TD>
+            </TR>
+          )}
+          {items.map((r, i) => (
+            <TR key={r.sensorId + i}>
+              <TD className="text-xs text-text-muted whitespace-nowrap">
+                {new Date(r.fecha).toLocaleString()}
+              </TD>
+              <TD className="font-medium">{labelSensor(r.sensorId)}</TD>
+              <TD className="text-right font-bold">
+                {r.valor}
+                <span className="ml-1 text-xs text-text-muted">{r.unidad}</span>
+              </TD>
+            </TR>
+          ))}
+        </TBody>
+      </Table>
     </div>
   );
 }

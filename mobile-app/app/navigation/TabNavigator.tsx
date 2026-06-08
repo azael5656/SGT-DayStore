@@ -1,6 +1,6 @@
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import React from 'react';
-import { Text } from 'react-native';
+import Icon from '../components/Icon';
 import AlertsScreen from '../screens/AlertsScreen';
 import InventarioScreen from '../screens/InventarioScreen';
 import PerfilScreen from '../screens/PerfilScreen';
@@ -18,8 +18,8 @@ import HomeStack from './HomeStack';
  */
 const Tab = createBottomTabNavigator();
 
-const icono = (emoji: string) => ({ color, size }: { color: string; size: number }) => (
-  <Text style={{ fontSize: size, color }}>{emoji}</Text>
+const icono = (name: string) => ({ color, size }: { color: string; size: number }) => (
+  <Icon name={name} color={color} size={size} />
 );
 
 export default function TabNavigator() {
@@ -35,22 +35,22 @@ export default function TabNavigator() {
       <Tab.Screen
         name="HomeTab"
         component={HomeStack}
-        options={{ title: 'Home', tabBarIcon: icono('🏠') }}
+        options={{ title: 'Home', tabBarIcon: icono('home') }}
       />
       <Tab.Screen
         name={ROUTES.Inventario}
         component={InventarioScreen}
-        options={{ tabBarIcon: icono('📦'), headerShown: true }}
+        options={{ tabBarIcon: icono('inventario'), headerShown: true }}
       />
       <Tab.Screen
         name={ROUTES.Alertas}
         component={AlertsScreen}
-        options={{ tabBarIcon: icono('🔔'), headerShown: true }}
+        options={{ tabBarIcon: icono('alertas'), headerShown: true }}
       />
       <Tab.Screen
         name={ROUTES.Perfil}
         component={PerfilScreen}
-        options={{ tabBarIcon: icono('👤'), headerShown: true }}
+        options={{ tabBarIcon: icono('perfil'), headerShown: true }}
       />
     </Tab.Navigator>
   );

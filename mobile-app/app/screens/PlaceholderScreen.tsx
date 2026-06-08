@@ -1,5 +1,6 @@
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
+import Icon from '../components/Icon';
 import { COLORS } from '../utils/constants';
 
 interface Props {
@@ -10,7 +11,9 @@ interface Props {
 export default function PlaceholderScreen({ nombre }: Props) {
   return (
     <View style={styles.container}>
-      <Text style={styles.emoji}>🚧</Text>
+      <View style={styles.iconWrap}>
+        <Icon name="tip" color={COLORS.primary} size={48} />
+      </View>
       <Text style={styles.title}>{nombre}</Text>
       <Text style={styles.subtitle}>Esta seccion esta en desarrollo.</Text>
       <Text style={styles.hint}>
@@ -28,7 +31,7 @@ const styles = StyleSheet.create({
     padding: 24,
     backgroundColor: COLORS.background,
   },
-  emoji: { fontSize: 56, marginBottom: 16 },
+  iconWrap: { marginBottom: 16 },
   title: { fontSize: 22, fontWeight: '700', color: COLORS.text },
   subtitle: {
     fontSize: 15,

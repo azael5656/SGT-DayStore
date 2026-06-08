@@ -1,7 +1,17 @@
 import { FormEvent, useEffect, useState } from 'react';
+import { DollarSign } from 'lucide-react';
 import api from '../api/client';
 import { useAuth } from '../auth/AuthContext';
 import type { CurrentRates, ExchangeRate } from '../types';
+import PageHeader from '../components/ui/PageHeader';
+import Button from '../components/ui/Button';
+import KpiCard from '../components/ui/KpiCard';
+import Input from '../components/ui/Input';
+import Field from '../components/ui/Field';
+import Chip from '../components/ui/Chip';
+import Modal from '../components/ui/Modal';
+import Alert from '../components/ui/Alert';
+import { Table, THead, TBody, TR, TH, TD } from '../components/ui/Table';
 
 /**
  * Página de Tasas de Cambio.
@@ -46,102 +56,108 @@ export default function TasasPage() {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-5">
-        <h1 className="text-2xl font-bold">Tasas de cambio</h1>
-        {puedeCrear && (
-          <button
-            onClick={() => setCrearAbierto(true)}
-            className="bg-primary text-white px-4 py-2 rounded-md text-sm font-semibold">
-            + Subir nueva tasa
-          </button>
-        )}
-      </div>
+      <PageHeader
+        title="Tasas de cambio"
+        icon={<DollarSign size={22} strokeWidth={1.75} />}
+        actions={
+          puedeCrear && (
+            <Button
+              onClick={() => setCrearAbierto(true)}
+              leftIcon={<DollarSign size={16} strokeWidth={1.75} />}>
+              Subir nueva tasa
+            </Button>
+          )
+        }
+      />
 
       {/* Tasas vigentes */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-6">
-        <RateCard label="USD" value="1.0000" subtitle="Moneda base del sistema" />
-        <RateCard
+        <KpiCard label="USD" value="1.0000" sub="Moneda base del sistema" />
+        <KpiCard
           label="VES"
           value={vigentes?.VES?.toLocaleString() ?? '—'}
-          subtitle={
+          sub={
             vigentes?.VES !== null
               ? `1 USD = ${vigentes?.VES?.toLocaleString()} Bs`
               : 'No configurada'
           }
-          warning={vigentes?.VES === null}
+          tone={vigentes?.VES === null ? 'warning' : 'neutral'}
         />
-        <RateCard
+        <KpiCard
           label="COP"
           value={vigentes?.COP?.toLocaleString() ?? '—'}
-          subtitle={
+          sub={
             vigentes?.COP !== null
               ? `1 USD = ${vigentes?.COP?.toLocaleString()} COP`
               : 'No configurada'
           }
-          warning={vigentes?.COP === null}
+          tone={vigentes?.COP === null ? 'warning' : 'neutral'}
         />
       </div>
 
       <div className="flex gap-2 mb-3">
-        <select
-          value={filtroCurrency}
-          onChange={(e) =>
-            setFiltroCurrency(e.target.value as 'VES' | 'COP' | '')
-          }
-          className={inputCls + ' max-w-xs'}>
-          <option value="">Todas las monedas</option>
-          <option value="VES">Solo VES</option>
-          <option value="COP">Solo COP</option>
-        </select>
+        <Chip
+          active={filtroCurrency === ''}
+          onClick={() => setFiltroCurrency('')}>
+          Todas las monedas
+        </Chip>
+        <Chip
+          active={filtroCurrency === 'VES'}
+          onClick={() => setFiltroCurrency('VES')}>
+          Solo VES
+        </Chip>
+        <Chip
+          active={filtroCurrency === 'COP'}
+          onClick={() => setFiltroCurrency('COP')}>
+          Solo COP
+        </Chip>
       </div>
 
       {/* Historial */}
-      <div className="bg-white rounded-xl border border-gray-200 overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead className="bg-gray-50 border-b border-gray-200">
-            <tr className="text-left text-xs uppercase text-gray-500">
-              <th className="px-3 py-2">Vigente desde</th>
-              <th className="px-3 py-2">Moneda</th>
-              <th className="px-3 py-2 text-right">Tasa (1 USD =)</th>
-              <th className="px-3 py-2">Subida por</th>
-              <th className="px-3 py-2">Notas</th>
+      <Table>
+        <THead>
+          <tr>
+            <TH>Vigente desde</TH>
+            <TH>Moneda</TH>
+            <TH className="text-right">Tasa (1 USD =)</TH>
+            <TH>Subida por</TH>
+            <TH>Notas</TH>
+          </tr>
+        </THead>
+        <TBody>
+          {cargando && (
+            <tr>
+              <TD colSpan={5} className="py-6 text-center text-text-muted">
+                Cargando...
+              </TD>
             </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-100">
-            {cargando && (
-              <tr>
-                <td colSpan={5} className="px-3 py-6 text-center text-gray-500">
-                  Cargando...
-                </td>
-              </tr>
-            )}
-            {!cargando && historial.length === 0 && (
-              <tr>
-                <td colSpan={5} className="px-3 py-6 text-center text-gray-500">
-                  Sin tasas registradas. Sube la primera con "+ Subir nueva tasa".
-                </td>
-              </tr>
-            )}
-            {historial.map((r) => (
-              <tr key={r.id} className="hover:bg-gray-50">
-                <td className="px-3 py-2 text-gray-600">
-                  {new Date(r.effectiveFrom).toLocaleString()}
-                </td>
-                <td className="px-3 py-2 font-semibold">{r.currency}</td>
-                <td className="px-3 py-2 text-right font-mono">
-                  {Number(r.rate).toLocaleString()}
-                </td>
-                <td className="px-3 py-2 text-gray-600 text-xs">
-                  {r.createdByEmail ?? r.createdBy.slice(0, 8)}
-                </td>
-                <td className="px-3 py-2 text-gray-500 text-xs">
-                  {r.notas ?? ''}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+          )}
+          {!cargando && historial.length === 0 && (
+            <tr>
+              <TD colSpan={5} className="py-6 text-center text-text-muted">
+                Sin tasas registradas. Sube la primera con "+ Subir nueva tasa".
+              </TD>
+            </tr>
+          )}
+          {historial.map((r) => (
+            <TR key={r.id}>
+              <TD className="text-text-muted">
+                {new Date(r.effectiveFrom).toLocaleString()}
+              </TD>
+              <TD className="font-semibold">{r.currency}</TD>
+              <TD className="text-right font-mono">
+                {Number(r.rate).toLocaleString()}
+              </TD>
+              <TD className="text-text-muted text-xs">
+                {r.createdByEmail ?? r.createdBy.slice(0, 8)}
+              </TD>
+              <TD className="text-text-muted text-xs">
+                {r.notas ?? ''}
+              </TD>
+            </TR>
+          ))}
+        </TBody>
+      </Table>
 
       {crearAbierto && (
         <CrearTasaForm
@@ -151,38 +167,6 @@ export default function TasasPage() {
             cargar();
           }}
         />
-      )}
-    </div>
-  );
-}
-
-function RateCard({
-  label,
-  value,
-  subtitle,
-  warning,
-}: {
-  label: string;
-  value: string | number;
-  subtitle?: string;
-  warning?: boolean;
-}) {
-  return (
-    <div
-      className={`rounded-xl p-4 border ${
-        warning
-          ? 'bg-amber-50 border-amber-200'
-          : 'bg-white border-gray-200'
-      }`}>
-      <div className="text-xs uppercase font-bold text-gray-500">{label}</div>
-      <div className="text-2xl font-bold mt-1">{value}</div>
-      {subtitle && (
-        <div
-          className={`text-xs mt-1 ${
-            warning ? 'text-amber-700 font-semibold' : 'text-gray-500'
-          }`}>
-          {subtitle}
-        </div>
       )}
     </div>
   );
@@ -228,14 +212,11 @@ function CrearTasaForm({
   };
 
   return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-20 p-4">
-      <form
-        onSubmit={submit}
-        className="bg-white rounded-xl shadow-xl p-6 w-full max-w-md">
-        <h3 className="text-lg font-bold mb-4">Subir nueva tasa</h3>
+    <Modal open onClose={onCerrar} title="Subir nueva tasa" maxWidth="sm">
+      <form onSubmit={submit}>
         {error && (
-          <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-md px-3 py-2 mb-3">
-            {error}
+          <div className="mb-3">
+            <Alert tone="danger">{error}</Alert>
           </div>
         )}
         <div className="space-y-3">
@@ -243,68 +224,53 @@ function CrearTasaForm({
             <select
               value={currency}
               onChange={(e) => setCurrency(e.target.value as 'VES' | 'COP')}
-              className={inputCls}>
+              className={selectCls}>
               <option value="VES">VES (Bolívar)</option>
               <option value="COP">COP (Peso colombiano)</option>
             </select>
           </Field>
           <Field label={`1 USD equivale a (${currency})`}>
-            <input
+            <Input
               type="number"
               step="0.0001"
               min="0.0001"
               value={rate}
               onChange={(e) => setRate(e.target.value)}
               placeholder={currency === 'VES' ? '620' : '4000'}
-              className={inputCls}
               required
             />
           </Field>
           <Field label="Notas (opcional)">
-            <input
+            <Input
               type="text"
               value={notas}
               onChange={(e) => setNotas(e.target.value)}
               placeholder="ej. Tasa BCV de hoy"
-              className={inputCls}
               maxLength={200}
             />
           </Field>
         </div>
-        <div className="bg-blue-50 border border-blue-200 rounded-md px-3 py-2 mt-4 text-xs text-blue-800">
-          Las tasas viejas no se borran — quedan para auditoría histórica
-          de las ventas que se registraron con ellas.
+        <div className="mt-4">
+          <Alert>
+            Las tasas viejas no se borran — quedan para auditoría histórica
+            de las ventas que se registraron con ellas.
+          </Alert>
         </div>
         <div className="flex justify-end gap-2 mt-5">
-          <button type="button" onClick={onCerrar} className="px-4 py-2 text-sm">
+          <Button type="button" variant="ghost" onClick={onCerrar}>
             Cancelar
-          </button>
-          <button
-            type="submit"
-            disabled={guardando}
-            className="px-5 py-2 bg-primary text-white rounded-md text-sm font-semibold disabled:opacity-60">
+          </Button>
+          <Button type="submit" disabled={guardando}>
             {guardando ? 'Guardando...' : 'Guardar tasa'}
-          </button>
+          </Button>
         </div>
       </form>
-    </div>
+    </Modal>
   );
 }
 
-const inputCls =
-  'w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary';
-
-function Field({
-  label,
-  children,
-}: {
-  label: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <label className="block">
-      <span className="text-xs text-gray-600 mb-1 block">{label}</span>
-      {children}
-    </label>
-  );
-}
+// Select tokenizado: mismas clases base que <Input>, para los <select> que el
+// componente Input (solo <input>) no cubre.
+const selectCls =
+  'w-full bg-bg border border-border rounded-xl px-3 py-2.5 text-text ' +
+  'focus:outline-none focus-visible:ring-2 focus-visible:ring-accent disabled:opacity-50';

@@ -32,6 +32,7 @@ import {
   salesService,
 } from '../services/sales.service';
 import { COLORS } from '../utils/constants';
+import Icon from '../components/Icon';
 
 /**
  * Pantalla de Ventas (mobile).
@@ -169,9 +170,10 @@ export default function VentasScreen() {
         </Text>
         <View style={{ flexDirection: 'row', gap: 6 }}>
           <TouchableOpacity
-            style={styles.btnPdf}
+            style={[styles.btnPdf, { flexDirection: 'row', alignItems: 'center', gap: 4 }]}
             onPress={abrirHistorialPdf}>
-            <Text style={styles.btnPdfTxt}>📄 PDF</Text>
+            <Icon name="pdf" color={COLORS.text} size={14} />
+            <Text style={styles.btnPdfTxt}>PDF</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.btnAdd}
@@ -188,7 +190,7 @@ export default function VentasScreen() {
             opt === 'completada'
               ? 'Completadas'
               : opt === 'pendiente'
-              ? '💰 Deudas'
+              ? 'Deudas'
               : opt === 'anulada'
               ? 'Anuladas'
               : 'Todas';
@@ -309,17 +311,23 @@ function VentaCard({
             <TipoBadge tipo={venta.tipoVenta} />
           </View>
           {venta.customer && (
-            <Text style={styles.cardCliente}>
-              👤 {venta.customer.nombre} ({venta.customer.cedula})
-            </Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 }}>
+              <Icon name="clientes" color={COLORS.text} size={13} />
+              <Text style={styles.cardCliente}>
+                {venta.customer.nombre} ({venta.customer.cedula})
+              </Text>
+            </View>
           )}
           <Text style={styles.cardSub}>
             {fecha.toLocaleDateString()} · {fecha.toLocaleTimeString()}
           </Text>
           {saldo > 0.01 && (
-            <Text style={styles.cardSaldo}>
-              💰 Saldo pendiente: ${saldo.toFixed(2)} USD
-            </Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 }}>
+              <Icon name="clientes" color={COLORS.warning} size={13} />
+              <Text style={styles.cardSaldo}>
+                Saldo pendiente: ${saldo.toFixed(2)} USD
+              </Text>
+            </View>
           )}
         </View>
         <EstadoBadge estado={venta.estado} activo={venta.activo} />
@@ -330,9 +338,10 @@ function VentaCard({
           {venta.estado === 'pendiente' && (
             <TouchableOpacity
               onPress={onAbonar}
-              style={[styles.actionBtn, styles.actionBtnAbonar]}>
+              style={[styles.actionBtn, styles.actionBtnAbonar, { flexDirection: 'row', alignItems: 'center', gap: 4 }]}>
+              <Icon name="clientes" color={COLORS.success} size={13} />
               <Text style={[styles.actionBtnTxt, styles.actionBtnAbonarTxt]}>
-                💰 Abonar
+                Abonar
               </Text>
             </TouchableOpacity>
           )}
@@ -359,16 +368,20 @@ function VentaCard({
 function TipoBadge({ tipo }: { tipo: TipoVenta }) {
   const cfg =
     tipo === 'credito'
-      ? { txt: '💳 CRÉDITO', bg: '#FEF3C7', fg: '#92400E' }
-      : { txt: '💵 CONTADO', bg: '#DCFCE7', fg: '#166534' };
+      ? { txt: 'CRÉDITO', icon: 'credito', fg: COLORS.warning }
+      : { txt: 'CONTADO', icon: 'contado', fg: COLORS.success };
   return (
     <View
       style={{
-        backgroundColor: cfg.bg,
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 3,
+        backgroundColor: COLORS.surfaceAlt,
         paddingHorizontal: 6,
         paddingVertical: 2,
         borderRadius: 4,
       }}>
+      <Icon name={cfg.icon} color={cfg.fg} size={11} />
       <Text style={{ color: cfg.fg, fontSize: 10, fontWeight: '700' }}>
         {cfg.txt}
       </Text>
@@ -384,16 +397,16 @@ function EstadoBadge({
   activo: boolean;
 }) {
   const cfg = !activo
-    ? { txt: 'INACTIVA', bg: '#E5E7EB', fg: '#374151' }
+    ? { txt: 'INACTIVA', fg: COLORS.textMuted }
     : estado === 'anulada'
-    ? { txt: 'ANULADA', bg: '#FEE2E2', fg: '#B91C1C' }
+    ? { txt: 'ANULADA', fg: COLORS.danger }
     : estado === 'pendiente'
-    ? { txt: 'PENDIENTE', bg: '#FEF3C7', fg: '#92400E' }
-    : { txt: 'OK', bg: '#DCFCE7', fg: '#166534' };
+    ? { txt: 'PENDIENTE', fg: COLORS.warning }
+    : { txt: 'OK', fg: COLORS.success };
   return (
     <View
       style={{
-        backgroundColor: cfg.bg,
+        backgroundColor: COLORS.surfaceAlt,
         paddingHorizontal: 8,
         paddingVertical: 3,
         borderRadius: 6,
@@ -604,7 +617,7 @@ function CrearVentaModal({
             </Text>
           </View>
           <TouchableOpacity onPress={onCerrar}>
-            <Text style={{ fontSize: 24, color: COLORS.textMuted }}>✕</Text>
+            <Icon name="cerrar" color={COLORS.textMuted} size={24} />
           </TouchableOpacity>
         </View>
 
@@ -810,7 +823,7 @@ function Paso1Carrito({
               <TouchableOpacity
                 onPress={() => onQuitar(i.productId)}
                 style={paso1.delBtn}>
-                <Text style={paso1.delBtnTxt}>✕</Text>
+                <Icon name="borrar" color={COLORS.danger} size={16} />
               </TouchableOpacity>
             </View>
           </View>
@@ -842,7 +855,7 @@ function ProductPicker({
         <View style={modal.header}>
           <Text style={modal.titulo}>Elegir producto</Text>
           <TouchableOpacity onPress={onCerrar}>
-            <Text style={{ fontSize: 24, color: COLORS.textMuted }}>✕</Text>
+            <Icon name="cerrar" color={COLORS.textMuted} size={24} />
           </TouchableOpacity>
         </View>
         <View style={{ padding: 16 }}>
@@ -952,7 +965,7 @@ function ClientePicker({
         <View style={modal.header}>
           <Text style={modal.titulo}>Elegir cliente</Text>
           <TouchableOpacity onPress={onCerrar}>
-            <Text style={{ fontSize: 24, color: COLORS.textMuted }}>✕</Text>
+            <Icon name="cerrar" color={COLORS.textMuted} size={24} />
           </TouchableOpacity>
         </View>
 
@@ -1112,13 +1125,16 @@ function Paso2Pagos({
             paso2.tipoBtn,
             tipoVenta === 'contado' && paso2.tipoBtnContadoOn,
           ]}>
-          <Text
-            style={[
-              paso2.tipoBtnTxt,
-              tipoVenta === 'contado' && paso2.tipoBtnTxtOn,
-            ]}>
-            💵 Contado
-          </Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+            <Icon name="contado" color={COLORS.primary} size={16} />
+            <Text
+              style={[
+                paso2.tipoBtnTxt,
+                tipoVenta === 'contado' && paso2.tipoBtnTxtOn,
+              ]}>
+              Contado
+            </Text>
+          </View>
           <Text style={paso2.tipoBtnSub}>Paga todo ahora</Text>
         </TouchableOpacity>
         <TouchableOpacity
@@ -1127,13 +1143,16 @@ function Paso2Pagos({
             paso2.tipoBtn,
             tipoVenta === 'credito' && paso2.tipoBtnCreditoOn,
           ]}>
-          <Text
-            style={[
-              paso2.tipoBtnTxt,
-              tipoVenta === 'credito' && paso2.tipoBtnTxtOn,
-            ]}>
-            💳 Crédito
-          </Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+            <Icon name="credito" color={COLORS.primary} size={16} />
+            <Text
+              style={[
+                paso2.tipoBtnTxt,
+                tipoVenta === 'credito' && paso2.tipoBtnTxtOn,
+              ]}>
+              Crédito
+            </Text>
+          </View>
           <Text style={paso2.tipoBtnSub}>Abona o fía</Text>
         </TouchableOpacity>
       </View>
@@ -1153,7 +1172,7 @@ function Paso2Pagos({
             )}
           </View>
           <TouchableOpacity onPress={onLimpiarCliente}>
-            <Text style={{ color: '#DC2626', fontSize: 12, fontWeight: '700' }}>
+            <Text style={{ color: COLORS.danger, fontSize: 12, fontWeight: '700' }}>
               {tipoVenta === 'credito' ? 'Cambiar' : 'Quitar'}
             </Text>
           </TouchableOpacity>
@@ -1161,9 +1180,10 @@ function Paso2Pagos({
       ) : (
         <TouchableOpacity
           onPress={onAbrirPickerCliente}
-          style={paso2.elegirClienteBtn}>
+          style={[paso2.elegirClienteBtn, { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 }]}>
+          <Icon name="buscar" color={COLORS.primary} size={15} />
           <Text style={paso2.elegirClienteTxt}>
-            🔍 Buscar / crear cliente
+            Buscar / crear cliente
           </Text>
         </TouchableOpacity>
       )}
@@ -1193,11 +1213,11 @@ function Paso2Pagos({
                 borderTopColor: COLORS.border,
               },
             ]}>
-            <Text style={[paso2.resumenLabel, { color: '#92400E' }]}>
+            <Text style={[paso2.resumenLabel, { color: COLORS.warning }]}>
               Saldo pendiente
             </Text>
             <Text
-              style={[paso2.resumenRecibido, { color: '#B45309' }]}>
+              style={[paso2.resumenRecibido, { color: COLORS.warning }]}>
               ${saldoUsd.toFixed(2)} USD
             </Text>
           </View>
@@ -1206,12 +1226,13 @@ function Paso2Pagos({
         {tipoVenta === 'contado' ? (
           cuadra ? (
             <View style={[paso2.indicador, paso2.indicadorOk]}>
-              <Text style={paso2.indicadorTxtOk}>✅ Pagos cuadran</Text>
+              <Icon name="check" color={COLORS.success} size={14} />
+              <Text style={paso2.indicadorTxtOk}>Pagos cuadran</Text>
             </View>
           ) : (
             <View style={[paso2.indicador, paso2.indicadorWarn]}>
+              <Icon name="alertas" color={COLORS.warning} size={14} />
               <Text style={paso2.indicadorTxtWarn}>
-                ⚠️{' '}
                 {diferencia > 0
                   ? `Falta $${diferencia.toFixed(2)}`
                   : `Sobra $${Math.abs(diferencia).toFixed(2)}`}
@@ -1220,24 +1241,28 @@ function Paso2Pagos({
           )
         ) : !cuadra ? (
           <View style={[paso2.indicador, paso2.indicadorErr]}>
+            <Icon name="alertas" color={COLORS.danger} size={14} />
             <Text style={paso2.indicadorTxtErr}>
-              ⚠️ El abono no puede superar el total
+              El abono no puede superar el total
             </Text>
           </View>
         ) : sumaPagosUsd === 0 ? (
           <View style={[paso2.indicador, paso2.indicadorInfo]}>
+            <Icon name="credito" color={COLORS.info} size={14} />
             <Text style={paso2.indicadorTxtInfo}>
-              💳 Venta totalmente fiada
+              Venta totalmente fiada
             </Text>
           </View>
         ) : saldoUsd <= 0.01 ? (
           <View style={[paso2.indicador, paso2.indicadorOk]}>
-            <Text style={paso2.indicadorTxtOk}>✅ Pagado en pleno</Text>
+            <Icon name="check" color={COLORS.success} size={14} />
+            <Text style={paso2.indicadorTxtOk}>Pagado en pleno</Text>
           </View>
         ) : (
           <View style={[paso2.indicador, paso2.indicadorWarn]}>
+            <Icon name="credito" color={COLORS.warning} size={14} />
             <Text style={paso2.indicadorTxtWarn}>
-              💳 Abono parcial — queda ${saldoUsd.toFixed(2)} USD
+              Abono parcial — queda ${saldoUsd.toFixed(2)} USD
             </Text>
           </View>
         )}
@@ -1267,9 +1292,12 @@ function Paso2Pagos({
         maxLength={500}
       />
 
-      <Text style={paso2.help}>
-        💡 Cambia la moneda de un pago y el monto se ajusta solo al equivalente.
-      </Text>
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: 14 }}>
+        <Icon name="tip" color={COLORS.textMuted} size={14} />
+        <Text style={[paso2.help, { marginTop: 0, flex: 1 }]}>
+          Cambia la moneda de un pago y el monto se ajusta solo al equivalente.
+        </Text>
+      </View>
     </ScrollView>
   );
 }
@@ -1338,9 +1366,10 @@ function PagoEditor({
       />
 
       {sinTasa ? (
-        <View style={paso2.warningBox}>
-          <Text style={paso2.warningTxt}>
-            ⚠️ Tasa de {pago.currency} no configurada. Súbela en Tasa del día.
+        <View style={[paso2.warningBox, { flexDirection: 'row', alignItems: 'center', gap: 6 }]}>
+          <Icon name="alertas" color={COLORS.warning} size={14} />
+          <Text style={[paso2.warningTxt, { flex: 1 }]}>
+            Tasa de {pago.currency} no configurada. Súbela en Tasa del día.
           </Text>
         </View>
       ) : pago.currency !== 'USD' ? (
@@ -1387,13 +1416,16 @@ function DetalleVentaModal({
         <View style={modal.header}>
           <Text style={modal.titulo}>Venta · {venta.id.slice(0, 8)}</Text>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-            <TouchableOpacity onPress={verComprobantePdf}>
+            <TouchableOpacity
+              onPress={verComprobantePdf}
+              style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+              <Icon name="pdf" color={COLORS.primary} size={14} />
               <Text style={{ fontSize: 14, color: COLORS.primary, fontWeight: '700' }}>
-                📄 PDF
+                PDF
               </Text>
             </TouchableOpacity>
             <TouchableOpacity onPress={onCerrar}>
-              <Text style={{ fontSize: 24, color: COLORS.textMuted }}>✕</Text>
+              <Icon name="cerrar" color={COLORS.textMuted} size={24} />
             </TouchableOpacity>
           </View>
         </View>
@@ -1416,7 +1448,7 @@ function DetalleVentaModal({
             {new Date(venta.fecha).toLocaleString()}
           </DetalleRow>
           <DetalleRow label="Tipo">
-            {venta.tipoVenta === 'credito' ? '💳 Crédito' : '💵 Contado'}
+            <TipoBadge tipo={venta.tipoVenta} />
           </DetalleRow>
           {venta.customer && (
             <DetalleRow label="Cliente">
@@ -1508,8 +1540,11 @@ function DetalleVentaModal({
         {/* Botón flotante Registrar abono */}
         {venta.estado === 'pendiente' && venta.activo && (
           <View style={modal.footer}>
-            <TouchableOpacity onPress={onAbonar} style={modal.btnPrimary}>
-              <Text style={modal.btnPrimaryTxt}>💰 Registrar abono</Text>
+            <TouchableOpacity
+              onPress={onAbonar}
+              style={[modal.btnPrimary, { flexDirection: 'row', gap: 6 }]}>
+              <Icon name="clientes" color={COLORS.accentContrast} size={16} />
+              <Text style={modal.btnPrimaryTxt}>Registrar abono</Text>
             </TouchableOpacity>
           </View>
         )}
@@ -1618,7 +1653,7 @@ function RegistrarAbonoModal({
         <View style={modal.header}>
           <Text style={modal.titulo}>Registrar abono</Text>
           <TouchableOpacity onPress={onCerrar}>
-            <Text style={{ fontSize: 24, color: COLORS.textMuted }}>✕</Text>
+            <Icon name="cerrar" color={COLORS.textMuted} size={24} />
           </TouchableOpacity>
         </View>
 
@@ -1690,13 +1725,15 @@ function RegistrarAbonoModal({
 
           {completaria && (
             <View style={[paso2.indicador, paso2.indicadorOk]}>
-              <Text style={paso2.indicadorTxtOk}>✅ Cierra la deuda</Text>
+              <Icon name="check" color={COLORS.success} size={14} />
+              <Text style={paso2.indicadorTxtOk}>Cierra la deuda</Text>
             </View>
           )}
           {sobra && (
             <View style={[paso2.indicador, paso2.indicadorErr]}>
+              <Icon name="alertas" color={COLORS.danger} size={14} />
               <Text style={paso2.indicadorTxtErr}>
-                ⚠️ Sobra ${Math.abs(tras).toFixed(2)} del saldo
+                Sobra ${Math.abs(tras).toFixed(2)} del saldo
               </Text>
             </View>
           )}
@@ -1813,7 +1850,7 @@ function AnularVentaModal({
                 anular.btnPrimary,
                 enviando && { opacity: 0.6 },
               ]}>
-              <Text style={{ color: '#FFF', fontWeight: '700' }}>
+              <Text style={{ color: COLORS.accentContrast, fontWeight: '700' }}>
                 {enviando ? 'Anulando...' : 'Confirmar'}
               </Text>
             </TouchableOpacity>
@@ -1850,7 +1887,7 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     borderRadius: 8,
   },
-  btnAddTxt: { color: '#FFF', fontWeight: '600' },
+  btnAddTxt: { color: COLORS.accentContrast, fontWeight: '600' },
   btnPdf: {
     backgroundColor: COLORS.surface,
     borderColor: COLORS.border,
@@ -1878,7 +1915,7 @@ const styles = StyleSheet.create({
   },
   chipOn: { backgroundColor: COLORS.primary, borderColor: COLORS.primary },
   chipTxt: { fontSize: 12, color: COLORS.text },
-  chipTxtOn: { color: '#FFF', fontWeight: '600' },
+  chipTxtOn: { color: COLORS.accentContrast, fontWeight: '600' },
   lista: { padding: 16, paddingTop: 4 },
   card: {
     backgroundColor: COLORS.surface,
@@ -1892,14 +1929,12 @@ const styles = StyleSheet.create({
   cardCliente: {
     fontSize: 12,
     color: COLORS.text,
-    marginTop: 4,
     fontWeight: '600',
   },
   cardSub: { fontSize: 12, color: COLORS.textMuted, marginTop: 2 },
   cardSaldo: {
     fontSize: 12,
-    color: '#B45309',
-    marginTop: 4,
+    color: COLORS.warning,
     fontWeight: '700',
   },
   cardActions: {
@@ -1916,13 +1951,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: 6,
-    backgroundColor: '#FEF3C7',
+    backgroundColor: COLORS.surfaceAlt,
   },
-  actionBtnTxt: { color: '#92400E', fontSize: 12, fontWeight: '700' },
-  actionBtnAbonar: { backgroundColor: '#DCFCE7' },
-  actionBtnAbonarTxt: { color: '#166534' },
-  actionBtnDanger: { backgroundColor: '#FEE2E2' },
-  actionBtnDangerTxt: { color: '#B91C1C' },
+  actionBtnTxt: { color: COLORS.warning, fontSize: 12, fontWeight: '700' },
+  actionBtnAbonar: { backgroundColor: COLORS.surfaceAlt },
+  actionBtnAbonarTxt: { color: COLORS.success },
+  actionBtnDanger: { backgroundColor: COLORS.surfaceAlt },
+  actionBtnDangerTxt: { color: COLORS.danger },
   vacio: {
     textAlign: 'center',
     color: COLORS.text,
@@ -1983,7 +2018,7 @@ const modal = StyleSheet.create({
     borderRadius: 10,
     alignItems: 'center',
   },
-  btnPrimaryTxt: { color: '#FFF', fontSize: 15, fontWeight: '700' },
+  btnPrimaryTxt: { color: COLORS.accentContrast, fontSize: 15, fontWeight: '700' },
   btnSec: {
     paddingHorizontal: 18,
     paddingVertical: 14,
@@ -2012,7 +2047,7 @@ const paso1 = StyleSheet.create({
   totalValor: {
     fontSize: 44,
     fontWeight: '900',
-    color: '#FFF',
+    color: COLORS.accentContrast,
     marginTop: 4,
   },
   totalUsd: { fontSize: 12, color: 'rgba(255,255,255,0.85)' },
@@ -2039,7 +2074,7 @@ const paso1 = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: 8,
   },
-  addBtnTxt: { color: '#FFF', fontWeight: '700', fontSize: 13 },
+  addBtnTxt: { color: COLORS.accentContrast, fontWeight: '700', fontSize: 13 },
   vacioBox: {
     backgroundColor: COLORS.surface,
     padding: 30,
@@ -2078,7 +2113,7 @@ const paso1 = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: COLORS.surfaceAlt,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -2094,12 +2129,12 @@ const paso1 = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: '#FEE2E2',
+    backgroundColor: COLORS.surfaceAlt,
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 4,
   },
-  delBtnTxt: { color: '#B91C1C', fontWeight: '700' },
+  delBtnTxt: { color: COLORS.danger, fontWeight: '700' },
   searchInput: {
     backgroundColor: COLORS.surface,
     padding: 12,
@@ -2140,8 +2175,8 @@ const paso2 = StyleSheet.create({
     borderColor: COLORS.border,
     alignItems: 'center',
   },
-  tipoBtnContadoOn: { backgroundColor: '#DCFCE7', borderColor: '#86EFAC' },
-  tipoBtnCreditoOn: { backgroundColor: '#FEF3C7', borderColor: '#FCD34D' },
+  tipoBtnContadoOn: { backgroundColor: COLORS.surfaceAlt, borderColor: COLORS.primary },
+  tipoBtnCreditoOn: { backgroundColor: COLORS.surfaceAlt, borderColor: COLORS.primary },
   tipoBtnTxt: { fontSize: 14, fontWeight: '800', color: COLORS.text },
   tipoBtnTxtOn: {},
   tipoBtnSub: { fontSize: 11, color: COLORS.textMuted, marginTop: 2 },
@@ -2149,8 +2184,8 @@ const paso2 = StyleSheet.create({
   clienteCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FEFCE8',
-    borderColor: '#FDE68A',
+    backgroundColor: COLORS.surfaceAlt,
+    borderColor: COLORS.primary,
     borderWidth: 1,
     borderRadius: 10,
     padding: 12,
@@ -2167,13 +2202,13 @@ const paso2 = StyleSheet.create({
   elegirClienteBtn: {
     borderWidth: 2,
     borderStyle: 'dashed',
-    borderColor: '#F59E0B',
+    borderColor: COLORS.primary,
     borderRadius: 10,
     padding: 14,
     alignItems: 'center',
     marginBottom: 8,
   },
-  elegirClienteTxt: { color: '#92400E', fontWeight: '700' },
+  elegirClienteTxt: { color: COLORS.primary, fontWeight: '700' },
   // Resumen
   resumen: {
     backgroundColor: COLORS.surface,
@@ -2197,17 +2232,20 @@ const paso2 = StyleSheet.create({
     marginTop: 8,
     padding: 10,
     borderRadius: 8,
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
     borderWidth: 1,
   },
-  indicadorOk: { backgroundColor: '#DCFCE7', borderColor: '#86EFAC' },
-  indicadorWarn: { backgroundColor: '#FEF3C7', borderColor: '#FCD34D' },
-  indicadorErr: { backgroundColor: '#FEE2E2', borderColor: '#FCA5A5' },
-  indicadorInfo: { backgroundColor: '#DBEAFE', borderColor: '#93C5FD' },
-  indicadorTxtOk: { color: '#166534', fontWeight: '800', fontSize: 13 },
-  indicadorTxtWarn: { color: '#92400E', fontWeight: '800', fontSize: 13 },
-  indicadorTxtErr: { color: '#991B1B', fontWeight: '800', fontSize: 13 },
-  indicadorTxtInfo: { color: '#1E40AF', fontWeight: '800', fontSize: 13 },
+  indicadorOk: { backgroundColor: COLORS.surfaceAlt, borderColor: COLORS.success },
+  indicadorWarn: { backgroundColor: COLORS.surfaceAlt, borderColor: COLORS.warning },
+  indicadorErr: { backgroundColor: COLORS.surfaceAlt, borderColor: COLORS.danger },
+  indicadorInfo: { backgroundColor: COLORS.surfaceAlt, borderColor: COLORS.info },
+  indicadorTxtOk: { color: COLORS.success, fontWeight: '800', fontSize: 13 },
+  indicadorTxtWarn: { color: COLORS.warning, fontWeight: '800', fontSize: 13 },
+  indicadorTxtErr: { color: COLORS.danger, fontWeight: '800', fontSize: 13 },
+  indicadorTxtInfo: { color: COLORS.info, fontWeight: '800', fontSize: 13 },
   // Pago card
   pagoCard: {
     backgroundColor: COLORS.surface,
@@ -2229,7 +2267,7 @@ const paso2 = StyleSheet.create({
     color: COLORS.primary,
     letterSpacing: 0.5,
   },
-  pagoQuitar: { fontSize: 12, color: '#DC2626', fontWeight: '700' },
+  pagoQuitar: { fontSize: 12, color: COLORS.danger, fontWeight: '700' },
   fieldLabel: {
     fontSize: 11,
     fontWeight: '700',
@@ -2244,14 +2282,14 @@ const paso2 = StyleSheet.create({
     flex: 1,
     paddingVertical: 10,
     borderRadius: 10,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: COLORS.surfaceAlt,
     alignItems: 'center',
     borderWidth: 1,
     borderColor: 'transparent',
   },
   chipOn: { backgroundColor: COLORS.primary, borderColor: COLORS.primary },
   chipTxt: { fontSize: 13, color: COLORS.text, fontWeight: '700' },
-  chipTxtOn: { color: '#FFF' },
+  chipTxtOn: { color: COLORS.accentContrast },
   amountInput: {
     borderWidth: 1,
     borderColor: COLORS.border,
@@ -2264,14 +2302,14 @@ const paso2 = StyleSheet.create({
     textAlign: 'right',
   },
   warningBox: {
-    backgroundColor: '#FEF3C7',
-    borderColor: '#FCD34D',
+    backgroundColor: COLORS.surfaceAlt,
+    borderColor: COLORS.warning,
     borderWidth: 1,
     borderRadius: 8,
     padding: 10,
     marginTop: 10,
   },
-  warningTxt: { color: '#92400E', fontSize: 12, fontWeight: '600' },
+  warningTxt: { color: COLORS.warning, fontSize: 12, fontWeight: '600' },
   equiv: {
     fontSize: 13,
     color: COLORS.textMuted,
@@ -2321,13 +2359,13 @@ const cliPicker = StyleSheet.create({
   },
   crearTxt: { color: COLORS.primary, fontWeight: '800' },
   formBox: {
-    backgroundColor: '#FEFCE8',
-    borderColor: '#FDE68A',
+    backgroundColor: COLORS.surfaceAlt,
+    borderColor: COLORS.primary,
     borderWidth: 1,
     borderRadius: 12,
     padding: 14,
   },
-  formTit: { fontSize: 14, fontWeight: '800', color: '#92400E' },
+  formTit: { fontSize: 14, fontWeight: '800', color: COLORS.primary },
   lbl: {
     fontSize: 11,
     fontWeight: '700',
@@ -2349,7 +2387,7 @@ const cliPicker = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 10,
     borderRadius: 8,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: COLORS.surfaceAlt,
   },
   cancelTxt: { color: COLORS.textMuted, fontWeight: '700' },
   submitBtn: {
@@ -2359,13 +2397,13 @@ const cliPicker = StyleSheet.create({
     backgroundColor: COLORS.primary,
     alignItems: 'center',
   },
-  submitTxt: { color: '#FFF', fontWeight: '700' },
+  submitTxt: { color: COLORS.accentContrast, fontWeight: '700' },
 });
 
 const detalle = StyleSheet.create({
   saldoCard: {
-    backgroundColor: '#FEF3C7',
-    borderColor: '#FCD34D',
+    backgroundColor: COLORS.surfaceAlt,
+    borderColor: COLORS.warning,
     borderWidth: 1,
     borderRadius: 12,
     padding: 14,
@@ -2375,16 +2413,16 @@ const detalle = StyleSheet.create({
   saldoLabel: {
     fontSize: 11,
     fontWeight: '700',
-    color: '#92400E',
+    color: COLORS.warning,
     letterSpacing: 1,
   },
   saldoValor: {
     fontSize: 32,
     fontWeight: '900',
-    color: '#B45309',
+    color: COLORS.warning,
     marginTop: 4,
   },
-  saldoCliente: { fontSize: 12, color: '#92400E', marginTop: 4 },
+  saldoCliente: { fontSize: 12, color: COLORS.warning, marginTop: 4 },
   section: {
     fontSize: 12,
     fontWeight: '700',
@@ -2430,8 +2468,8 @@ const detalle = StyleSheet.create({
     borderRadius: 10,
     marginTop: 16,
   },
-  totalLabel: { color: '#FFF', fontSize: 12, fontWeight: '700' },
-  totalValor: { color: '#FFF', fontSize: 22, fontWeight: '800' },
+  totalLabel: { color: COLORS.accentContrast, fontSize: 12, fontWeight: '700' },
+  totalValor: { color: COLORS.accentContrast, fontSize: 22, fontWeight: '800' },
 });
 
 const anular = StyleSheet.create({
@@ -2472,5 +2510,5 @@ const anular = StyleSheet.create({
     marginTop: 14,
   },
   btn: { paddingHorizontal: 16, paddingVertical: 10, borderRadius: 8 },
-  btnPrimary: { backgroundColor: '#F59E0B' },
+  btnPrimary: { backgroundColor: COLORS.danger },
 });

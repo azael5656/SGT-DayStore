@@ -1,24 +1,33 @@
 import { FormEvent, useEffect, useState } from 'react';
+import { Package, Pencil, Plus, Tags, Trash2 } from 'lucide-react';
 import api from '../api/client';
 import { useAuth } from '../auth/AuthContext';
 import type { Categoria, Page, Producto } from '../types';
+import Alert from '../components/ui/Alert';
+import Button from '../components/ui/Button';
+import Field from '../components/ui/Field';
+import Input from '../components/ui/Input';
+import Modal from '../components/ui/Modal';
+import { useConfirm } from '../components/ui/ConfirmProvider';
+import PageHeader from '../components/ui/PageHeader';
+import { Table, THead, TBody, TR, TH, TD } from '../components/ui/Table';
 
 export default function InventarioPage() {
   const { user } = useAuth();
+  const confirm = useConfirm();
   const puedeEditar = user?.role === 'admin' || user?.role === 'superadmin';
   const [items, setItems] = useState<Producto[]>([]);
   const [categorias, setCategorias] = useState<Categoria[]>([]);
   const [busqueda, setBusqueda] = useState('');
   const [editando, setEditando] = useState<Producto | null>(null);
   const [creando, setCreando] = useState(false);
+  const [catsAbierto, setCatsAbierto] = useState(false);
   const [cargando, setCargando] = useState(false);
 
   const cargar = async () => {
     setCargando(true);
     try {
       const [prodResp, catResp] = await Promise.all([
-        // El backend acepta solo `search` (no `busqueda`) y NO acepta
-        // `limit` (whitelist + forbidNonWhitelisted en ValidationPipe).
         api.get<Page<Producto> | Producto[]>('/api/negocio/products', {
           params: busqueda ? { search: busqueda } : {},
         }),
@@ -37,93 +46,116 @@ export default function InventarioPage() {
   }, []);
 
   const eliminar = async (id: string) => {
-    if (!confirm('¿Borrar este producto?')) return;
+    const ok = await confirm({
+      title: 'Borrar producto',
+      message: '¿Borrar este producto? Esta accion no se puede deshacer.',
+      danger: true,
+      confirmText: 'Borrar',
+    });
+    if (!ok) return;
     await api.delete(`/api/negocio/products/${id}`);
     cargar();
   };
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-5">
-        <h1 className="text-2xl font-bold">Inventario</h1>
-        {puedeEditar && (
-          <button
-            onClick={() => setCreando(true)}
-            className="bg-primary text-white px-4 py-2 rounded-md text-sm font-semibold">
-            + Nuevo producto
-          </button>
-        )}
-      </div>
+      <PageHeader
+        title="Inventario"
+        icon={<Package size={22} strokeWidth={1.75} />}
+        actions={
+          puedeEditar && (
+            <div className="flex gap-2">
+              <Button
+                variant="secondary"
+                leftIcon={<Tags size={16} strokeWidth={1.75} />}
+                onClick={() => setCatsAbierto(true)}>
+                Categorías
+              </Button>
+              <Button leftIcon={<Plus size={16} strokeWidth={1.75} />} onClick={() => setCreando(true)}>
+                Nuevo producto
+              </Button>
+            </div>
+          )
+        }
+      />
 
-      <div className="flex gap-2 mb-4">
-        <input
+      <div className="flex gap-2 mb-4 max-w-xl">
+        <Input
           type="text"
-          placeholder="Buscar por nombre o codigo..."
+          placeholder="Buscar por nombre o codigo (ej. JOY)…"
           value={busqueda}
           onChange={(e) => setBusqueda(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && cargar()}
-          className="flex-1 border border-gray-300 rounded-md px-3 py-2 text-sm"
+          className="flex-1"
         />
-        <button onClick={cargar} className="px-4 py-2 bg-gray-100 rounded-md text-sm">
+        <Button variant="secondary" onClick={cargar}>
           Buscar
-        </button>
+        </Button>
       </div>
 
-      <div className="bg-white rounded-xl border border-gray-200 overflow-x-auto">
-        <table className="w-full text-sm min-w-[720px]">
-          <thead className="bg-gray-50 border-b border-gray-200">
-            <tr className="text-left text-xs uppercase text-gray-500">
-              <th className="px-3 py-2">Nombre</th>
-              <th className="px-3 py-2">Categoria</th>
-              <th className="px-3 py-2 text-right">Precio</th>
-              <th className="px-3 py-2 text-right">Stock</th>
-              <th className="px-3 py-2">Codigo</th>
-              {puedeEditar && <th className="px-3 py-2"></th>}
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-100">
-            {cargando && (
-              <tr>
-                <td colSpan={6} className="px-3 py-6 text-center text-gray-500">
-                  Cargando...
-                </td>
-              </tr>
-            )}
-            {!cargando && items.length === 0 && (
-              <tr>
-                <td colSpan={6} className="px-3 py-6 text-center text-gray-500">
-                  Sin productos.
-                </td>
-              </tr>
-            )}
-            {items.map((p) => (
-              <tr key={p.id} className="hover:bg-gray-50">
-                <td className="px-3 py-2 font-medium">{p.nombre}</td>
-                <td className="px-3 py-2 text-gray-600">{p.category?.nombre ?? '—'}</td>
-                <td className="px-3 py-2 text-right">${Number(p.precio).toLocaleString()}</td>
-                <td className={`px-3 py-2 text-right font-semibold ${p.stock <= p.stockMinimo ? 'text-red-600' : ''}`}>
-                  {p.stock}
-                </td>
-                <td className="px-3 py-2 text-gray-500 text-xs">{p.codigo ?? ''}</td>
+      <Table className="min-w-[720px]">
+        <THead>
+          <TR>
+            <TH>Nombre</TH>
+            <TH>Categoria</TH>
+            <TH className="text-right">Precio</TH>
+            <TH className="text-right">Stock</TH>
+            <TH>Codigo</TH>
+            {puedeEditar && <TH></TH>}
+          </TR>
+        </THead>
+        <TBody>
+          {cargando && (
+            <TR>
+              <TD colSpan={6} className="py-8 text-center text-text-muted">
+                Cargando…
+              </TD>
+            </TR>
+          )}
+          {!cargando && items.length === 0 && (
+            <TR>
+              <TD colSpan={6} className="py-8 text-center text-text-muted">
+                Sin productos.
+              </TD>
+            </TR>
+          )}
+          {items.map((p) => {
+            const agotado = p.stock <= 0;
+            const bajo = !agotado && p.stock <= p.stockMinimo;
+            const stockColor = agotado ? 'text-danger' : bajo ? 'text-warning' : 'text-text';
+            return (
+              <TR key={p.id}>
+                <TD className="font-medium">{p.nombre}</TD>
+                <TD>
+                  <span className="text-text-muted">{p.category?.nombre ?? '—'}</span>
+                </TD>
+                <TD className="text-right tabular-nums">${Number(p.precio).toLocaleString()}</TD>
+                <TD className="text-right">
+                  <span className={`font-bold tabular-nums ${stockColor}`}>{p.stock}</span>
+                  {(agotado || bajo) && (
+                    <span className={`block text-[10px] uppercase tracking-wide ${stockColor}`}>
+                      {agotado ? 'Agotado' : 'Bajo'}
+                    </span>
+                  )}
+                </TD>
+                <TD className="text-text-muted text-xs font-mono">{p.codigo ?? ''}</TD>
                 {puedeEditar && (
-                  <td className="px-3 py-2 text-right">
-                    <button
-                      onClick={() => setEditando(p)}
-                      className="text-primary text-xs mr-3 hover:underline">
-                      Editar
-                    </button>
-                    <button
-                      onClick={() => eliminar(p.id)}
-                      className="text-red-600 text-xs hover:underline">
-                      Borrar
-                    </button>
-                  </td>
+                  <TD className="text-right whitespace-nowrap">
+                    <div className="flex justify-end gap-1">
+                      <Button variant="ghost" size="sm" leftIcon={<Pencil size={14} strokeWidth={1.75} />} onClick={() => setEditando(p)}>
+                        Editar
+                      </Button>
+                      <Button variant="ghost" size="sm" leftIcon={<Trash2 size={14} strokeWidth={1.75} />} onClick={() => eliminar(p.id)}>
+                        Borrar
+                      </Button>
+                    </div>
+                  </TD>
                 )}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+              </TR>
+            );
+          })}
+        </TBody>
+      </Table>
 
       {(creando || editando) && (
         <ProductoForm
@@ -138,6 +170,14 @@ export default function InventarioPage() {
             setEditando(null);
             cargar();
           }}
+        />
+      )}
+
+      {catsAbierto && (
+        <CategoriasModal
+          categorias={categorias}
+          onClose={() => setCatsAbierto(false)}
+          onChanged={cargar}
         />
       )}
     </div>
@@ -166,12 +206,13 @@ function ProductoForm({ producto, categorias, onCerrar, onGuardado }: FormProps)
     setError('');
     setGuardando(true);
     try {
+      // Nunca permitimos negativos: aunque tecleen "-4", se guarda como 0.
       const payload = {
         nombre,
         categoryId,
-        precio: Number(precio),
-        stock: Number(stock),
-        stockMinimo: Number(stockMinimo),
+        precio: Math.max(0, Number(precio) || 0),
+        stock: Math.max(0, Number(stock) || 0),
+        stockMinimo: Math.max(0, Number(stockMinimo) || 0),
         codigo: codigo || undefined,
       };
       if (producto) {
@@ -191,24 +232,19 @@ function ProductoForm({ producto, categorias, onCerrar, onGuardado }: FormProps)
   };
 
   return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-20">
-      <form
-        onSubmit={submit}
-        className="bg-white rounded-xl shadow-xl p-6 w-full max-w-md mx-4">
-        <h3 className="text-lg font-bold mb-4">
-          {producto ? 'Editar producto' : 'Nuevo producto'}
-        </h3>
+    <Modal open onClose={onCerrar} title={producto ? 'Editar producto' : 'Nuevo producto'}>
+      <form onSubmit={submit}>
         {error && (
-          <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-md px-3 py-2 mb-3">
-            {error}
+          <div className="mb-3">
+            <Alert tone="danger">{error}</Alert>
           </div>
         )}
         <div className="space-y-3">
           <Field label="Nombre">
-            <input className={inputCls} value={nombre} onChange={(e) => setNombre(e.target.value)} required />
+            <Input value={nombre} onChange={(e) => setNombre(e.target.value)} required />
           </Field>
           <Field label="Categoria">
-            <select className={inputCls} value={categoryId} onChange={(e) => setCategoryId(e.target.value)} required>
+            <select className={selectCls} value={categoryId} onChange={(e) => setCategoryId(e.target.value)} required>
               {categorias.map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.nombre}
@@ -217,44 +253,154 @@ function ProductoForm({ producto, categorias, onCerrar, onGuardado }: FormProps)
             </select>
           </Field>
           <div className="flex gap-2">
-            <Field label="Precio">
-              <input className={inputCls} type="number" value={precio} onChange={(e) => setPrecio(e.target.value)} required />
-            </Field>
-            <Field label="Stock">
-              <input className={inputCls} type="number" value={stock} onChange={(e) => setStock(e.target.value)} required />
-            </Field>
-            <Field label="Stock min.">
-              <input className={inputCls} type="number" value={stockMinimo} onChange={(e) => setStockMinimo(e.target.value)} />
-            </Field>
+            <div className="flex-1">
+              <Field label="Precio">
+                <Input type="number" min={0} step="0.01" value={precio} onChange={(e) => setPrecio(e.target.value)} required />
+              </Field>
+            </div>
+            <div className="flex-1">
+              <Field label="Stock">
+                <Input type="number" min={0} value={stock} onChange={(e) => setStock(e.target.value)} required />
+              </Field>
+            </div>
+            <div className="flex-1">
+              <Field label="Stock min.">
+                <Input type="number" min={0} value={stockMinimo} onChange={(e) => setStockMinimo(e.target.value)} />
+              </Field>
+            </div>
           </div>
           <Field label="Codigo">
-            <input className={inputCls} value={codigo} onChange={(e) => setCodigo(e.target.value)} />
+            <Input value={codigo} onChange={(e) => setCodigo(e.target.value)} />
           </Field>
         </div>
         <div className="flex justify-end gap-2 mt-6">
-          <button type="button" onClick={onCerrar} className="px-4 py-2 text-sm">
+          <Button type="button" variant="ghost" onClick={onCerrar}>
             Cancelar
-          </button>
-          <button
-            type="submit"
-            disabled={guardando}
-            className="px-4 py-2 bg-primary text-white rounded-md text-sm font-semibold disabled:opacity-60">
-            {guardando ? 'Guardando...' : 'Guardar'}
-          </button>
+          </Button>
+          <Button type="submit" disabled={guardando}>
+            {guardando ? 'Guardando…' : 'Guardar'}
+          </Button>
         </div>
       </form>
-    </div>
+    </Modal>
   );
 }
 
-const inputCls =
-  'w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary';
+interface CatsProps {
+  categorias: Categoria[];
+  onClose: () => void;
+  onChanged: () => void;
+}
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+/** Gestión de categorías (CRUD sobre /api/negocio/categories). */
+function CategoriasModal({ categorias, onClose, onChanged }: CatsProps) {
+  const confirm = useConfirm();
+  const [nuevo, setNuevo] = useState('');
+  const [editId, setEditId] = useState<string | null>(null);
+  const [editNombre, setEditNombre] = useState('');
+  const [error, setError] = useState('');
+
+  const errMsg = (err: unknown) =>
+    (err as { response?: { data?: { message?: string } } }).response?.data?.message ||
+    'No se pudo guardar';
+
+  const crear = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!nuevo.trim()) return;
+    setError('');
+    try {
+      await api.post('/api/negocio/categories', { nombre: nuevo.trim() });
+      setNuevo('');
+      onChanged();
+    } catch (err) {
+      setError(errMsg(err));
+    }
+  };
+
+  const guardar = async (id: string) => {
+    if (!editNombre.trim()) return;
+    setError('');
+    try {
+      await api.put(`/api/negocio/categories/${id}`, { nombre: editNombre.trim() });
+      setEditId(null);
+      onChanged();
+    } catch (err) {
+      setError(errMsg(err));
+    }
+  };
+
+  const borrar = async (c: Categoria) => {
+    const ok = await confirm({
+      title: 'Borrar categoría',
+      message: `¿Borrar "${c.nombre}"? Los productos de esta categoría podrían quedar sin clasificar.`,
+      danger: true,
+      confirmText: 'Borrar',
+    });
+    if (!ok) return;
+    setError('');
+    try {
+      await api.delete(`/api/negocio/categories/${c.id}`);
+      onChanged();
+    } catch (err) {
+      setError(errMsg(err));
+    }
+  };
+
   return (
-    <label className="block flex-1">
-      <span className="text-xs text-gray-600 mb-1 block">{label}</span>
-      {children}
-    </label>
+    <Modal open onClose={onClose} title="Categorías" maxWidth="sm">
+      {error && (
+        <div className="mb-3">
+          <Alert tone="danger">{error}</Alert>
+        </div>
+      )}
+      <form onSubmit={crear} className="flex gap-2 mb-4">
+        <Input
+          placeholder="Nueva categoría"
+          value={nuevo}
+          onChange={(e) => setNuevo(e.target.value)}
+          className="flex-1"
+        />
+        <Button type="submit" leftIcon={<Plus size={16} strokeWidth={1.75} />}>
+          Agregar
+        </Button>
+      </form>
+
+      <div className="space-y-1.5 max-h-72 overflow-auto">
+        {categorias.length === 0 && (
+          <div className="text-sm text-text-muted py-4 text-center">Sin categorías aún.</div>
+        )}
+        {categorias.map((c) => (
+          <div key={c.id} className="flex items-center gap-2 bg-surface-alt rounded-xl px-3 py-2">
+            {editId === c.id ? (
+              <>
+                <Input value={editNombre} onChange={(e) => setEditNombre(e.target.value)} className="flex-1" autoFocus />
+                <Button size="sm" onClick={() => guardar(c.id)}>Guardar</Button>
+                <Button size="sm" variant="ghost" onClick={() => setEditId(null)}>Cancelar</Button>
+              </>
+            ) : (
+              <>
+                <span className="flex-1 text-sm text-text">{c.nombre}</span>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  leftIcon={<Pencil size={14} strokeWidth={1.75} />}
+                  onClick={() => {
+                    setEditId(c.id);
+                    setEditNombre(c.nombre);
+                  }}>
+                  Editar
+                </Button>
+                <Button size="sm" variant="ghost" leftIcon={<Trash2 size={14} strokeWidth={1.75} />} onClick={() => borrar(c)}>
+                  Borrar
+                </Button>
+              </>
+            )}
+          </div>
+        ))}
+      </div>
+    </Modal>
   );
 }
+
+const selectCls =
+  'w-full bg-bg border border-border rounded-xl px-3 py-2.5 text-text focus:outline-none focus-visible:ring-2 focus-visible:ring-accent';

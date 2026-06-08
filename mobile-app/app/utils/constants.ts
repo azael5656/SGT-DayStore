@@ -25,10 +25,22 @@
  * Cambia esto y recompila. Si el WiFi de tu PC cambia de red, la IP cambia.
  */
 /**
- * Para emulador Android Studio: usar `10.0.2.2:80` (alias especial al host).
- * Para teléfono físico en la misma WiFi: cambiar a la IP LAN (ej. http://192.168.0.100:80).
+ * Conexión por túnel `adb reverse` (funciona igual en emulador y en teléfono
+ * físico conectado por USB). El dispositivo abre localhost:8080 y adb lo
+ * redirige al :80 del PC (nginx). Requiere, una sola vez por sesión de adb:
+ *
+ *   adb -s <serial> reverse tcp:8080 tcp:80
+ *
+ * Usamos 8080 (no 80) porque el adbd del emulador es "production build" y no
+ * puede enlazar puertos privilegiados (<1024); 8080 lo enlazan ambos sin root.
+ * El túnel se pierde si se reinicia el servidor adb o se desconecta el equipo.
+ *
+ * Alternativas si se necesita la app suelta (sin cable):
+ *   - Emulador Android Studio: 'http://10.0.2.2:80' (alias especial al host).
+ *   - Teléfono en la misma WiFi: la IP LAN del PC, ej. 'http://192.168.0.103:80'.
+ *   - ZeroTier/VPN: IP estable alcanzable desde cualquier red.
  */
-export const API_BASE_URL = 'http://10.147.200.40:80';
+export const API_BASE_URL = 'http://localhost:8080';
 
 /**
  * Nombres de las rutas de navegacion. Los usamos para navegar de forma
@@ -55,16 +67,20 @@ export const ROUTES = {
  * TODO: acordar paleta final con el diseñador.
  */
 export const COLORS = {
-  primary: '#2563EB',
-  primaryDark: '#1D4ED8',
-  background: '#F9FAFB',
+  // Marca Dayisaacstore — paleta "Pizarra fria" (claro) + naranja del logo.
+  primary: '#FF7A00',
+  primaryDark: '#E06C00',
+  background: '#F6F8FA',
   surface: '#FFFFFF',
-  text: '#111827',
-  textMuted: '#6B7280',
-  border: '#E5E7EB',
+  surfaceAlt: '#EDF1F5',
+  text: '#1A2129',
+  textMuted: '#66707B',
+  border: '#D9E0E7',
   success: '#16A34A',
-  warning: '#F59E0B',
+  warning: '#B45309',
   danger: '#DC2626',
+  info: '#0369A1',
+  accentContrast: '#FFFFFF',
 };
 
 /**

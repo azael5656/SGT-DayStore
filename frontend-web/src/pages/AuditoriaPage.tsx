@@ -1,8 +1,16 @@
 import { useEffect, useState } from 'react';
+import { ScrollText, FileText } from 'lucide-react';
 import api from '../api/client';
 import type { AuditLog, Page } from '../types';
 import { downloadPdf } from '../utils/downloadPdf';
 import { labelAccion } from '../utils/labels';
+import PageHeader from '../components/ui/PageHeader';
+import Button from '../components/ui/Button';
+import Chip from '../components/ui/Chip';
+import Input from '../components/ui/Input';
+import Badge from '../components/ui/Badge';
+import { Table, THead, TBody, TR, TH, TD } from '../components/ui/Table';
+import { ROLE_VARIANT, type Tone } from '../components/ui/variants';
 
 const ACCIONES = [
   { label: 'Todo', value: '' },
@@ -13,14 +21,14 @@ const ACCIONES = [
   { label: 'Escenarios IoT', value: 'scenario' },
 ];
 
-const colorAccion = (a: string) => {
-  if (a.includes('login')) return 'bg-cyan-100 text-cyan-700';
-  if (a.includes('delete')) return 'bg-red-100 text-red-700';
-  if (a.includes('create')) return 'bg-green-100 text-green-700';
-  if (a.includes('update')) return 'bg-yellow-100 text-yellow-700';
-  if (a.includes('alert')) return 'bg-orange-100 text-orange-700';
-  if (a.includes('scenario')) return 'bg-purple-100 text-purple-700';
-  return 'bg-gray-100 text-gray-700';
+const toneAccion = (a: string): Tone => {
+  if (a.includes('login')) return 'info';
+  if (a.includes('delete')) return 'danger';
+  if (a.includes('create')) return 'success';
+  if (a.includes('update')) return 'warning';
+  if (a.includes('alert')) return 'accent';
+  if (a.includes('scenario')) return 'accent';
+  return 'neutral';
 };
 
 export default function AuditoriaPage() {
@@ -79,138 +87,147 @@ export default function AuditoriaPage() {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-5">
-        <h1 className="text-2xl font-bold">Auditoria</h1>
-        <div className="flex items-center gap-3">
-          <span className="text-sm text-gray-500">{total} eventos</span>
-          <button
-            onClick={descargarPdf}
-            disabled={descargandoPdf}
-            className="bg-white border border-gray-300 text-gray-700 px-3 py-1.5 rounded-md text-xs font-semibold hover:bg-gray-50 disabled:opacity-50">
-            {descargandoPdf ? 'Generando…' : '📄 Descargar PDF'}
-          </button>
-        </div>
-      </div>
+      <PageHeader
+        title="Auditoria"
+        icon={<ScrollText size={22} strokeWidth={1.75} />}
+        actions={
+          <div className="flex items-center gap-3">
+            <span className="text-sm text-text-muted">{total} eventos</span>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={descargarPdf}
+              disabled={descargandoPdf}
+              leftIcon={<FileText size={16} strokeWidth={1.75} />}>
+              {descargandoPdf ? 'Generando…' : 'Descargar PDF'}
+            </Button>
+          </div>
+        }
+      />
 
       <div className="flex flex-wrap gap-2 mb-3">
         {ACCIONES.map((c) => (
-          <button
+          <Chip
             key={c.value}
+            active={filtroAccion === c.value}
             onClick={() => {
               setFiltroAccion(c.value);
               setPage(1);
-            }}
-            className={`px-3 py-1.5 rounded-full text-xs font-medium ${
-              filtroAccion === c.value
-                ? 'bg-primary text-white'
-                : 'bg-white border border-gray-200 text-gray-700'
-            }`}>
+            }}>
             {c.label}
-          </button>
+          </Chip>
         ))}
       </div>
 
       <div className="flex gap-2 mb-4">
-        <input
+        <Input
           type="text"
           value={filtroEmail}
           onChange={(e) => setFiltroEmail(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && (setPage(1), cargar())}
           placeholder="Filtrar por email..."
-          className="flex-1 border border-gray-300 rounded-md px-3 py-2 text-sm"
+          className="flex-1"
         />
-        <button onClick={() => (setPage(1), cargar())} className="px-4 py-2 bg-gray-100 rounded-md text-sm">
+        <Button variant="secondary" onClick={() => (setPage(1), cargar())}>
           Buscar
-        </button>
+        </Button>
       </div>
 
-      <div className="bg-white rounded-xl border border-gray-200 overflow-x-auto">
-        <table className="w-full text-sm min-w-[680px]">
-          <thead className="bg-gray-50 border-b border-gray-200">
-            <tr className="text-left text-xs uppercase text-gray-500">
-              <th className="px-3 py-2">Cuando</th>
-              <th className="px-3 py-2">Usuario</th>
-              <th className="px-3 py-2">Rol</th>
-              <th className="px-3 py-2">Accion</th>
-              <th className="px-3 py-2">Recurso</th>
-              <th className="px-3 py-2">IP</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-100">
-            {cargando && (
-              <tr>
-                <td colSpan={6} className="px-3 py-6 text-center text-gray-500">
-                  Cargando...
-                </td>
-              </tr>
-            )}
-            {!cargando && items.length === 0 && (
-              <tr>
-                <td colSpan={6} className="px-3 py-6 text-center text-gray-500">
-                  Sin eventos.
-                </td>
-              </tr>
-            )}
-            {items.map((it) => {
-              const actor = it.userEmail
-                ? it.userEmail.split('@')[0]
-                : 'El sistema';
-              const rolLabel =
-                it.userRole === 'superadmin'
-                  ? 'Super admin'
-                  : it.userRole === 'admin'
-                  ? 'Administrador'
-                  : it.userRole === 'vendedor'
-                  ? 'Vendedor'
-                  : '-';
-              return (
-                <tr key={it.id}>
-                  <td className="px-3 py-2 text-xs text-gray-600 whitespace-nowrap">
-                    {new Date(it.createdAt).toLocaleString()}
-                  </td>
-                  <td className="px-3 py-2">
-                    <div className="font-semibold">{actor}</div>
-                    {it.userEmail && (
-                      <div className="text-xs text-gray-500">{it.userEmail}</div>
-                    )}
-                  </td>
-                  <td className="px-3 py-2 text-xs text-gray-500">{rolLabel}</td>
-                  <td className="px-3 py-2">
-                    <span
-                      className={`px-2 py-0.5 rounded text-xs ${colorAccion(it.action)}`}>
-                      {labelAccion(it.action)}
-                    </span>
-                  </td>
-                  <td className="px-3 py-2 text-xs text-gray-600">
-                    {it.resource ?? '-'}
-                  </td>
-                  <td className="px-3 py-2 text-xs text-gray-500">
-                    {it.ip ?? '-'}
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
+      <Table className="min-w-[680px]">
+        <THead>
+          <TR className="hover:bg-transparent">
+            <TH>Cuando</TH>
+            <TH>Usuario</TH>
+            <TH>Rol</TH>
+            <TH>Accion</TH>
+            <TH>Recurso</TH>
+            <TH>IP</TH>
+          </TR>
+        </THead>
+        <TBody>
+          {cargando && (
+            <TR className="hover:bg-transparent">
+              <TD colSpan={6} className="py-6 text-center text-text-muted">
+                Cargando...
+              </TD>
+            </TR>
+          )}
+          {!cargando && items.length === 0 && (
+            <TR className="hover:bg-transparent">
+              <TD colSpan={6} className="py-6 text-center text-text-muted">
+                Sin eventos.
+              </TD>
+            </TR>
+          )}
+          {items.map((it) => {
+            const actor = it.userEmail
+              ? it.userEmail.split('@')[0]
+              : 'El sistema';
+            const rolLabel =
+              it.userRole === 'superadmin'
+                ? 'Super admin'
+                : it.userRole === 'admin'
+                ? 'Administrador'
+                : it.userRole === 'vendedor'
+                ? 'Vendedor'
+                : '-';
+            const rolTone = it.userRole
+              ? ROLE_VARIANT[it.userRole.toLowerCase()]?.tone ?? 'neutral'
+              : 'neutral';
+            return (
+              <TR key={it.id}>
+                <TD className="text-xs text-text-muted whitespace-nowrap">
+                  {new Date(it.createdAt).toLocaleString()}
+                </TD>
+                <TD>
+                  <div className="font-semibold">{actor}</div>
+                  {it.userEmail && (
+                    <div className="text-xs text-text-muted">{it.userEmail}</div>
+                  )}
+                </TD>
+                <TD className="text-xs">
+                  {rolLabel === '-' ? (
+                    <span className="text-text-muted">{rolLabel}</span>
+                  ) : (
+                    <Badge tone={rolTone}>{rolLabel}</Badge>
+                  )}
+                </TD>
+                <TD>
+                  <Badge tone={toneAccion(it.action)}>
+                    {labelAccion(it.action)}
+                  </Badge>
+                </TD>
+                <TD className="text-xs text-text-muted">
+                  {it.resource ?? '-'}
+                </TD>
+                <TD className="text-xs text-text-muted">
+                  {it.ip ?? '-'}
+                </TD>
+              </TR>
+            );
+          })}
+        </TBody>
+      </Table>
 
       <div className="flex justify-between items-center mt-4 text-sm">
-        <span className="text-gray-500">
+        <span className="text-text-muted">
           Pagina {page} de {totalPages}
         </span>
         <div className="flex gap-2">
-          <button
+          <Button
+            variant="secondary"
+            size="sm"
             onClick={() => setPage((p) => Math.max(1, p - 1))}
-            disabled={page === 1}
-            className="px-3 py-1 border rounded-md disabled:opacity-50">
+            disabled={page === 1}>
             Anterior
-          </button>
-          <button
+          </Button>
+          <Button
+            variant="secondary"
+            size="sm"
             onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-            disabled={page === totalPages}
-            className="px-3 py-1 border rounded-md disabled:opacity-50">
+            disabled={page === totalPages}>
             Siguiente
-          </button>
+          </Button>
         </div>
       </div>
     </div>

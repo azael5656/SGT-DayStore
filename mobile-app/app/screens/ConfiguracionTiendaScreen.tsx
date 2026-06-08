@@ -12,6 +12,7 @@ import {
   View,
 } from 'react-native';
 import HourPicker from '../components/HourPicker';
+import Icon from '../components/Icon';
 import {
   storeConfigService,
   type EstadoTienda,
@@ -142,9 +143,16 @@ export default function ConfiguracionTiendaScreen() {
         <View
           style={[
             styles.estado,
-            { backgroundColor: estado.abierta ? '#DCFCE7' : '#FEE2E2' },
+            {
+              backgroundColor:
+                (estado.abierta ? COLORS.success : COLORS.danger) + '18',
+            },
           ]}>
-          <Text style={styles.estadoIcono}>{estado.abierta ? '🟢' : '🔴'}</Text>
+          <Icon
+            name={estado.abierta ? 'puerta' : 'puerta-cerrada'}
+            color={estado.abierta ? COLORS.success : COLORS.danger}
+            size={30}
+          />
           <View style={{ flex: 1 }}>
             <Text style={styles.estadoTitulo}>
               Tienda {estado.abierta ? 'ABIERTA' : 'CERRADA'}
@@ -163,8 +171,9 @@ export default function ConfiguracionTiendaScreen() {
               { backgroundColor: COLORS.success + '18', borderColor: COLORS.success },
             ]}
             onPress={abrirAhora}>
+            <Icon name="puerta" color={COLORS.success} size={18} />
             <Text style={[styles.btnAtajoTxt, { color: COLORS.success }]}>
-              🟢  Abrir ahora
+              Abrir ahora
             </Text>
           </Pressable>
           <Pressable
@@ -173,8 +182,9 @@ export default function ConfiguracionTiendaScreen() {
               { backgroundColor: COLORS.danger + '18', borderColor: COLORS.danger },
             ]}
             onPress={cerrarAhora}>
+            <Icon name="puerta-cerrada" color={COLORS.danger} size={18} />
             <Text style={[styles.btnAtajoTxt, { color: COLORS.danger }]}>
-              🔴  Cerrar ahora
+              Cerrar ahora
             </Text>
           </Pressable>
         </View>
@@ -335,7 +345,10 @@ const styles = StyleSheet.create({
     padding: 12,
     borderRadius: 10,
     borderWidth: 1,
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
   },
   btnAtajoTxt: { fontSize: 14, fontWeight: '800' },
   hintAtajos: {
@@ -391,7 +404,7 @@ const styles = StyleSheet.create({
   },
   chipActive: { backgroundColor: COLORS.danger, borderColor: COLORS.danger },
   chipTxt: { fontSize: 13, color: COLORS.text, fontWeight: '600' },
-  chipTxtActive: { color: '#fff', fontWeight: '800' },
+  chipTxtActive: { color: COLORS.accentContrast, fontWeight: '800' },
   switchRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   separador: {
     height: 1,
@@ -415,5 +428,5 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: 10,
   },
-  btnGuardarTxt: { color: '#fff', fontWeight: '800', fontSize: 15 },
+  btnGuardarTxt: { color: COLORS.accentContrast, fontWeight: '800', fontSize: 15 },
 });

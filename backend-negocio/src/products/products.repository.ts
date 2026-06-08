@@ -24,9 +24,16 @@ export class ProductsRepository {
   ) {}
 
   findActive(filter: FindAllFilter) {
-    const where: Record<string, unknown> = { activo: true };
-    if (filter.search) where.nombre = ILike(`%${filter.search}%`);
-    if (filter.categoryId) where.categoryId = filter.categoryId;
+    const base: Record<string, unknown> = { activo: true };
+    if (filter.categoryId) base.categoryId = filter.categoryId;
+    // Busca por nombre O por codigo (parcial, sin distinguir mayusculas):
+    // asi "JOY" encuentra "JOY-VEG-E" igual que coincidiria con un nombre.
+    const where = filter.search
+      ? [
+          { ...base, nombre: ILike(`%${filter.search}%`) },
+          { ...base, codigo: ILike(`%${filter.search}%`) },
+        ]
+      : base;
     return this.orm.find({ where, order: { createdAt: 'DESC' } });
   }
 

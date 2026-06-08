@@ -1,17 +1,22 @@
 import { FormEvent, useEffect, useState } from 'react';
+import { Users, Plus } from 'lucide-react';
 import api from '../api/client';
 import type { Role, User } from '../types';
-
-const ROLE_BADGE: Record<Role, string> = {
-  superadmin: 'bg-purple-100 text-purple-700 border-purple-300',
-  admin: 'bg-blue-100 text-blue-700 border-blue-300',
-  vendedor: 'bg-cyan-100 text-cyan-700 border-cyan-300',
-};
+import { Table, THead, TBody, TR, TH, TD } from '../components/ui/Table';
+import Badge from '../components/ui/Badge';
+import Button from '../components/ui/Button';
+import Modal from '../components/ui/Modal';
+import Field from '../components/ui/Field';
+import Input from '../components/ui/Input';
+import Alert from '../components/ui/Alert';
+import PageHeader from '../components/ui/PageHeader';
+import { useConfirm } from '../components/ui/ConfirmProvider';
 
 export default function UsuariosPage() {
   const [items, setItems] = useState<(User & { activo: boolean; createdAt: string })[]>([]);
   const [creando, setCreando] = useState(false);
   const [cargando, setCargando] = useState(false);
+  const confirm = useConfirm();
 
   const cargar = async () => {
     setCargando(true);
@@ -33,7 +38,13 @@ export default function UsuariosPage() {
   };
 
   const desactivar = async (id: string) => {
-    if (!confirm('¿Desactivar este usuario?')) return;
+    const ok = await confirm({
+      title: 'Desactivar usuario',
+      message: '¿Desactivar este usuario?',
+      confirmText: 'Desactivar',
+      danger: true,
+    });
+    if (!ok) return;
     await api.patch(`/api/negocio/users/${id}/desactivar`);
     cargar();
   };
@@ -45,78 +56,68 @@ export default function UsuariosPage() {
 
   return (
     <div>
-      <div className="flex justify-between items-center mb-5">
-        <h1 className="text-2xl font-bold">Usuarios</h1>
-        <button
-          onClick={() => setCreando(true)}
-          className="bg-primary text-white px-4 py-2 rounded-md text-sm font-semibold">
-          + Nuevo usuario
-        </button>
-      </div>
+      <PageHeader
+        title="Usuarios"
+        icon={<Users size={22} strokeWidth={1.75} />}
+        actions={
+          <Button onClick={() => setCreando(true)} leftIcon={<Plus size={16} strokeWidth={1.75} />}>
+            Nuevo usuario
+          </Button>
+        }
+      />
 
-      <div className="bg-white rounded-xl border border-gray-200 overflow-x-auto">
-        <table className="w-full text-sm min-w-[600px]">
-          <thead className="bg-gray-50 border-b border-gray-200">
-            <tr className="text-left text-xs uppercase text-gray-500">
-              <th className="px-3 py-2">Nombre</th>
-              <th className="px-3 py-2">Email</th>
-              <th className="px-3 py-2">Rol</th>
-              <th className="px-3 py-2">Estado</th>
-              <th className="px-3 py-2"></th>
+      <Table className="min-w-[600px]">
+        <THead>
+          <TR>
+            <TH>Nombre</TH>
+            <TH>Email</TH>
+            <TH>Rol</TH>
+            <TH>Estado</TH>
+            <TH></TH>
+          </TR>
+        </THead>
+        <TBody>
+          {cargando && (
+            <tr>
+              <td colSpan={5} className="px-4 py-6 text-center text-text-muted">
+                Cargando...
+              </td>
             </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-100">
-            {cargando && (
-              <tr>
-                <td colSpan={5} className="px-3 py-6 text-center text-gray-500">
-                  Cargando...
-                </td>
-              </tr>
-            )}
-            {items.map((u) => (
-              <tr key={u.id}>
-                <td className="px-3 py-2 font-medium">{u.nombre}</td>
-                <td className="px-3 py-2">{u.email}</td>
-                <td className="px-3 py-2">
-                  <select
-                    value={u.role}
-                    onChange={(e) => cambiarRol(u.id, e.target.value as Role)}
-                    className={`text-xs font-semibold px-2 py-1 rounded border ${ROLE_BADGE[u.role]}`}>
-                    <option value="superadmin">superadmin</option>
-                    <option value="admin">admin</option>
-                    <option value="vendedor">vendedor</option>
-                  </select>
-                </td>
-                <td className="px-3 py-2">
-                  <span
-                    className={`text-xs px-2 py-0.5 rounded-md ${
-                      u.activo
-                        ? 'bg-green-100 text-green-700'
-                        : 'bg-red-100 text-red-700'
-                    }`}>
-                    {u.activo ? 'activo' : 'inactivo'}
-                  </span>
-                </td>
-                <td className="px-3 py-2 text-right">
-                  {u.activo ? (
-                    <button
-                      onClick={() => desactivar(u.id)}
-                      className="text-red-600 text-xs hover:underline">
-                      Desactivar
-                    </button>
-                  ) : (
-                    <button
-                      onClick={() => activar(u.id)}
-                      className="text-green-600 text-xs hover:underline">
-                      Activar
-                    </button>
-                  )}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+          )}
+          {items.map((u) => (
+            <TR key={u.id}>
+              <TD className="font-medium">{u.nombre}</TD>
+              <TD>{u.email}</TD>
+              <TD>
+                <select
+                  value={u.role}
+                  onChange={(e) => cambiarRol(u.id, e.target.value as Role)}
+                  className="text-xs font-semibold px-2 py-1 rounded-xl border border-border bg-bg text-text focus:outline-none focus-visible:ring-2 focus-visible:ring-accent">
+                  <option value="superadmin">superadmin</option>
+                  <option value="admin">admin</option>
+                  <option value="vendedor">vendedor</option>
+                </select>
+              </TD>
+              <TD>
+                <Badge tone={u.activo ? 'success' : 'danger'}>
+                  {u.activo ? 'activo' : 'inactivo'}
+                </Badge>
+              </TD>
+              <TD className="text-right">
+                {u.activo ? (
+                  <Button variant="ghost" size="sm" onClick={() => desactivar(u.id)}>
+                    Desactivar
+                  </Button>
+                ) : (
+                  <Button variant="ghost" size="sm" onClick={() => activar(u.id)}>
+                    Activar
+                  </Button>
+                )}
+              </TD>
+            </TR>
+          ))}
+        </TBody>
+      </Table>
 
       {creando && (
         <CrearUsuario
@@ -162,60 +163,55 @@ function CrearUsuario({ onCerrar, onCreado }: CrearProps) {
   };
 
   return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-20">
-      <form onSubmit={submit} className="bg-white rounded-xl shadow-xl p-6 w-full max-w-sm mx-4">
-        <h3 className="text-lg font-bold mb-4">Nuevo usuario</h3>
+    <Modal open onClose={onCerrar} title="Nuevo usuario" maxWidth="sm">
+      <form onSubmit={submit}>
         {error && (
-          <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-md px-3 py-2 mb-3">
-            {error}
+          <div className="mb-3">
+            <Alert tone="danger">{error}</Alert>
           </div>
         )}
         <div className="space-y-3">
-          <input
+          <Input
             placeholder="Email"
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
             required
           />
-          <input
+          <Input
             placeholder="Nombre"
             value={nombre}
             onChange={(e) => setNombre(e.target.value)}
-            className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
             required
           />
-          <input
+          <Input
             placeholder="Contrasena (min 6)"
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
             required
             minLength={6}
           />
-          <select
-            value={role}
-            onChange={(e) => setRole(e.target.value as Role)}
-            className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm">
-            <option value="vendedor">vendedor</option>
-            <option value="admin">admin</option>
-            <option value="superadmin">superadmin</option>
-          </select>
+          <Field>
+            <select
+              value={role}
+              onChange={(e) => setRole(e.target.value as Role)}
+              className="w-full bg-bg border border-border rounded-xl px-3 py-2.5 text-text focus:outline-none focus-visible:ring-2 focus-visible:ring-accent">
+              <option value="vendedor">vendedor</option>
+              <option value="admin">admin</option>
+              <option value="superadmin">superadmin</option>
+            </select>
+          </Field>
         </div>
         <div className="flex justify-end gap-2 mt-6">
-          <button type="button" onClick={onCerrar} className="px-4 py-2 text-sm">
+          <Button type="button" variant="ghost" onClick={onCerrar}>
             Cancelar
-          </button>
-          <button
-            type="submit"
-            disabled={guardando}
-            className="px-4 py-2 bg-primary text-white rounded-md text-sm font-semibold disabled:opacity-60">
+          </Button>
+          <Button type="submit" disabled={guardando}>
             {guardando ? 'Creando...' : 'Crear'}
-          </button>
+          </Button>
         </div>
       </form>
-    </div>
+    </Modal>
   );
 }
