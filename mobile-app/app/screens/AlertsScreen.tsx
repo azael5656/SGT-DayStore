@@ -7,6 +7,7 @@ import {
   View,
 } from 'react-native';
 import AlertBanner from '../components/AlertBanner';
+import Icon from '../components/Icon';
 import { iotService } from '../services/iot.service';
 import { useRealtimeIoT } from '../hooks/useRealtimeIoT';
 import { COLORS } from '../utils/constants';
@@ -41,7 +42,12 @@ export default function AlertsScreen() {
       <View style={styles.header}>
         <Text style={styles.titulo}>Alertas</Text>
         <View style={[styles.estado, conectado ? styles.estadoOn : styles.estadoOff]}>
-          <Text style={styles.estadoTxt}>{conectado ? '● EN VIVO' : '○ reconectando'}</Text>
+          <Icon
+            name="movimiento"
+            color={conectado ? COLORS.success : COLORS.warning}
+            size={12}
+          />
+          <Text style={styles.estadoTxt}>{conectado ? 'EN VIVO' : 'reconectando'}</Text>
         </View>
       </View>
       <FlatList
@@ -74,10 +80,22 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: COLORS.text,
   },
-  estado: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12 },
-  estadoOn: { backgroundColor: '#DCFCE7' },
-  estadoOff: { backgroundColor: '#FEE2E2' },
-  estadoTxt: { fontSize: 10, fontWeight: '700', letterSpacing: 0.5 },
+  estado: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  estadoOn: { backgroundColor: COLORS.success },
+  estadoOff: { backgroundColor: COLORS.warning },
+  estadoTxt: {
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+    color: COLORS.accentContrast,
+  },
   lista: { padding: 14, paddingTop: 0 },
   vacio: {
     textAlign: 'center',

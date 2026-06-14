@@ -44,4 +44,10 @@ export class StoreConfigController {
   async abrirAhora() {
     return this.storeConfigService.abrirAhora();
   }
+
+  @Post('seguir-horario')
+  @Roles('admin', 'superadmin')
+  async seguirHorario() {
+    return this.storeConfigService.seguirHorario();
+  }
 }

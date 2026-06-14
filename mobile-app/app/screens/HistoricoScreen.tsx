@@ -22,10 +22,7 @@ import { COLORS } from '../utils/constants';
 const TIPOS = [
   { label: 'Temperatura', value: 'temperatura', unidad: '°C' },
   { label: 'Humedad', value: 'humedad', unidad: '%' },
-  { label: 'Corriente', value: 'corriente', unidad: 'W' },
   { label: 'Puerta', value: 'puerta', unidad: '' },
-  { label: 'Vibracion', value: 'vibracion', unidad: '' },
-  { label: 'Movimiento', value: 'movimiento', unidad: '' },
 ];
 
 export default function HistoricoScreen() {
@@ -155,7 +152,7 @@ const styles = StyleSheet.create({
   },
   chipActive: { backgroundColor: COLORS.primary, borderColor: COLORS.primary },
   chipText: { fontSize: 12, color: COLORS.text },
-  chipTextActive: { color: '#fff', fontWeight: '600' },
+  chipTextActive: { color: COLORS.accentContrast, fontWeight: '600' },
   resumen: {
     flexDirection: 'row',
     backgroundColor: COLORS.surface,

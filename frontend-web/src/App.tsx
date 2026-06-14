@@ -6,6 +6,7 @@ import AuditoriaPage from './pages/AuditoriaPage';
 import ClienteDetallePage from './pages/ClienteDetallePage';
 import ClientesPage from './pages/ClientesPage';
 import DashboardPage from './pages/DashboardPage';
+import EstiloPage from './pages/EstiloPage';
 import HistoricoPage from './pages/HistoricoPage';
 import HomePage from './pages/HomePage';
 import HorarioTiendaPage from './pages/HorarioTiendaPage';
@@ -161,6 +162,16 @@ export default function App() {
           <ProtectedRoute>
             <Layout>
               <PerfilPage />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/estilo"
+        element={
+          <ProtectedRoute>
+            <Layout>
+              <EstiloPage />
             </Layout>
           </ProtectedRoute>
         }

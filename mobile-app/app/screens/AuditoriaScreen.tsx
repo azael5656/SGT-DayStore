@@ -12,6 +12,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import Icon from '../components/Icon';
 import { auditService, type AuditLog } from '../services/audit.service';
 import { pdfService } from '../services/pdf.service';
 import { COLORS } from '../utils/constants';
@@ -26,11 +27,11 @@ const ACCIONES_FILTRO: { label: string; value: string }[] = [
 ];
 
 const COLOR_POR_ACCION = (action: string): string => {
-  if (action.includes('login')) return '#0EA5E9';
+  if (action.includes('login')) return COLORS.primary;
   if (action.includes('alert')) return COLORS.warning;
   if (action.includes('delete')) return COLORS.danger;
   if (action.includes('create')) return COLORS.success;
-  if (action.includes('scenario')) return '#7C3AED';
+  if (action.includes('scenario')) return COLORS.primary;
   return COLORS.textMuted;
 };
 
@@ -85,7 +86,8 @@ export default function AuditoriaScreen() {
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
           <Text style={styles.contador}>{total} eventos</Text>
           <TouchableOpacity onPress={abrirPdf} style={styles.btnPdf}>
-            <Text style={styles.btnPdfTxt}>📄 PDF</Text>
+            <Icon name="pdf" color={COLORS.text} size={14} />
+            <Text style={styles.btnPdfTxt}>PDF</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -182,6 +184,9 @@ const styles = StyleSheet.create({
   titulo: { fontSize: 20, fontWeight: '700', color: COLORS.text },
   contador: { fontSize: 12, color: COLORS.textMuted },
   btnPdf: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
     backgroundColor: COLORS.surface,
     borderColor: COLORS.border,
     borderWidth: 1,
@@ -217,7 +222,7 @@ const styles = StyleSheet.create({
   },
   chipActive: { backgroundColor: COLORS.primary, borderColor: COLORS.primary },
   chipText: { fontSize: 12, color: COLORS.text },
-  chipTextActive: { color: '#fff', fontWeight: '600' },
+  chipTextActive: { color: COLORS.accentContrast, fontWeight: '600' },
   lista: { paddingBottom: 20 },
   row: {
     flexDirection: 'row',

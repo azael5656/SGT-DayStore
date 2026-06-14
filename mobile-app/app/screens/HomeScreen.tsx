@@ -3,6 +3,7 @@ import type { StackNavigationProp } from '@react-navigation/stack';
 import React from 'react';
 import {
   Alert,
+  Image,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -10,6 +11,7 @@ import {
   Text,
   View,
 } from 'react-native';
+import Icon from '../components/Icon';
 import LiveStats from '../components/LiveStats';
 import QuickAccessCard from '../components/QuickAccessCard';
 import { useAuth } from '../context/AuthContext';
@@ -53,6 +55,7 @@ export default function HomeScreen() {
       contentContainerStyle={styles.content}
       refreshControl={<RefreshControl refreshing={false} onRefresh={() => {}} />}>
       <View style={styles.header}>
+        <Image source={require('../assets/logo.png')} style={styles.logo} />
         <View style={{ flex: 1 }}>
           <Text style={styles.nombre} numberOfLines={1}>
             {user?.nombre || user?.email}
@@ -69,7 +72,8 @@ export default function HomeScreen() {
           onPress={cerrarSesion}
           hitSlop={12}
           style={({ pressed }) => [styles.salirBtn, pressed && { opacity: 0.6 }]}>
-          <Text style={styles.salirTxt}>Salir  ↪</Text>
+          <Text style={styles.salirTxt}>Salir</Text>
+          <Icon name="salir" color={COLORS.text} size={15} />
         </Pressable>
       </View>
 
@@ -77,7 +81,7 @@ export default function HomeScreen() {
         <Pressable
           onPress={() => navigation.getParent()?.navigate('Alertas')}
           style={({ pressed }) => [styles.alertBanner, pressed && { opacity: 0.85 }]}>
-          <Text style={styles.alertBannerIcono}>🚨</Text>
+          <Icon name="alertas" color={COLORS.danger} size={26} />
           <View style={{ flex: 1 }}>
             <Text style={styles.alertBannerTitulo}>
               Tienes {sinRevisar} alerta{sinRevisar === 1 ? '' : 's'} sin revisar
@@ -104,7 +108,7 @@ export default function HomeScreen() {
         icono="💰"
         titulo="Ventas"
         subtitulo="Registra una venta o revisa el total del dia"
-        color="#16A34A"
+        color={COLORS.primary}
         onPress={() => navigation.navigate('VentasDetalle')}
       />
 
@@ -116,7 +120,7 @@ export default function HomeScreen() {
             icono="📊"
             titulo="Mi negocio"
             subtitulo="Reportes, ventas, deudas, productos top"
-            color="#2563EB"
+            color={COLORS.primary}
             onPress={() => navigation.navigate('MiNegocioDetalle')}
           />
 
@@ -126,7 +130,7 @@ export default function HomeScreen() {
             icono="📋"
             titulo="Actividad reciente"
             subtitulo="Mira todo lo que paso en la tienda"
-            color="#F59E0B"
+            color={COLORS.primary}
             onPress={() => navigation.navigate('AuditoriaDetalle')}
           />
 
@@ -134,7 +138,7 @@ export default function HomeScreen() {
             icono="📈"
             titulo="Tendencias"
             subtitulo="Revisa como se ha comportado la tienda"
-            color="#0EA5E9"
+            color={COLORS.primary}
             onPress={() => navigation.navigate('HistoricoDetalle')}
           />
 
@@ -146,7 +150,7 @@ export default function HomeScreen() {
                 ? 'Crea, edita o desactiva administrador y vendedores'
                 : 'Agrega nuevos vendedores a tu tienda'
             }
-            color="#7C3AED"
+            color={COLORS.primary}
             onPress={() => navigation.navigate('UsuariosDetalle')}
           />
 
@@ -154,7 +158,7 @@ export default function HomeScreen() {
             icono="🕒"
             titulo="Horario de la tienda"
             subtitulo="Horario, vacaciones y cierre temprano"
-            color="#10B981"
+            color={COLORS.primary}
             onPress={() => navigation.navigate('ConfigTiendaDetalle')}
           />
 
@@ -162,7 +166,7 @@ export default function HomeScreen() {
             icono="💱"
             titulo="Tasa del día"
             subtitulo="Configura cuánto vale el dólar hoy en Bs y COP"
-            color="#0891B2"
+            color={COLORS.primary}
             onPress={() => navigation.navigate('TasasDetalle')}
           />
 
@@ -170,7 +174,7 @@ export default function HomeScreen() {
             icono="🧾"
             titulo="Clientes / Deudores"
             subtitulo="Registra clientes para ventas a crédito"
-            color="#DB2777"
+            color={COLORS.primary}
             onPress={() => navigation.navigate('Clientes')}
           />
         </>
@@ -188,6 +192,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 18,
+    gap: 12,
+  },
+  logo: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
   },
   nombre: { fontSize: 26, fontWeight: '800', color: COLORS.text },
   rol: {
@@ -199,6 +209,9 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
   },
   salirBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 20,
@@ -210,7 +223,7 @@ const styles = StyleSheet.create({
   alertBanner: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FEF2F2',
+    backgroundColor: COLORS.surface,
     borderColor: COLORS.danger,
     borderWidth: 1,
     borderRadius: 14,
@@ -218,13 +231,12 @@ const styles = StyleSheet.create({
     marginBottom: 14,
     gap: 12,
   },
-  alertBannerIcono: { fontSize: 26 },
   alertBannerTitulo: {
     fontSize: 15,
     fontWeight: '800',
     color: COLORS.danger,
   },
-  alertBannerSub: { fontSize: 12, color: '#7F1D1D', marginTop: 2 },
+  alertBannerSub: { fontSize: 12, color: COLORS.danger, marginTop: 2 },
   alertBannerArrow: { fontSize: 26, color: COLORS.danger, fontWeight: '300' },
   verMas: {
     alignSelf: 'flex-end',

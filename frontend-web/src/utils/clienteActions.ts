@@ -1,4 +1,5 @@
 import api from '../api/client';
+import type { ConfirmFn } from '../components/ui/ConfirmProvider';
 
 interface ClienteRef {
   id: string;
@@ -15,7 +16,7 @@ interface PendingDebtsPayload {
 /**
  * Flujo unificado para desactivar un cliente desde cualquier página.
  *
- * 1. Pide confirmación con `window.confirm`.
+ * 1. Pide confirmación con el diálogo estilizado (`confirm`).
  * 2. Llama al backend. Si 200, ejecuta `onSuccess`.
  * 3. Si responde 409 con `code: 'CLIENT_HAS_PENDING_DEBTS'`, muestra un
  *    segundo confirm con cifras y ofrece anular las ventas pendientes.
@@ -25,15 +26,23 @@ interface PendingDebtsPayload {
  */
 export async function pedirConfirmacionYDesactivar(
   cliente: ClienteRef,
+  confirm: ConfirmFn,
   onSuccess: () => void,
 ): Promise<void> {
-  if (!confirm(`¿Desactivar a ${cliente.nombre}?`)) return;
-  await intentarDesactivar(cliente, false, onSuccess);
+  const ok = await confirm({
+    title: 'Desactivar cliente',
+    message: `¿Desactivar a ${cliente.nombre}?`,
+    confirmText: 'Desactivar',
+    danger: true,
+  });
+  if (!ok) return;
+  await intentarDesactivar(cliente, false, confirm, onSuccess);
 }
 
 async function intentarDesactivar(
   cliente: ClienteRef,
   cancelDebts: boolean,
+  confirm: ConfirmFn,
   onSuccess: () => void,
 ): Promise<void> {
   try {
@@ -51,10 +60,13 @@ async function intentarDesactivar(
       data?.code === 'CLIENT_HAS_PENDING_DEBTS' &&
       !cancelDebts
     ) {
-      const ok = confirm(
-        `${cliente.nombre} tiene ${data.cantidad ?? '?'} venta(s) pendiente(s) por $${data.totalUsd ?? '?'}.\n\nAl desactivar se anularán esas ventas y quedarán como pérdida en auditoría. ¿Continuar?`,
-      );
-      if (ok) await intentarDesactivar(cliente, true, onSuccess);
+      const ok = await confirm({
+        title: 'Desactivar cliente',
+        message: `${cliente.nombre} tiene ${data.cantidad ?? '?'} venta(s) pendiente(s) por $${data.totalUsd ?? '?'}.\n\nAl desactivar se anularán esas ventas y quedarán como pérdida en auditoría. ¿Continuar?`,
+        confirmText: 'Anular y desactivar',
+        danger: true,
+      });
+      if (ok) await intentarDesactivar(cliente, true, confirm, onSuccess);
       return;
     }
     const msg =

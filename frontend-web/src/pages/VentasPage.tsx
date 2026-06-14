@@ -1,4 +1,21 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react';
+import {
+  ArrowLeft,
+  ArrowRight,
+  Ban,
+  Banknote,
+  Check,
+  CreditCard,
+  Eye,
+  FileText,
+  HandCoins,
+  Lightbulb,
+  Search,
+  ShoppingBag,
+  Trash2,
+  User,
+  X,
+} from 'lucide-react';
 import api from '../api/client';
 import { useAuth } from '../auth/AuthContext';
 import {
@@ -14,6 +31,19 @@ import {
   type TipoVenta,
 } from '../types';
 import { downloadPdf } from '../utils/downloadPdf';
+import Button from '../components/ui/Button';
+import Badge from '../components/ui/Badge';
+import Alert from '../components/ui/Alert';
+import Input from '../components/ui/Input';
+import FieldUI from '../components/ui/Field';
+import Chip from '../components/ui/Chip';
+import Checkbox from '../components/ui/Checkbox';
+import DatePicker from '../components/ui/DatePicker';
+import KpiCardUI from '../components/ui/KpiCard';
+import Tabs from '../components/ui/Tabs';
+import { Table, THead, TBody, TR, TH, TD } from '../components/ui/Table';
+import { ESTADO_VARIANT } from '../components/ui/variants';
+import { useConfirm } from '../components/ui/ConfirmProvider';
 
 /**
  * Página de Ventas multi-moneda.
@@ -36,20 +66,21 @@ export default function VentasPage() {
   return (
     <div>
       <div className="flex items-center justify-between mb-5">
-        <h1 className="text-2xl font-bold">Ventas</h1>
+        <h1 className="font-heading text-2xl font-extrabold text-text flex items-center gap-2">
+          <ShoppingBag size={24} strokeWidth={1.75} className="text-accent" />
+          Ventas
+        </h1>
       </div>
 
-      <div className="flex gap-2 mb-4 border-b border-gray-200">
-        <TabButton active={tab === 'lista'} onClick={() => setTab('lista')}>
-          📋 Lista
-        </TabButton>
-        {esGerencia && (
-          <TabButton
-            active={tab === 'reportes'}
-            onClick={() => setTab('reportes')}>
-            📊 Reportes
-          </TabButton>
-        )}
+      <div className="mb-4">
+        <Tabs
+          value={tab}
+          onChange={(id) => setTab(id as 'lista' | 'reportes')}
+          items={[
+            { id: 'lista', label: 'Lista' },
+            ...(esGerencia ? [{ id: 'reportes', label: 'Reportes' }] : []),
+          ]}
+        />
       </div>
 
       {tab === 'lista' && (
@@ -71,6 +102,7 @@ function ListaVentas({
   esGerencia: boolean;
   esSuperadmin: boolean;
 }) {
+  const confirm = useConfirm();
   const [ventas, setVentas] = useState<Sale[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
@@ -113,7 +145,13 @@ function ListaVentas({
   }, [estado, desde, hasta, incluirAnuladas]);
 
   const softDelete = async (s: Sale) => {
-    if (!confirm(`Soft-delete venta ${s.id.slice(0, 8)}?`)) return;
+    const ok = await confirm({
+      title: 'Anular venta',
+      message: `Soft-delete venta ${s.id.slice(0, 8)}?`,
+      confirmText: 'Anular',
+      danger: true,
+    });
+    if (!ok) return;
     await api.delete(`/api/negocio/sales/${s.id}`);
     cargar(page);
   };
@@ -157,171 +195,146 @@ function ListaVentas({
           </select>
         </Field>
         <Field label="Desde">
-          <input
-            type="date"
-            value={desde}
-            onChange={(e) => setDesde(e.target.value)}
-            className={inputCls}
-          />
+          <DatePicker value={desde} onChange={setDesde} placeholder="Desde" className="w-40" />
         </Field>
         <Field label="Hasta">
-          <input
-            type="date"
-            value={hasta}
-            onChange={(e) => setHasta(e.target.value)}
-            className={inputCls}
-          />
+          <DatePicker value={hasta} onChange={setHasta} placeholder="Hasta" className="w-40" />
         </Field>
-        <label className="flex items-center gap-2 text-sm pb-2">
-          <input
-            type="checkbox"
-            checked={incluirAnuladas}
-            onChange={(e) => setIncluirAnuladas(e.target.checked)}
-          />
-          Incluir anuladas
-        </label>
+        <Checkbox
+          className="pb-2"
+          label="Incluir anuladas"
+          checked={incluirAnuladas}
+          onChange={(e) => setIncluirAnuladas(e.target.checked)}
+        />
         <div className="flex-1" />
-        <button
+        <Button
+          variant="secondary"
           onClick={descargarHistorialPdf}
           disabled={descargandoPdf}
-          className="bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-md text-sm font-semibold hover:bg-gray-50 disabled:opacity-50">
-          {descargandoPdf ? 'Generando…' : '📄 Descargar PDF'}
-        </button>
-        <button
-          onClick={() => setCrearAbierto(true)}
-          className="bg-primary text-white px-4 py-2 rounded-md text-sm font-semibold">
-          + Nueva venta
-        </button>
+          leftIcon={<FileText size={16} strokeWidth={1.75} />}>
+          {descargandoPdf ? 'Generando…' : 'Descargar PDF'}
+        </Button>
+        <Button onClick={() => setCrearAbierto(true)}>+ Nueva venta</Button>
       </div>
 
-      <div className="bg-white rounded-xl border border-gray-200 overflow-x-auto">
-        <table className="w-full text-sm min-w-[920px]">
-          <thead className="bg-gray-50 border-b border-gray-200">
-            <tr className="text-left text-xs uppercase text-gray-500">
-              <th className="px-3 py-2">Fecha</th>
-              <th className="px-3 py-2">Cliente</th>
-              <th className="px-3 py-2">Tipo</th>
-              <th className="px-3 py-2 text-right">Total</th>
-              <th className="px-3 py-2 text-right">Saldo</th>
-              <th className="px-3 py-2">Estado</th>
-              <th className="px-3 py-2"></th>
+      <Table className="min-w-[920px]">
+        <THead>
+          <tr className="text-left">
+            <TH>Fecha</TH>
+            <TH>Cliente</TH>
+            <TH>Tipo</TH>
+            <TH className="text-right">Total</TH>
+            <TH className="text-right">Saldo</TH>
+            <TH>Estado</TH>
+            <TH></TH>
+          </tr>
+        </THead>
+        <TBody>
+          {cargando && (
+            <tr>
+              <TD colSpan={7} className="py-6 text-center text-text-muted">
+                Cargando...
+              </TD>
             </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-100">
-            {cargando && (
-              <tr>
-                <td colSpan={7} className="px-3 py-6 text-center text-gray-500">
-                  Cargando...
-                </td>
-              </tr>
-            )}
-            {!cargando && ventas.length === 0 && (
-              <tr>
-                <td colSpan={7} className="px-3 py-6 text-center text-gray-500">
-                  Sin ventas en este filtro.
-                </td>
-              </tr>
-            )}
-            {ventas.map((s) => (
-              <tr key={s.id} className="hover:bg-gray-50">
-                <td className="px-3 py-2 text-gray-600">
-                  {new Date(s.fecha).toLocaleString()}
-                </td>
-                <td className="px-3 py-2 text-gray-700">
-                  {s.customer ? (
-                    <>
-                      <div className="font-medium">{s.customer.nombre}</div>
-                      <div className="text-xs text-gray-500 font-mono">
-                        {s.customer.cedula}
-                      </div>
-                    </>
-                  ) : (
-                    <span className="text-xs text-gray-400">—</span>
-                  )}
-                </td>
-                <td className="px-3 py-2">
-                  {s.tipoVenta === 'credito' ? (
-                    <span className="text-xs font-bold px-2 py-0.5 rounded bg-amber-100 text-amber-800">
-                      💳 CRÉDITO
-                    </span>
-                  ) : (
-                    <span className="text-xs font-bold px-2 py-0.5 rounded bg-green-100 text-green-800">
-                      💵 CONTADO
-                    </span>
-                  )}
-                </td>
-                <td className="px-3 py-2 text-right font-semibold">
-                  ${Number(s.total).toLocaleString()}
-                </td>
-                <td className="px-3 py-2 text-right">
-                  {Number(s.saldoUsd) > 0.01 ? (
-                    <span className="font-bold text-amber-700">
-                      ${Number(s.saldoUsd).toLocaleString()}
-                    </span>
-                  ) : (
-                    <span className="text-gray-400">—</span>
-                  )}
-                </td>
-                <td className="px-3 py-2">
-                  <EstadoBadge estado={s.estado} activo={s.activo} />
-                </td>
-                <td className="px-3 py-2 text-right whitespace-nowrap">
-                  <button
-                    onClick={() => setVerDetalle(s)}
-                    className="text-primary text-xs mr-3 hover:underline">
+          )}
+          {!cargando && ventas.length === 0 && (
+            <tr>
+              <TD colSpan={7} className="py-6 text-center text-text-muted">
+                Sin ventas en este filtro.
+              </TD>
+            </tr>
+          )}
+          {ventas.map((s) => (
+            <TR key={s.id}>
+              <TD className="text-text-muted">
+                {new Date(s.fecha).toLocaleString()}
+              </TD>
+              <TD>
+                {s.customer ? (
+                  <>
+                    <div className="font-medium">{s.customer.nombre}</div>
+                    <div className="text-xs text-text-muted font-mono">
+                      {s.customer.cedula}
+                    </div>
+                  </>
+                ) : (
+                  <span className="text-xs text-text-muted">—</span>
+                )}
+              </TD>
+              <TD>
+                {s.tipoVenta === 'credito' ? (
+                  <Badge tone="warning">CRÉDITO</Badge>
+                ) : (
+                  <Badge tone="success">CONTADO</Badge>
+                )}
+              </TD>
+              <TD className="text-right font-semibold">
+                ${Number(s.total).toLocaleString()}
+              </TD>
+              <TD className="text-right">
+                {Number(s.saldoUsd) > 0.01 ? (
+                  <span className="font-bold text-warning">
+                    ${Number(s.saldoUsd).toLocaleString()}
+                  </span>
+                ) : (
+                  <span className="text-text-muted">—</span>
+                )}
+              </TD>
+              <TD>
+                <EstadoBadge estado={s.estado} activo={s.activo} />
+              </TD>
+              <TD className="text-right whitespace-nowrap">
+                <div className="flex justify-end gap-1">
+                  <Button variant="ghost" size="sm" leftIcon={<Eye size={15} strokeWidth={1.75} />} onClick={() => setVerDetalle(s)}>
                     Ver
-                  </button>
+                  </Button>
                   {s.estado === 'pendiente' && s.activo && (
-                    <button
-                      onClick={() => setAbonando(s)}
-                      className="text-green-700 text-xs mr-3 hover:underline font-bold">
-                      💰 Abonar
-                    </button>
+                    <Button variant="ghost" size="sm" leftIcon={<HandCoins size={15} strokeWidth={1.75} />} onClick={() => setAbonando(s)}>
+                      Abonar
+                    </Button>
                   )}
-                  {esGerencia &&
-                    s.estado !== 'anulada' &&
-                    s.activo && (
-                      <button
-                        onClick={() => setAnulando(s)}
-                        className="text-amber-600 text-xs mr-3 hover:underline">
-                        Anular
-                      </button>
-                    )}
+                  {esGerencia && s.estado !== 'anulada' && s.activo && (
+                    <Button variant="ghost" size="sm" leftIcon={<Ban size={15} strokeWidth={1.75} />} onClick={() => setAnulando(s)}>
+                      Anular
+                    </Button>
+                  )}
                   {esSuperadmin && s.activo && (
-                    <button
-                      onClick={() => softDelete(s)}
-                      className="text-red-600 text-xs hover:underline">
+                    <Button variant="ghost" size="sm" leftIcon={<Trash2 size={15} strokeWidth={1.75} />} onClick={() => softDelete(s)}>
                       Borrar
-                    </button>
+                    </Button>
                   )}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+                </div>
+              </TD>
+            </TR>
+          ))}
+        </TBody>
+      </Table>
 
       {total > limit && (
         <div className="flex justify-between items-center mt-3 text-sm">
-          <span className="text-gray-500">
+          <span className="text-text-muted">
             {(page - 1) * limit + 1}–{Math.min(page * limit, total)} de {total}
           </span>
-          <div className="flex gap-2">
-            <button
+          <div className="flex gap-2 items-center">
+            <Button
+              variant="secondary"
+              size="sm"
               disabled={page === 1}
               onClick={() => cargar(page - 1)}
-              className="px-3 py-1 rounded border border-gray-300 disabled:opacity-40">
-              ← Anterior
-            </button>
+              leftIcon={<ArrowLeft size={16} strokeWidth={1.75} />}>
+              Anterior
+            </Button>
             <span className="px-2 py-1">
               {page} / {totalPaginas}
             </span>
-            <button
+            <Button
+              variant="secondary"
+              size="sm"
               disabled={page >= totalPaginas}
-              onClick={() => cargar(page + 1)}
-              className="px-3 py-1 rounded border border-gray-300 disabled:opacity-40">
-              Siguiente →
-            </button>
+              onClick={() => cargar(page + 1)}>
+              Siguiente
+              <ArrowRight size={16} strokeWidth={1.75} />
+            </Button>
           </div>
         </div>
       )}
@@ -595,7 +608,7 @@ function CrearVentaForm({
       {/* Stepper */}
       <div className="flex items-center justify-center gap-3 mb-6 -mt-2">
         <StepDot active label="1" subtitle="Productos" current={paso === 1} done={paso > 1} />
-        <div className={`h-0.5 w-16 ${paso === 2 ? 'bg-primary' : 'bg-gray-200'}`} />
+        <div className={`h-0.5 w-16 ${paso === 2 ? 'bg-accent-fill' : 'bg-border'}`} />
         <StepDot active={paso === 2} label="2" subtitle="Pagos" current={paso === 2} />
       </div>
 
@@ -645,35 +658,35 @@ function CrearVentaForm({
       )}
 
       {/* Footer navegación */}
-      <div className="flex justify-between items-center mt-6 pt-4 border-t border-gray-200">
-        <button type="button" onClick={onCerrar} className="px-4 py-2 text-sm text-gray-600 hover:text-gray-900">
+      <div className="flex justify-between items-center mt-6 pt-4 border-t border-border">
+        <Button variant="ghost" type="button" onClick={onCerrar}>
           Cancelar
-        </button>
+        </Button>
         <div className="flex gap-2">
           {paso === 2 && (
-            <button
+            <Button
+              variant="secondary"
               type="button"
               onClick={() => setPaso(1)}
-              className="px-4 py-2 text-sm border border-gray-300 rounded-md hover:bg-gray-50">
-              ← Atrás
-            </button>
+              leftIcon={<ArrowLeft size={16} strokeWidth={1.75} />}>
+              Atrás
+            </Button>
           )}
           {paso === 1 ? (
-            <button
+            <Button
               type="button"
               onClick={irAPagos}
-              disabled={items.length === 0}
-              className="px-5 py-2 bg-primary text-white rounded-md text-sm font-semibold disabled:opacity-50">
-              Siguiente: pagos · ${totalUsd.toFixed(2)} →
-            </button>
+              disabled={items.length === 0}>
+              Siguiente: pagos · ${totalUsd.toFixed(2)}
+              <ArrowRight size={16} strokeWidth={1.75} />
+            </Button>
           ) : (
-            <button
+            <Button
               type="button"
               onClick={submit as unknown as () => void}
-              disabled={guardando || !cuadra}
-              className="px-5 py-2 bg-primary text-white rounded-md text-sm font-semibold disabled:opacity-50">
+              disabled={guardando || !cuadra}>
               {guardando ? 'Registrando...' : 'Confirmar venta'}
-            </button>
+            </Button>
           )}
         </div>
       </div>
@@ -695,19 +708,19 @@ function StepDot({
   done?: boolean;
 }) {
   const fill = current
-    ? 'bg-primary text-white border-primary'
+    ? 'bg-accent-fill text-accent-contrast border-accent-fill'
     : done
-    ? 'bg-green-500 text-white border-green-500'
-    : 'bg-gray-200 text-gray-500 border-gray-200';
+    ? 'bg-success text-white border-success'
+    : 'bg-surface-alt text-text-muted border-border';
   return (
     <div className="flex flex-col items-center">
       <div
         className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold border-2 ${fill}`}>
-        {done ? '✓' : label}
+        {done ? <Check size={16} strokeWidth={2} /> : label}
       </div>
       <span
         className={`text-xs mt-1 ${
-          current ? 'text-primary font-semibold' : 'text-gray-500'
+          current ? 'text-accent font-semibold' : 'text-text-muted'
         }`}>
         {subtitle}
       </span>
@@ -743,11 +756,11 @@ function Paso1ProductosWeb({
   return (
     <>
       {/* Total card */}
-      <div className="bg-primary text-white rounded-xl p-5 mb-5 text-center">
+      <div className="bg-accent-fill text-accent-contrast rounded-2xl p-5 mb-5 text-center">
         <div className="text-xs uppercase opacity-90 font-semibold tracking-wider">
           Total a cobrar
         </div>
-        <div className="text-4xl font-extrabold mt-1">
+        <div className="font-heading text-4xl font-extrabold mt-1">
           ${totalUsd.toFixed(2)}
           <span className="text-base font-normal opacity-90 ml-2">USD</span>
         </div>
@@ -766,19 +779,20 @@ function Paso1ProductosWeb({
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* Productos */}
         <div>
-          <h4 className="font-semibold text-sm mb-2 text-gray-700">
+          <h4 className="font-semibold text-sm mb-2 text-text">
             Productos disponibles
           </h4>
-          <input
+          <Input
             type="text"
             placeholder="Buscar..."
             value={busqueda}
             onChange={(e) => onBusqueda(e.target.value)}
-            className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm mb-2 focus:outline-none focus:ring-2 focus:ring-primary"
+            leftIcon={<Search size={16} strokeWidth={1.75} />}
+            className="mb-2"
           />
-          <div className="border border-gray-200 rounded-md max-h-72 overflow-y-auto">
+          <div className="border border-border rounded-xl max-h-72 overflow-y-auto">
             {productos.length === 0 ? (
-              <div className="text-xs text-gray-500 p-3">
+              <div className="text-xs text-text-muted p-3">
                 Sin productos disponibles.
               </div>
             ) : (
@@ -787,14 +801,14 @@ function Paso1ProductosWeb({
                   key={p.id}
                   type="button"
                   onClick={() => onAgregar(p)}
-                  className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 flex justify-between items-center border-b border-gray-100 last:border-0">
+                  className="w-full text-left px-3 py-2 text-sm hover:bg-surface-alt flex justify-between items-center border-b border-border last:border-0">
                   <div>
                     <div className="font-medium">{p.nombre}</div>
-                    <div className="text-xs text-gray-500 mt-0.5">
+                    <div className="text-xs text-text-muted mt-0.5">
                       Stock: {p.stock} · ${Number(p.precio).toFixed(2)} USD
                     </div>
                   </div>
-                  <span className="text-primary font-bold text-xl leading-none">
+                  <span className="text-accent font-bold text-xl leading-none">
                     +
                   </span>
                 </button>
@@ -805,12 +819,12 @@ function Paso1ProductosWeb({
 
         {/* Carrito */}
         <div>
-          <h4 className="font-semibold text-sm mb-2 text-gray-700">
+          <h4 className="font-semibold text-sm mb-2 text-text">
             Carrito ({items.length})
           </h4>
-          <div className="border border-gray-200 rounded-md max-h-72 overflow-y-auto">
+          <div className="border border-border rounded-xl max-h-72 overflow-y-auto">
             {items.length === 0 ? (
-              <div className="text-xs text-gray-500 p-4 text-center">
+              <div className="text-xs text-text-muted p-4 text-center">
                 Tu carrito está vacío.<br />
                 Agrega productos del listado.
               </div>
@@ -818,14 +832,14 @@ function Paso1ProductosWeb({
               items.map((i) => (
                 <div
                   key={i.productId}
-                  className="px-3 py-2 text-sm border-b border-gray-100 last:border-0">
+                  className="px-3 py-2 text-sm border-b border-border last:border-0">
                   <div className="flex justify-between items-start mb-2">
                     <span className="font-medium">{i.nombre}</span>
                     <button
                       type="button"
                       onClick={() => onQuitar(i.productId)}
-                      className="text-red-500 text-xs hover:underline ml-2">
-                      ✕
+                      className="text-danger text-xs hover:underline ml-2">
+                      <X size={14} strokeWidth={1.75} />
                     </button>
                   </div>
                   <div className="flex items-center justify-between">
@@ -837,11 +851,11 @@ function Paso1ProductosWeb({
                       onChange={(e) =>
                         onCambiarCantidad(i.productId, Number(e.target.value))
                       }
-                      className="w-20 border border-gray-300 rounded px-2 py-1 text-sm"
+                      className="w-20 bg-bg border border-border rounded-xl px-2 py-1 text-sm text-text focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
                     />
-                    <span className="text-xs text-gray-500">
+                    <span className="text-xs text-text-muted">
                       x ${i.precioUsd.toFixed(2)} ={' '}
-                      <strong className="text-gray-800">
+                      <strong className="text-text">
                         ${(i.precioUsd * i.cantidad).toFixed(2)}
                       </strong>
                     </span>
@@ -885,63 +899,56 @@ function Paso2PagosWeb({
   return (
     <>
       {/* Resumen del cuadre */}
-      <div className="bg-gray-50 rounded-xl p-4 mb-5 border border-gray-200">
+      <div className="bg-surface-alt rounded-2xl p-4 mb-5 border border-border">
         <div className="flex justify-between items-center mb-2">
-          <span className="text-sm text-gray-600 font-semibold">Total</span>
-          <span className="text-2xl font-bold">${totalUsd.toFixed(2)} USD</span>
+          <span className="text-sm text-text-muted font-semibold">Total</span>
+          <span className="font-heading text-2xl font-bold">${totalUsd.toFixed(2)} USD</span>
         </div>
         <div className="flex justify-between items-center mb-2">
-          <span className="text-sm text-gray-600 font-semibold">
+          <span className="text-sm text-text-muted font-semibold">
             {tipoVenta === 'credito' ? 'Abonado ahora' : 'Recibido'}
           </span>
-          <span className="text-xl font-bold text-primary">
+          <span className="font-heading text-xl font-bold text-accent">
             ${sumaPagosUsd.toFixed(2)} USD
           </span>
         </div>
         {tipoVenta === 'credito' && saldoUsd > 0.01 && (
-          <div className="flex justify-between items-center pt-2 mt-2 border-t border-gray-200">
-            <span className="text-sm text-amber-800 font-semibold">
+          <div className="flex justify-between items-center pt-2 mt-2 border-t border-border">
+            <span className="text-sm text-warning font-semibold">
               Saldo pendiente
             </span>
-            <span className="text-xl font-bold text-amber-700">
+            <span className="font-heading text-xl font-bold text-warning">
               ${saldoUsd.toFixed(2)} USD
             </span>
           </div>
         )}
 
-        {tipoVenta === 'contado' ? (
-          cuadra ? (
-            <div className="mt-3 bg-green-50 border border-green-200 text-green-700 text-sm font-bold rounded-md py-2 text-center">
-              ✅ Pagos cuadran con el total
-            </div>
+        <div className="mt-3">
+          {tipoVenta === 'contado' ? (
+            cuadra ? (
+              <Alert tone="success">Pagos cuadran con el total</Alert>
+            ) : (
+              <Alert tone="warning">
+                {diferencia > 0
+                  ? `Falta $${diferencia.toFixed(2)} USD`
+                  : `Sobra $${Math.abs(diferencia).toFixed(2)} USD`}
+              </Alert>
+            )
+          ) : !cuadra ? (
+            <Alert tone="danger">El abono inicial no puede superar el total</Alert>
+          ) : sumaPagosUsd === 0 ? (
+            <Alert tone="info">Venta completamente fiada (saldo = total)</Alert>
+          ) : saldoUsd <= 0.01 ? (
+            <Alert tone="success">Pagado en pleno (no quedará saldo)</Alert>
           ) : (
-            <div className="mt-3 bg-amber-50 border border-amber-200 text-amber-800 text-sm font-bold rounded-md py-2 text-center">
-              ⚠️{' '}
-              {diferencia > 0
-                ? `Falta $${diferencia.toFixed(2)} USD`
-                : `Sobra $${Math.abs(diferencia).toFixed(2)} USD`}
-            </div>
-          )
-        ) : !cuadra ? (
-          <div className="mt-3 bg-red-50 border border-red-200 text-red-700 text-sm font-bold rounded-md py-2 text-center">
-            ⚠️ El abono inicial no puede superar el total
-          </div>
-        ) : sumaPagosUsd === 0 ? (
-          <div className="mt-3 bg-blue-50 border border-blue-200 text-blue-700 text-sm font-bold rounded-md py-2 text-center">
-            💳 Venta completamente fiada (saldo = total)
-          </div>
-        ) : saldoUsd <= 0.01 ? (
-          <div className="mt-3 bg-green-50 border border-green-200 text-green-700 text-sm font-bold rounded-md py-2 text-center">
-            ✅ Pagado en pleno (no quedará saldo)
-          </div>
-        ) : (
-          <div className="mt-3 bg-amber-50 border border-amber-200 text-amber-800 text-sm font-bold rounded-md py-2 text-center">
-            💳 Abono parcial — el cliente queda debiendo ${saldoUsd.toFixed(2)} USD
-          </div>
-        )}
+            <Alert tone="warning">
+              Abono parcial — el cliente queda debiendo ${saldoUsd.toFixed(2)} USD
+            </Alert>
+          )}
+        </div>
       </div>
 
-      <h4 className="font-semibold text-sm mb-3 text-gray-700 uppercase tracking-wide">
+      <h4 className="font-semibold text-sm mb-3 text-text-muted uppercase tracking-wide">
         {tipoVenta === 'credito' ? 'Abono inicial (opcional)' : 'Forma de pago'}
       </h4>
 
@@ -953,8 +960,9 @@ function Paso2PagosWeb({
         />
       )}
 
-      <p className="text-xs text-gray-500 mt-4 text-center">
-        💡 Cuando cambies la moneda, el monto se ajusta solo al equivalente.
+      <p className="text-xs text-text-muted mt-4 text-center flex items-center justify-center gap-1.5">
+        <Lightbulb size={14} strokeWidth={1.75} className="text-accent" />
+        Cuando cambies la moneda, el monto se ajusta solo al equivalente.
       </p>
     </>
   );
@@ -976,32 +984,28 @@ function PagoCard({
   const equivUsd = toUsd(Number(pago.amount), pago.currency, tasas);
 
   return (
-    <div className="bg-white border border-gray-200 rounded-xl p-4">
+    <div className="bg-surface border border-border rounded-2xl p-4">
       {/* Moneda - chips */}
-      <label className="block text-xs uppercase font-bold text-gray-500 tracking-wide mb-1.5">
+      <label className="block text-xs uppercase font-bold text-text-muted tracking-wide mb-1.5">
         Moneda
       </label>
       <div className="grid grid-cols-3 gap-2 mb-3">
         {(['USD', 'VES', 'COP'] as const).map((c) => {
           const on = pago.currency === c;
           return (
-            <button
+            <Chip
               key={c}
-              type="button"
+              active={on}
               onClick={() => onUpdate({ currency: c })}
-              className={`py-2 rounded-md text-sm font-bold border ${
-                on
-                  ? 'bg-primary text-white border-primary'
-                  : 'bg-gray-100 text-gray-700 border-transparent hover:bg-gray-200'
-              }`}>
+              className="justify-center">
               {c}
-            </button>
+            </Chip>
           );
         })}
       </div>
 
       {/* Método - chips */}
-      <label className="block text-xs uppercase font-bold text-gray-500 tracking-wide mb-1.5">
+      <label className="block text-xs uppercase font-bold text-text-muted tracking-wide mb-1.5">
         Método
       </label>
       <div
@@ -1012,23 +1016,19 @@ function PagoCard({
           const label =
             m === 'pago_movil' ? 'Pago móvil' : m;
           return (
-            <button
+            <Chip
               key={m}
-              type="button"
+              active={on}
               onClick={() => onUpdate({ method: m })}
-              className={`py-2 rounded-md text-sm font-bold border capitalize ${
-                on
-                  ? 'bg-primary text-white border-primary'
-                  : 'bg-gray-100 text-gray-700 border-transparent hover:bg-gray-200'
-              }`}>
+              className="justify-center capitalize">
               {label}
-            </button>
+            </Chip>
           );
         })}
       </div>
 
       {/* Monto */}
-      <label className="block text-xs uppercase font-bold text-gray-500 tracking-wide mb-1.5">
+      <label className="block text-xs uppercase font-bold text-text-muted tracking-wide mb-1.5">
         Monto en {pago.currency}
       </label>
       <input
@@ -1037,16 +1037,18 @@ function PagoCard({
         min="0"
         value={pago.amount}
         onChange={(e) => onUpdate({ amount: e.target.value })}
-        className="w-full border border-gray-300 rounded-md px-3 py-3 text-xl font-bold text-right focus:outline-none focus:ring-2 focus:ring-primary"
+        className="w-full bg-bg border border-border rounded-xl px-3 py-3 text-xl font-bold text-right text-text focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
       />
 
       {sinTasa ? (
-        <div className="mt-2 bg-amber-50 border border-amber-200 text-amber-800 text-xs font-semibold rounded-md p-2">
-          ⚠️ Tasa de {pago.currency} no configurada. Súbela en Tasas de cambio.
+        <div className="mt-2">
+          <Alert tone="warning">
+            Tasa de {pago.currency} no configurada. Súbela en Tasas de cambio.
+          </Alert>
         </div>
       ) : pago.currency !== 'USD' ? (
-        <div className="text-xs text-gray-500 mt-2 text-right">
-          ≈ <strong className="text-gray-800">${equivUsd.toFixed(2)} USD</strong>
+        <div className="text-xs text-text-muted mt-2 text-right">
+          ≈ <strong className="text-text">${equivUsd.toFixed(2)} USD</strong>
         </div>
       ) : null}
     </div>
@@ -1084,26 +1086,40 @@ function DetalleVenta({
   return (
     <Modal title={`Venta · ${venta.id.slice(0, 8)}`} onCerrar={onCerrar} ancho="max-w-2xl">
       <div className="flex justify-end mb-2">
-        <button
+        <Button
+          variant="secondary"
+          size="sm"
           onClick={descargarComprobante}
           disabled={descargando}
-          className="bg-white border border-gray-300 text-gray-700 px-3 py-1.5 rounded-md text-xs font-semibold hover:bg-gray-50 disabled:opacity-50">
-          {descargando ? 'Generando…' : '📄 Comprobante PDF'}
-        </button>
+          leftIcon={<FileText size={14} strokeWidth={1.75} />}>
+          {descargando ? 'Generando…' : 'Comprobante PDF'}
+        </Button>
       </div>
       <div className="space-y-2 text-sm">
         <Row label="Fecha">{new Date(venta.fecha).toLocaleString()}</Row>
         <Row label="Tipo">
-          {venta.tipoVenta === 'credito' ? '💳 Crédito' : '💵 Contado'}
+          <span className="inline-flex items-center gap-1.5">
+            {venta.tipoVenta === 'credito' ? (
+              <>
+                <CreditCard size={14} strokeWidth={1.75} className="text-accent" />
+                Crédito
+              </>
+            ) : (
+              <>
+                <Banknote size={14} strokeWidth={1.75} className="text-accent" />
+                Contado
+              </>
+            )}
+          </span>
         </Row>
         {venta.customer && (
           <Row label="Cliente">
             <strong>{venta.customer.nombre}</strong>
-            <span className="text-gray-500 font-mono ml-2">
+            <span className="text-text-muted font-mono ml-2">
               {venta.customer.cedula}
             </span>
             {venta.customer.telefono && (
-              <span className="text-gray-500 ml-2">
+              <span className="text-text-muted ml-2">
                 · {venta.customer.telefono}
               </span>
             )}
@@ -1117,7 +1133,7 @@ function DetalleVenta({
         </Row>
         {Number(venta.saldoUsd) > 0.01 && (
           <Row label="Saldo pendiente">
-            <strong className="text-amber-700">
+            <strong className="text-warning">
               ${Number(venta.saldoUsd).toLocaleString()} USD
             </strong>
           </Row>
@@ -1135,7 +1151,7 @@ function DetalleVenta({
 
       <h4 className="font-semibold text-sm mt-5 mb-2">Items</h4>
       <table className="w-full text-sm mb-4">
-        <thead className="bg-gray-50 text-xs uppercase text-gray-500">
+        <thead className="bg-surface-alt text-xs uppercase text-text-muted">
           <tr>
             <th className="px-3 py-2 text-left">Producto</th>
             <th className="px-3 py-2 text-right">Cant.</th>
@@ -1143,7 +1159,7 @@ function DetalleVenta({
             <th className="px-3 py-2 text-right">Subtotal</th>
           </tr>
         </thead>
-        <tbody className="divide-y divide-gray-100">
+        <tbody className="divide-y divide-border">
           {venta.items.map((it) => (
             <tr key={it.id}>
               <td className="px-3 py-2">{it.productNombre}</td>
@@ -1154,7 +1170,7 @@ function DetalleVenta({
           ))}
         </tbody>
         <tfoot>
-          <tr className="bg-gray-50">
+          <tr className="bg-surface-alt">
             <td colSpan={3} className="px-3 py-2 text-right font-semibold">Total</td>
             <td className="px-3 py-2 text-right font-bold text-lg">
               ${Number(venta.total).toLocaleString()} USD
@@ -1165,7 +1181,7 @@ function DetalleVenta({
 
       <h4 className="font-semibold text-sm mb-2">Pagos ({venta.payments.length})</h4>
       <table className="w-full text-sm">
-        <thead className="bg-gray-50 text-xs uppercase text-gray-500">
+        <thead className="bg-surface-alt text-xs uppercase text-text-muted">
           <tr>
             <th className="px-3 py-2 text-left">Moneda</th>
             <th className="px-3 py-2 text-left">Método</th>
@@ -1174,13 +1190,13 @@ function DetalleVenta({
             <th className="px-3 py-2 text-right">USD</th>
           </tr>
         </thead>
-        <tbody className="divide-y divide-gray-100">
+        <tbody className="divide-y divide-border">
           {venta.payments.map((p) => (
             <tr key={p.id}>
               <td className="px-3 py-2 font-semibold">{p.currency}</td>
               <td className="px-3 py-2 capitalize">{p.method.replace('_', ' ')}</td>
               <td className="px-3 py-2 text-right">{Number(p.amountOriginal).toLocaleString()} {p.currency}</td>
-              <td className="px-3 py-2 text-right text-gray-500 text-xs">{Number(p.exchangeRate).toLocaleString()}</td>
+              <td className="px-3 py-2 text-right text-text-muted text-xs">{Number(p.exchangeRate).toLocaleString()}</td>
               <td className="px-3 py-2 text-right font-semibold">${Number(p.amountUsd).toLocaleString()}</td>
             </tr>
           ))}
@@ -1188,9 +1204,7 @@ function DetalleVenta({
       </table>
 
       <div className="flex justify-end mt-5">
-        <button onClick={onCerrar} className="px-4 py-2 bg-primary text-white rounded-md text-sm font-semibold">
-          Cerrar
-        </button>
+        <Button onClick={onCerrar}>Cerrar</Button>
       </div>
     </Modal>
   );
@@ -1237,7 +1251,7 @@ function AnularVentaForm({
     <Modal title="Anular venta" onCerrar={onCerrar}>
       <form onSubmit={submit}>
         {error && <ErrorBox>{error}</ErrorBox>}
-        <p className="text-sm text-gray-700 mb-3">
+        <p className="text-sm text-text mb-3">
           Esta acción <strong>devuelve el stock</strong> de los {venta.items.length} item(s).
           Los pagos NO se reembolsan automáticamente.
         </p>
@@ -1250,13 +1264,13 @@ function AnularVentaForm({
           />
         </Field>
         <div className="flex justify-end gap-2 mt-5">
-          <button type="button" onClick={onCerrar} className="px-4 py-2 text-sm">Cancelar</button>
-          <button
+          <Button variant="ghost" type="button" onClick={onCerrar}>Cancelar</Button>
+          <Button
+            variant="danger"
             type="submit"
-            disabled={guardando}
-            className="px-4 py-2 bg-amber-500 text-white rounded-md text-sm font-semibold disabled:opacity-60">
+            disabled={guardando}>
             {guardando ? 'Anulando...' : 'Confirmar anulación'}
-          </button>
+          </Button>
         </div>
       </form>
     </Modal>
@@ -1313,14 +1327,12 @@ function ReportesVentas() {
           </select>
         </Field>
         <Field label="Desde">
-          <input type="date" value={desde} onChange={(e) => setDesde(e.target.value)} className={inputCls} />
+          <DatePicker value={desde} onChange={setDesde} placeholder="Desde" className="w-40" />
         </Field>
         <Field label="Hasta">
-          <input type="date" value={hasta} onChange={(e) => setHasta(e.target.value)} className={inputCls} />
+          <DatePicker value={hasta} onChange={setHasta} placeholder="Hasta" className="w-40" />
         </Field>
-        <button onClick={cargar} className="px-4 py-2 bg-primary text-white rounded-md text-sm font-semibold">
-          Aplicar
-        </button>
+        <Button onClick={cargar}>Aplicar</Button>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
@@ -1329,32 +1341,30 @@ function ReportesVentas() {
         <KpiCard label="Promedio por periodo" value={`$${promedio.toFixed(2)}`} />
       </div>
 
-      <div className="bg-white rounded-xl border border-gray-200 overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead className="bg-gray-50 border-b border-gray-200 text-xs uppercase text-gray-500">
-            <tr className="text-left">
-              <th className="px-3 py-2">{periodo === 'daily' ? 'Fecha' : 'Mes'}</th>
-              <th className="px-3 py-2 text-right">Cantidad</th>
-              <th className="px-3 py-2 text-right">Total (USD)</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-100">
-            {cargando && (
-              <tr><td colSpan={3} className="px-3 py-6 text-center text-gray-500">Cargando...</td></tr>
-            )}
-            {!cargando && datos.length === 0 && (
-              <tr><td colSpan={3} className="px-3 py-6 text-center text-gray-500">Sin ventas en este rango.</td></tr>
-            )}
-            {datos.map((d, i) => (
-              <tr key={i} className="hover:bg-gray-50">
-                <td className="px-3 py-2">{d.fecha ?? d.mes}</td>
-                <td className="px-3 py-2 text-right">{d.cantidad}</td>
-                <td className="px-3 py-2 text-right font-semibold">${d.total.toFixed(2)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      <Table>
+        <THead>
+          <tr className="text-left">
+            <TH>{periodo === 'daily' ? 'Fecha' : 'Mes'}</TH>
+            <TH className="text-right">Cantidad</TH>
+            <TH className="text-right">Total (USD)</TH>
+          </tr>
+        </THead>
+        <TBody>
+          {cargando && (
+            <tr><TD colSpan={3} className="py-6 text-center text-text-muted">Cargando...</TD></tr>
+          )}
+          {!cargando && datos.length === 0 && (
+            <tr><TD colSpan={3} className="py-6 text-center text-text-muted">Sin ventas en este rango.</TD></tr>
+          )}
+          {datos.map((d, i) => (
+            <TR key={i}>
+              <TD>{d.fecha ?? d.mes}</TD>
+              <TD className="text-right">{d.cantidad}</TD>
+              <TD className="text-right font-semibold">${d.total.toFixed(2)}</TD>
+            </TR>
+          ))}
+        </TBody>
+      </Table>
     </>
   );
 }
@@ -1364,51 +1374,38 @@ function ReportesVentas() {
 // ============================================================================
 
 const inputCls =
-  'w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary';
+  'w-full bg-bg border border-border rounded-xl px-3 py-2.5 text-text placeholder:text-text-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-accent disabled:opacity-50';
 
+// Wrapper local: conserva la firma `label`+`children` usada en toda la pantalla
+// y delega en el componente Field del sistema de diseño.
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <label className="block">
-      <span className="text-xs text-gray-600 mb-1 block">{label}</span>
-      {children}
-    </label>
-  );
+  return <FieldUI label={label}>{children}</FieldUI>;
 }
 
-function TabButton({ children, active, onClick }: { children: React.ReactNode; active: boolean; onClick: () => void }) {
-  return (
-    <button
-      onClick={onClick}
-      className={`px-4 py-2 text-sm font-semibold border-b-2 -mb-px transition ${
-        active ? 'border-primary text-primary' : 'border-transparent text-gray-500 hover:text-gray-700'
-      }`}>
-      {children}
-    </button>
-  );
-}
-
+// Mapa de presentación del estado de venta: etiqueta + tono del Badge.
+// La etiqueta de negocio (texto en mayúsculas) se conserva intacta.
 function EstadoBadge({ estado, activo }: { estado: EstadoVenta; activo: boolean }) {
   if (!activo) {
-    return <span className="text-xs font-semibold px-2 py-0.5 rounded bg-gray-200 text-gray-700">INACTIVA</span>;
+    return <Badge tone="neutral">INACTIVA</Badge>;
   }
   if (estado === 'anulada') {
-    return <span className="text-xs font-semibold px-2 py-0.5 rounded bg-red-100 text-red-700">ANULADA</span>;
+    return <Badge tone={ESTADO_VARIANT['anulada']}>ANULADA</Badge>;
   }
   if (estado === 'pendiente') {
-    return <span className="text-xs font-semibold px-2 py-0.5 rounded bg-amber-100 text-amber-800">PENDIENTE</span>;
+    return <Badge tone={ESTADO_VARIANT['pendiente']}>PENDIENTE</Badge>;
   }
-  return <span className="text-xs font-semibold px-2 py-0.5 rounded bg-green-100 text-green-700">COMPLETADA</span>;
+  return <Badge tone="success">COMPLETADA</Badge>;
 }
 
+// Wrapper local: misma firma `label`/`value` y delega en KpiCard del sistema.
 function KpiCard({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="bg-white border border-gray-200 rounded-xl p-4">
-      <div className="text-xs uppercase text-gray-500 font-semibold">{label}</div>
-      <div className="text-2xl font-bold mt-1">{value}</div>
-    </div>
-  );
+  return <KpiCardUI label={label} value={value} />;
 }
 
+// Modal local tokenizado. Conserva la API previa (`onCerrar`/`ancho`) y los
+// anchos amplios que necesita el flujo de venta (max-w-2xl/3xl), que el Modal
+// del sistema no expone. Estilo (superficie, borde, radio, icono de cierre)
+// alineado al sistema de diseño.
 function Modal({
   title,
   children,
@@ -1422,10 +1419,12 @@ function Modal({
 }) {
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-20 p-4">
-      <div className={`bg-white rounded-xl shadow-xl p-6 w-full ${ancho} max-h-[90vh] overflow-y-auto`}>
+      <div className={`bg-surface text-text border border-border rounded-2xl shadow-xl p-6 w-full ${ancho} max-h-[90vh] overflow-y-auto`}>
         <div className="flex justify-between items-start mb-4">
-          <h3 className="text-lg font-bold">{title}</h3>
-          <button onClick={onCerrar} className="text-gray-400 hover:text-gray-700 text-xl leading-none">✕</button>
+          <h3 className="font-heading text-lg font-bold">{title}</h3>
+          <button onClick={onCerrar} aria-label="Cerrar" className="text-text-muted hover:text-text transition">
+            <X size={20} strokeWidth={1.75} />
+          </button>
         </div>
         {children}
       </div>
@@ -1435,8 +1434,8 @@ function Modal({
 
 function ErrorBox({ children }: { children: React.ReactNode }) {
   return (
-    <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-md px-3 py-2 mb-3">
-      {children}
+    <div className="mb-3">
+      <Alert tone="danger">{children}</Alert>
     </div>
   );
 }
@@ -1444,7 +1443,7 @@ function ErrorBox({ children }: { children: React.ReactNode }) {
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="flex">
-      <span className="w-32 text-gray-500 shrink-0">{label}</span>
+      <span className="w-32 text-text-muted shrink-0">{label}</span>
       <span className="flex-1">{children}</span>
     </div>
   );
@@ -1472,52 +1471,58 @@ function TipoVentaSelector({
   const [pickerAbierto, setPickerAbierto] = useState(false);
 
   return (
-    <div className="bg-white border border-gray-200 rounded-xl p-4 mb-4">
-      <label className="block text-xs uppercase font-bold text-gray-500 tracking-wide mb-2">
+    <div className="bg-surface border border-border rounded-2xl p-4 mb-4">
+      <label className="block text-xs uppercase font-bold text-text-muted tracking-wide mb-2">
         Tipo de venta
       </label>
       <div className="grid grid-cols-2 gap-2 mb-3">
         <button
           type="button"
           onClick={() => onTipoChange('contado')}
-          className={`py-3 rounded-md font-bold text-sm border ${
+          className={`py-3 rounded-xl font-bold text-sm border transition ${
             tipoVenta === 'contado'
-              ? 'bg-green-100 text-green-800 border-green-300'
-              : 'bg-gray-100 text-gray-600 border-transparent hover:bg-gray-200'
+              ? 'bg-accent-fill text-accent-contrast border-accent-fill'
+              : 'bg-surface-alt text-text-muted border-border hover:border-accent'
           }`}>
-          💵 Contado
+          <span className="inline-flex items-center gap-1.5">
+            <Banknote size={16} strokeWidth={1.75} />
+            Contado
+          </span>
           <div className="text-xs font-normal opacity-80">Paga todo ahora</div>
         </button>
         <button
           type="button"
           onClick={() => onTipoChange('credito')}
-          className={`py-3 rounded-md font-bold text-sm border ${
+          className={`py-3 rounded-xl font-bold text-sm border transition ${
             tipoVenta === 'credito'
-              ? 'bg-amber-100 text-amber-800 border-amber-300'
-              : 'bg-gray-100 text-gray-600 border-transparent hover:bg-gray-200'
+              ? 'bg-accent-fill text-accent-contrast border-accent-fill'
+              : 'bg-surface-alt text-text-muted border-border hover:border-accent'
           }`}>
-          💳 Crédito
+          <span className="inline-flex items-center gap-1.5">
+            <CreditCard size={16} strokeWidth={1.75} />
+            Crédito
+          </span>
           <div className="text-xs font-normal opacity-80">Abona o fía</div>
         </button>
       </div>
 
       {/* Cliente: requerido en credito, opcional en contado (para
           historial de compras y futuros beneficios de fidelidad). */}
-      <label className="block text-xs uppercase font-bold text-gray-500 tracking-wide mb-2">
+      <label className="block text-xs uppercase font-bold text-text-muted tracking-wide mb-2">
         {tipoVenta === 'credito' ? 'Cliente *' : 'Cliente (opcional)'}
       </label>
       {cliente ? (
-        <div className="flex items-center justify-between bg-gray-50 border border-gray-200 rounded-md p-3 mb-2">
+        <div className="flex items-center justify-between bg-surface-alt border border-border rounded-xl p-3 mb-2">
           <div>
             <div className="font-bold text-sm">{cliente.nombre}</div>
-            <div className="text-xs text-gray-500 font-mono">
+            <div className="text-xs text-text-muted font-mono">
               {cliente.cedula}
             </div>
           </div>
           <button
             type="button"
             onClick={() => onClienteChange(null)}
-            className="text-xs text-red-600 hover:underline">
+            className="text-xs text-danger hover:underline">
             {tipoVenta === 'credito' ? 'Cambiar' : 'Quitar'}
           </button>
         </div>
@@ -1525,12 +1530,9 @@ function TipoVentaSelector({
         <button
           type="button"
           onClick={() => setPickerAbierto(true)}
-          className={`w-full border-2 border-dashed rounded-md py-3 text-sm font-bold ${
-            tipoVenta === 'credito'
-              ? 'border-amber-400 text-amber-700 hover:bg-amber-50'
-              : 'border-gray-300 text-gray-600 hover:bg-gray-50'
-          }`}>
-          🔍 Buscar / crear cliente
+          className="w-full border-2 border-dashed border-border rounded-xl py-3 text-sm font-bold text-text-muted hover:border-accent hover:text-accent transition inline-flex items-center justify-center gap-1.5">
+          <Search size={16} strokeWidth={1.75} />
+          Buscar / crear cliente
         </button>
       )}
       {pickerAbierto && (
@@ -1543,7 +1545,7 @@ function TipoVentaSelector({
         />
       )}
 
-      <label className="block text-xs uppercase font-bold text-gray-500 tracking-wide mt-3 mb-1">
+      <label className="block text-xs uppercase font-bold text-text-muted tracking-wide mt-3 mb-1">
         Notas (opcional)
       </label>
       <input
@@ -1586,9 +1588,9 @@ function ClientePicker({
         className={inputCls + ' mb-3'}
       />
 
-      <div className="border border-gray-200 rounded-md max-h-64 overflow-y-auto">
+      <div className="border border-border rounded-xl max-h-64 overflow-y-auto">
         {resultados.length === 0 ? (
-          <div className="text-xs text-gray-500 p-4 text-center">
+          <div className="text-xs text-text-muted p-4 text-center">
             Sin resultados.
           </div>
         ) : (
@@ -1597,9 +1599,9 @@ function ClientePicker({
               key={c.id}
               type="button"
               onClick={() => onElegir(c)}
-              className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 border-b border-gray-100 last:border-0">
+              className="w-full text-left px-3 py-2 text-sm hover:bg-surface-alt border-b border-border last:border-0">
               <div className="font-medium">{c.nombre}</div>
-              <div className="text-xs text-gray-500 font-mono">
+              <div className="text-xs text-text-muted font-mono">
                 {c.cedula}
                 {c.telefono ? ` · ${c.telefono}` : ''}
               </div>
@@ -1621,7 +1623,7 @@ function ClientePicker({
           <button
             type="button"
             onClick={() => setCreando(true)}
-            className="text-sm text-primary font-bold hover:underline">
+            className="text-sm text-accent font-bold hover:underline">
             + Registrar cliente nuevo
           </button>
         )}
@@ -1665,10 +1667,13 @@ function CrearClienteInline({
   };
 
   return (
-    <form onSubmit={submit} className="text-left bg-amber-50 border border-amber-200 rounded-md p-3 mt-2">
-      <div className="text-xs font-bold text-amber-800 mb-2">Nuevo cliente</div>
+    <form onSubmit={submit} className="text-left bg-surface-alt border border-border rounded-xl p-3 mt-2">
+      <div className="text-xs font-bold text-text mb-2 inline-flex items-center gap-1.5">
+        <User size={14} strokeWidth={1.75} className="text-accent" />
+        Nuevo cliente
+      </div>
       {error && (
-        <div className="text-xs text-red-700 mb-2">{error}</div>
+        <div className="text-xs text-danger mb-2">{error}</div>
       )}
       <div className="space-y-2">
         <input
@@ -1694,18 +1699,19 @@ function CrearClienteInline({
         />
       </div>
       <div className="flex justify-end gap-2 mt-2">
-        <button
+        <Button
+          variant="ghost"
+          size="sm"
           type="button"
-          onClick={onCancelar}
-          className="px-3 py-1.5 text-xs text-gray-600">
+          onClick={onCancelar}>
           Cancelar
-        </button>
-        <button
+        </Button>
+        <Button
+          size="sm"
           type="submit"
-          disabled={guardando}
-          className="px-3 py-1.5 bg-primary text-white text-xs rounded-md font-semibold disabled:opacity-60">
+          disabled={guardando}>
           {guardando ? 'Guardando...' : 'Registrar'}
-        </button>
+        </Button>
       </div>
     </form>
   );
@@ -1801,49 +1807,45 @@ export function RegistrarAbonoForm({
   return (
     <Modal title="Registrar abono" onCerrar={onCerrar} ancho="max-w-md">
       <form onSubmit={submit}>
-        <div className="bg-amber-50 border border-amber-200 rounded-md p-3 mb-4">
-          <div className="text-xs uppercase font-bold text-amber-800">
+        <div className="bg-surface-alt border border-border rounded-xl p-3 mb-4" style={{ borderLeftColor: 'var(--warning)', borderLeftWidth: 4 }}>
+          <div className="text-xs uppercase font-bold text-warning">
             Saldo pendiente
           </div>
-          <div className="text-2xl font-extrabold text-amber-900">
+          <div className="font-heading text-2xl font-extrabold text-text">
             ${saldoActual.toFixed(2)} USD
           </div>
           {venta.customer && (
-            <div className="text-xs text-amber-800 mt-1">
+            <div className="text-xs text-text-muted mt-1">
               {venta.customer.nombre} · {venta.customer.cedula}
             </div>
           )}
         </div>
 
         {error && (
-          <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-md px-3 py-2 mb-3">
-            {error}
+          <div className="mb-3">
+            <Alert tone="danger">{error}</Alert>
           </div>
         )}
 
-        <label className="block text-xs uppercase font-bold text-gray-500 tracking-wide mb-1.5">
+        <label className="block text-xs uppercase font-bold text-text-muted tracking-wide mb-1.5">
           Moneda
         </label>
         <div className="grid grid-cols-3 gap-2 mb-3">
           {(['USD', 'VES', 'COP'] as const).map((c) => {
             const on = currency === c;
             return (
-              <button
+              <Chip
                 key={c}
-                type="button"
+                active={on}
                 onClick={() => cambiarCurrency(c)}
-                className={`py-2 rounded-md text-sm font-bold border ${
-                  on
-                    ? 'bg-primary text-white border-primary'
-                    : 'bg-gray-100 text-gray-700 border-transparent'
-                }`}>
+                className="justify-center">
                 {c}
-              </button>
+              </Chip>
             );
           })}
         </div>
 
-        <label className="block text-xs uppercase font-bold text-gray-500 tracking-wide mb-1.5">
+        <label className="block text-xs uppercase font-bold text-text-muted tracking-wide mb-1.5">
           Método
         </label>
         <div
@@ -1852,22 +1854,18 @@ export function RegistrarAbonoForm({
           {validos.map((m) => {
             const on = method === m;
             return (
-              <button
+              <Chip
                 key={m}
-                type="button"
+                active={on}
                 onClick={() => setMethod(m)}
-                className={`py-2 rounded-md text-sm font-bold border capitalize ${
-                  on
-                    ? 'bg-primary text-white border-primary'
-                    : 'bg-gray-100 text-gray-700 border-transparent'
-                }`}>
+                className="justify-center capitalize">
                 {m === 'pago_movil' ? 'Pago móvil' : m}
-              </button>
+              </Chip>
             );
           })}
         </div>
 
-        <label className="block text-xs uppercase font-bold text-gray-500 tracking-wide mb-1.5">
+        <label className="block text-xs uppercase font-bold text-text-muted tracking-wide mb-1.5">
           Monto en {currency}
         </label>
         <input
@@ -1876,32 +1874,32 @@ export function RegistrarAbonoForm({
           min="0"
           value={amount}
           onChange={(e) => setAmount(e.target.value)}
-          className="w-full border border-gray-300 rounded-md px-3 py-3 text-xl font-bold text-right focus:outline-none focus:ring-2 focus:ring-primary"
+          className="w-full bg-bg border border-border rounded-xl px-3 py-3 text-xl font-bold text-right text-text focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
         />
         {currency !== 'USD' && (
-          <div className="text-xs text-gray-500 mt-1 text-right">
-            ≈ <strong className="text-gray-800">${equivUsd.toFixed(2)} USD</strong>
+          <div className="text-xs text-text-muted mt-1 text-right">
+            ≈ <strong className="text-text">${equivUsd.toFixed(2)} USD</strong>
           </div>
         )}
 
         {completaria && (
-          <div className="mt-3 bg-green-50 border border-green-200 text-green-700 text-sm font-bold rounded-md py-2 text-center">
-            ✅ Este abono cierra la deuda
+          <div className="mt-3">
+            <Alert tone="success">Este abono cierra la deuda</Alert>
           </div>
         )}
         {sobra && (
-          <div className="mt-3 bg-red-50 border border-red-200 text-red-700 text-sm font-bold rounded-md py-2 text-center">
-            ⚠️ Sobra ${Math.abs(saldoTrasAbono).toFixed(2)} USD del saldo
+          <div className="mt-3">
+            <Alert tone="danger">Sobra ${Math.abs(saldoTrasAbono).toFixed(2)} USD del saldo</Alert>
           </div>
         )}
         {!completaria && !sobra && Number(amount) > 0 && (
-          <div className="mt-3 text-xs text-gray-600 text-center">
+          <div className="mt-3 text-xs text-text-muted text-center">
             Saldo restante después del abono:{' '}
-            <strong className="text-gray-800">${saldoTrasAbono.toFixed(2)} USD</strong>
+            <strong className="text-text">${saldoTrasAbono.toFixed(2)} USD</strong>
           </div>
         )}
 
-        <label className="block text-xs uppercase font-bold text-gray-500 tracking-wide mt-3 mb-1.5">
+        <label className="block text-xs uppercase font-bold text-text-muted tracking-wide mt-3 mb-1.5">
           Notas (opcional)
         </label>
         <input
@@ -1913,15 +1911,14 @@ export function RegistrarAbonoForm({
         />
 
         <div className="flex justify-end gap-2 mt-5">
-          <button type="button" onClick={onCerrar} className="px-4 py-2 text-sm">
+          <Button variant="ghost" type="button" onClick={onCerrar}>
             Cancelar
-          </button>
-          <button
+          </Button>
+          <Button
             type="submit"
-            disabled={guardando || sobra || Number(amount) <= 0}
-            className="px-5 py-2 bg-primary text-white rounded-md text-sm font-semibold disabled:opacity-50">
+            disabled={guardando || sobra || Number(amount) <= 0}>
             {guardando ? 'Guardando...' : 'Registrar abono'}
-          </button>
+          </Button>
         </div>
       </form>
     </Modal>

@@ -11,6 +11,7 @@ import {
   View,
 } from 'react-native';
 import Pdf from 'react-native-pdf';
+import Icon from '../components/Icon';
 import { pdfService, type PdfFetchedFile } from '../services/pdf.service';
 import { COLORS } from '../utils/constants';
 
@@ -118,7 +119,7 @@ export default function PDFViewerScreen() {
               styles.headerBtn,
               (estado.kind !== 'listo' || accionEnCurso) && styles.headerBtnOff,
             ]}>
-            <Text style={styles.headerBtnTxt}>💾</Text>
+            <Icon name="pdf" color={COLORS.text} size={20} />
           </TouchableOpacity>
           <TouchableOpacity
             disabled={estado.kind !== 'listo' || accionEnCurso}
@@ -127,7 +128,7 @@ export default function PDFViewerScreen() {
               styles.headerBtn,
               (estado.kind !== 'listo' || accionEnCurso) && styles.headerBtnOff,
             ]}>
-            <Text style={styles.headerBtnTxt}>📤</Text>
+            <Icon name="flecha-der" color={COLORS.text} size={20} />
           </TouchableOpacity>
         </View>
       ),
@@ -146,7 +147,9 @@ export default function PDFViewerScreen() {
   if (estado.kind === 'error') {
     return (
       <View style={styles.centro}>
-        <Text style={styles.errorIcon}>⚠️</Text>
+        <View style={styles.errorIcon}>
+          <Icon name="alertas" color={COLORS.warning} size={42} />
+        </View>
         <Text style={styles.errorTitulo}>No se pudo generar el PDF</Text>
         <Text style={styles.errorDetalle}>{estado.mensaje}</Text>
         <TouchableOpacity
@@ -186,8 +189,8 @@ export default function PDFViewerScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#1F2937' },
-  pdf: { flex: 1, width: '100%', backgroundColor: '#1F2937' },
+  container: { flex: 1, backgroundColor: COLORS.text },
+  pdf: { flex: 1, width: '100%', backgroundColor: COLORS.text },
   centro: {
     flex: 1,
     alignItems: 'center',
@@ -196,7 +199,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.background,
   },
   cargandoTxt: { marginTop: 12, color: COLORS.textMuted, fontSize: 14 },
-  errorIcon: { fontSize: 42, marginBottom: 12 },
+  errorIcon: { marginBottom: 12 },
   errorTitulo: {
     fontSize: 16,
     fontWeight: '700',
@@ -215,17 +218,17 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderRadius: 10,
   },
-  btnVolverTxt: { color: '#fff', fontWeight: '700' },
+  btnVolverTxt: { color: COLORS.accentContrast, fontWeight: '700' },
   pieDePagina: {
     position: 'absolute',
     bottom: 14,
     alignSelf: 'center',
-    backgroundColor: 'rgba(17,24,39,0.85)',
+    backgroundColor: COLORS.text,
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 14,
   },
-  pieTxt: { color: '#F9FAFB', fontSize: 12, fontWeight: '600' },
+  pieTxt: { color: COLORS.accentContrast, fontSize: 12, fontWeight: '600' },
   headerRight: { flexDirection: 'row', marginRight: 8 },
   headerBtn: {
     width: 38,

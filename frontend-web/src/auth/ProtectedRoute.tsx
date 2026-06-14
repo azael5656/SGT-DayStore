@@ -14,8 +14,8 @@ export default function ProtectedRoute({ children, roles }: Props) {
   if (roles && user && !roles.includes(user.role)) {
     return (
       <div className="p-8">
-        <h2 className="text-xl font-bold text-red-600">Acceso denegado</h2>
-        <p className="text-gray-600 mt-2">
+        <h2 className="font-heading text-xl font-bold text-danger">Acceso denegado</h2>
+        <p className="text-text-muted mt-2">
           Tu rol ({user.role}) no tiene permisos para esta seccion.
         </p>
       </div>

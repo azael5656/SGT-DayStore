@@ -12,6 +12,7 @@ import {
   View,
 } from 'react-native';
 import ClienteFormModal from '../components/ClienteFormModal';
+import Icon from '../components/Icon';
 import { useAuth } from '../context/AuthContext';
 import {
   AuditLogItem,
@@ -35,9 +36,9 @@ type DetalleRoute = RouteProp<ParamList, 'ClienteDetalle'>;
 type Tab = 'ventas' | 'abonos' | 'auditoria';
 
 const ESTADO_COLOR: Record<string, { bg: string; fg: string }> = {
-  pendiente: { bg: '#FEF3C7', fg: '#92400E' },
-  completada: { bg: '#D1FAE5', fg: '#065F46' },
-  anulada: { bg: '#E5E7EB', fg: '#374151' },
+  pendiente: { bg: COLORS.surfaceAlt, fg: COLORS.warning },
+  completada: { bg: COLORS.surfaceAlt, fg: COLORS.success },
+  anulada: { bg: COLORS.surfaceAlt, fg: COLORS.textMuted },
 };
 
 const ACTION_LABEL: Record<string, string> = {
@@ -131,10 +132,16 @@ export default function ClienteDetalleScreen() {
             </Text>
             <Text style={styles.cedula}>{cliente.cedula}</Text>
             {cliente.telefono ? (
-              <Text style={styles.contacto}>📞 {cliente.telefono}</Text>
+              <View style={styles.contactoRow}>
+                <Icon name="clientes" color={COLORS.textMuted} size={14} />
+                <Text style={styles.contacto}>{cliente.telefono}</Text>
+              </View>
             ) : null}
             {cliente.email ? (
-              <Text style={styles.contacto}>✉️ {cliente.email}</Text>
+              <View style={styles.contactoRow}>
+                <Icon name="perfil" color={COLORS.textMuted} size={14} />
+                <Text style={styles.contacto}>{cliente.email}</Text>
+              </View>
             ) : null}
             {!cliente.activo && (
               <View style={styles.badgeInactivo}>
@@ -153,9 +160,12 @@ export default function ClienteDetalleScreen() {
 
         {deuda > 0 && (
           <View style={styles.banner}>
-            <Text style={styles.bannerTitulo}>
-              💰 Deuda total: ${resumen.deudaTotalUsd}
-            </Text>
+            <View style={styles.bannerTituloRow}>
+              <Icon name="tasas" color={COLORS.warning} size={18} />
+              <Text style={styles.bannerTitulo}>
+                Deuda total: ${resumen.deudaTotalUsd}
+              </Text>
+            </View>
             <Text style={styles.bannerSub}>
               {resumen.ventasPendientes} venta(s) pendiente(s)
             </Text>
@@ -351,19 +361,25 @@ const styles = StyleSheet.create({
     fontFamily: 'monospace',
     marginTop: 4,
   },
-  contacto: { fontSize: 13, color: COLORS.textMuted, marginTop: 4 },
+  contactoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 4,
+  },
+  contacto: { fontSize: 13, color: COLORS.textMuted },
   badgeInactivo: {
     alignSelf: 'flex-start',
     marginTop: 8,
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 4,
-    backgroundColor: '#E5E7EB',
+    backgroundColor: COLORS.surfaceAlt,
   },
   badgeInactivoTxt: {
     fontSize: 11,
     fontWeight: '700',
-    color: '#374151',
+    color: COLORS.textMuted,
     letterSpacing: 0.5,
   },
   btnEditar: {
@@ -375,16 +391,21 @@ const styles = StyleSheet.create({
   },
   btnEditarTxt: { color: COLORS.primary, fontWeight: '700', fontSize: 13 },
   banner: {
-    backgroundColor: '#FEF3C7',
+    backgroundColor: COLORS.surfaceAlt,
     padding: 14,
     marginHorizontal: 16,
     marginTop: 12,
     borderRadius: 10,
     borderLeftWidth: 4,
-    borderLeftColor: '#D97706',
+    borderLeftColor: COLORS.warning,
   },
-  bannerTitulo: { fontSize: 16, fontWeight: '800', color: '#78350F' },
-  bannerSub: { fontSize: 13, color: '#92400E', marginTop: 2 },
+  bannerTituloRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  bannerTitulo: { fontSize: 16, fontWeight: '800', color: COLORS.warning },
+  bannerSub: { fontSize: 13, color: COLORS.textMuted, marginTop: 2 },
   kpis: {
     flexDirection: 'row',
     paddingHorizontal: 16,
@@ -426,7 +447,7 @@ const styles = StyleSheet.create({
   },
   tabActive: { backgroundColor: COLORS.primary, borderColor: COLORS.primary },
   tabTxt: { fontSize: 12, fontWeight: '700', color: COLORS.textMuted },
-  tabTxtActive: { color: '#FFF' },
+  tabTxtActive: { color: COLORS.accentContrast },
   listaInner: { padding: 16, paddingTop: 12 },
   row: {
     flexDirection: 'row',
@@ -458,19 +479,19 @@ const styles = StyleSheet.create({
     borderTopColor: COLORS.border,
   },
   btnDanger: {
-    backgroundColor: '#FEE2E2',
+    backgroundColor: COLORS.surfaceAlt,
     borderWidth: 1,
-    borderColor: '#FCA5A5',
+    borderColor: COLORS.danger,
     padding: 13,
     borderRadius: 10,
     alignItems: 'center',
   },
-  btnDangerTxt: { color: '#B91C1C', fontWeight: '800', fontSize: 14 },
+  btnDangerTxt: { color: COLORS.danger, fontWeight: '800', fontSize: 14 },
   btnPrimary: {
     backgroundColor: COLORS.primary,
     padding: 13,
     borderRadius: 10,
     alignItems: 'center',
   },
-  btnPrimaryTxt: { color: '#FFF', fontWeight: '800', fontSize: 14 },
+  btnPrimaryTxt: { color: COLORS.accentContrast, fontWeight: '800', fontSize: 14 },
 });

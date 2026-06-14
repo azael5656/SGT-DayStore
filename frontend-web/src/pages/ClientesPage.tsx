@@ -1,10 +1,18 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { HandCoins, Phone, Mail } from 'lucide-react';
 import api from '../api/client';
 import { useAuth } from '../auth/AuthContext';
 import ClienteForm from '../components/ClienteForm';
 import type { Customer } from '../types';
 import { pedirConfirmacionYDesactivar } from '../utils/clienteActions';
+import { Table, THead, TBody, TR, TH, TD } from '../components/ui/Table';
+import Badge from '../components/ui/Badge';
+import Button from '../components/ui/Button';
+import Chip from '../components/ui/Chip';
+import Input from '../components/ui/Input';
+import PageHeader from '../components/ui/PageHeader';
+import { useConfirm } from '../components/ui/ConfirmProvider';
 
 type FiltroEstado = 'activos' | 'inactivos' | 'todos';
 const FILTROS: { value: FiltroEstado; label: string }[] = [
@@ -24,6 +32,7 @@ const FILTROS: { value: FiltroEstado; label: string }[] = [
 export default function ClientesPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const confirm = useConfirm();
   const puedeEditar = user?.role === 'admin' || user?.role === 'superadmin';
 
   const [items, setItems] = useState<Customer[]>([]);
@@ -60,6 +69,7 @@ export default function ClientesPage() {
   const onDesactivar = (c: Customer) => {
     void pedirConfirmacionYDesactivar(
       { id: c.id, nombre: c.nombre },
+      confirm,
       () => {
         void cargar();
       },
@@ -68,117 +78,111 @@ export default function ClientesPage() {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-5">
-        <h1 className="text-2xl font-bold">Clientes / Deudores</h1>
-        {puedeEditar && (
-          <button
-            onClick={() => setCreando(true)}
-            className="bg-primary text-white px-4 py-2 rounded-md text-sm font-semibold">
-            + Nuevo cliente
-          </button>
-        )}
-      </div>
+      <PageHeader
+        title="Clientes / Deudores"
+        icon={<HandCoins size={22} strokeWidth={1.75} />}
+        actions={
+          puedeEditar && (
+            <Button onClick={() => setCreando(true)}>+ Nuevo cliente</Button>
+          )
+        }
+      />
 
       <div className="flex gap-2 mb-3">
         {FILTROS.map((f) => (
-          <button
+          <Chip
             key={f.value}
-            onClick={() => setFiltro(f.value)}
-            className={`px-4 py-1.5 rounded-full text-xs font-bold border ${
-              filtro === f.value
-                ? 'bg-primary text-white border-primary'
-                : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
-            }`}>
+            active={filtro === f.value}
+            onClick={() => setFiltro(f.value)}>
             {f.label}
-          </button>
+          </Chip>
         ))}
       </div>
 
       <div className="flex gap-2 mb-4">
-        <input
-          type="text"
-          placeholder="Buscar por cédula o nombre..."
-          value={busqueda}
-          onChange={(e) => setBusqueda(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && cargar()}
-          className="flex-1 border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-        />
-        <button onClick={cargar} className="px-4 py-2 bg-gray-100 rounded-md text-sm">
+        <div className="flex-1">
+          <Input
+            type="text"
+            placeholder="Buscar por cédula o nombre..."
+            value={busqueda}
+            onChange={(e) => setBusqueda(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && cargar()}
+          />
+        </div>
+        <Button variant="secondary" onClick={cargar}>
           Buscar
-        </button>
+        </Button>
       </div>
 
-      <div className="bg-white rounded-xl border border-gray-200 overflow-x-auto">
-        <table className="w-full text-sm min-w-[680px]">
-          <thead className="bg-gray-50 border-b border-gray-200">
-            <tr className="text-left text-xs uppercase text-gray-500">
-              <th className="px-3 py-2">Cédula</th>
-              <th className="px-3 py-2">Nombre</th>
-              <th className="px-3 py-2">Teléfono</th>
-              <th className="px-3 py-2">Email</th>
-              <th className="px-3 py-2">Estado</th>
-              {puedeEditar && <th className="px-3 py-2"></th>}
+      <Table className="min-w-[680px]">
+        <THead>
+          <tr>
+            <TH>Cédula</TH>
+            <TH>Nombre</TH>
+            <TH>
+              <span className="inline-flex items-center gap-1.5">
+                <Phone size={14} strokeWidth={1.75} />
+                Teléfono
+              </span>
+            </TH>
+            <TH>
+              <span className="inline-flex items-center gap-1.5">
+                <Mail size={14} strokeWidth={1.75} />
+                Email
+              </span>
+            </TH>
+            <TH>Estado</TH>
+            {puedeEditar && <TH></TH>}
+          </tr>
+        </THead>
+        <TBody>
+          {cargando && (
+            <tr>
+              <TD colSpan={6} className="py-6 text-center text-text-muted">
+                Cargando...
+              </TD>
             </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-100">
-            {cargando && (
-              <tr>
-                <td colSpan={6} className="px-3 py-6 text-center text-gray-500">
-                  Cargando...
-                </td>
-              </tr>
-            )}
-            {!cargando && visibles.length === 0 && (
-              <tr>
-                <td colSpan={6} className="px-3 py-6 text-center text-gray-500">
-                  Sin clientes para este filtro.
-                </td>
-              </tr>
-            )}
-            {visibles.map((c) => (
-              <tr
-                key={c.id}
-                className={`hover:bg-gray-50 cursor-pointer ${
-                  !c.activo ? 'opacity-70' : ''
-                }`}
-                onClick={() => navigate(`/clientes/${c.id}`)}>
-                <td className="px-3 py-2 font-mono text-xs">{c.cedula}</td>
-                <td className="px-3 py-2 font-medium">{c.nombre}</td>
-                <td className="px-3 py-2 text-gray-600 text-xs">
-                  {c.telefono ?? '—'}
-                </td>
-                <td className="px-3 py-2 text-gray-600 text-xs">
-                  {c.email ?? '—'}
-                </td>
-                <td className="px-3 py-2">
-                  {c.activo ? (
-                    <span className="text-xs font-bold px-2 py-0.5 rounded bg-green-100 text-green-700">
-                      ACTIVO
-                    </span>
-                  ) : (
-                    <span className="text-xs font-bold px-2 py-0.5 rounded bg-gray-200 text-gray-700">
-                      INACTIVO
-                    </span>
-                  )}
-                </td>
-                {puedeEditar && (
-                  <td
-                    className="px-3 py-2 text-right whitespace-nowrap"
-                    onClick={(e) => e.stopPropagation()}>
-                    {c.activo && (
-                      <button
-                        onClick={() => onDesactivar(c)}
-                        className="text-red-600 text-xs hover:underline">
-                        Desactivar
-                      </button>
-                    )}
-                  </td>
+          )}
+          {!cargando && visibles.length === 0 && (
+            <tr>
+              <TD colSpan={6} className="py-6 text-center text-text-muted">
+                Sin clientes para este filtro.
+              </TD>
+            </tr>
+          )}
+          {visibles.map((c) => (
+            <TR
+              key={c.id}
+              className={`cursor-pointer ${!c.activo ? 'opacity-70' : ''}`}
+              onClick={() => navigate(`/clientes/${c.id}`)}>
+              <TD className="font-mono text-xs">{c.cedula}</TD>
+              <TD className="font-medium">{c.nombre}</TD>
+              <TD className="text-text-muted text-xs">{c.telefono ?? '—'}</TD>
+              <TD className="text-text-muted text-xs">{c.email ?? '—'}</TD>
+              <TD>
+                {c.activo ? (
+                  <Badge tone="success">ACTIVO</Badge>
+                ) : (
+                  <Badge tone="neutral">INACTIVO</Badge>
                 )}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+              </TD>
+              {puedeEditar && (
+                <TD
+                  className="text-right whitespace-nowrap"
+                  onClick={(e) => e.stopPropagation()}>
+                  {c.activo && (
+                    <button
+                      onClick={() => onDesactivar(c)}
+                      className="text-danger text-xs hover:underline">
+                      Desactivar
+                    </button>
+                  )}
+                </TD>
+              )}
+            </TR>
+          ))}
+        </TBody>
+      </Table>
 
       {creando && (
         <ClienteForm

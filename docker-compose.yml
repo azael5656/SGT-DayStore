@@ -133,6 +133,41 @@ services:
     networks:
       - sgt-network
 
+  # --- Visores de base de datos (inspeccion / documentacion) ---
+  # No requieren instalar nada: se abren desde el navegador.
+  #   Adminer (PostgreSQL):  http://localhost:8081
+  #   mongo-express (Mongo): http://localhost:8082  (login visor: admin / admin)
+  adminer:
+    image: adminer:latest
+    container_name: sgt-adminer
+    environment:
+      ADMINER_DEFAULT_SERVER: postgres
+    ports:
+      - "8081:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - sgt-network
+
+  mongo-express:
+    image: mongo-express:latest
+    container_name: sgt-mongo-express
+    environment:
+      ME_CONFIG_MONGODB_SERVER: mongo
+      ME_CONFIG_MONGODB_ADMINUSERNAME: ${MONGO_USER}
+      ME_CONFIG_MONGODB_ADMINPASSWORD: ${MONGO_PASSWORD}
+      ME_CONFIG_MONGODB_ENABLE_ADMIN: "true"
+      ME_CONFIG_BASICAUTH_USERNAME: admin
+      ME_CONFIG_BASICAUTH_PASSWORD: admin
+    ports:
+      - "8082:8081"
+    depends_on:
+      mongo:
+        condition: service_healthy
+    networks:
+      - sgt-network
+
 volumes:
   pgdata:
   mongodata:

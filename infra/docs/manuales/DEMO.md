@@ -186,7 +186,7 @@ Orden de evaluación para decidir "abierta ahora":
 5. Hora actual fuera de `horarioApertura`–`horarioCierre` → cerrada
 6. En otro caso → abierta
 
-Las comparaciones usan la `zonaHoraria` configurada (por defecto `America/Bogota`), no la hora del contenedor Docker.
+Las comparaciones usan la `zonaHoraria` configurada (por defecto `America/Caracas`), no la hora del contenedor Docker.
 
 ---
 

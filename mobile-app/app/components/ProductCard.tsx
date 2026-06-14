@@ -1,15 +1,16 @@
 import React from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { COLORS } from '../utils/constants';
+import Icon from './Icon';
 import type { Product } from '../services/negocio.service';
 
 const CATEGORIA_ICONOS: Record<string, string> = {
-  Manga: '📖',
-  Figura: '🧸',
-  Carta: '🃏',
-  Camisa: '👕',
-  Joyeria: '💍',
-  Joyería: '💍',
+  Manga: 'manga',
+  Figura: 'figura',
+  Carta: 'manga',
+  Camisa: 'camisa',
+  Joyeria: 'joyeria',
+  Joyería: 'joyeria',
 };
 
 interface Props {
@@ -20,14 +21,16 @@ interface Props {
 
 export default function ProductCard({ producto, onEdit, onDelete }: Props) {
   const categoriaNombre = producto.category?.nombre ?? 'Sin categoria';
-  const icono = CATEGORIA_ICONOS[categoriaNombre] ?? '📦';
+  const icono = CATEGORIA_ICONOS[categoriaNombre] ?? 'inventario';
   const stockBajo = producto.stock < producto.stockMinimo;
   const precio = Number(producto.precio);
 
   return (
     <View style={styles.card}>
       <View style={styles.row}>
-        <Text style={styles.icono}>{icono}</Text>
+        <View style={styles.icono}>
+          <Icon name={icono} color={COLORS.primary} size={28} />
+        </View>
         <View style={{ flex: 1 }}>
           <Text style={styles.nombre} numberOfLines={1}>
             {producto.nombre}
@@ -67,7 +70,7 @@ const styles = StyleSheet.create({
     borderColor: COLORS.border,
   },
   row: { flexDirection: 'row', alignItems: 'center' },
-  icono: { fontSize: 28, marginRight: 12 },
+  icono: { marginRight: 12 },
   nombre: { fontSize: 16, fontWeight: '600', color: COLORS.text },
   categoria: { fontSize: 12, color: COLORS.textMuted, marginTop: 2 },
   precio: { fontSize: 16, fontWeight: 'bold', color: COLORS.primary },
@@ -86,7 +89,7 @@ const styles = StyleSheet.create({
     borderRadius: 6,
     backgroundColor: COLORS.primary,
   },
-  actionTxt: { color: '#FFF', fontSize: 12, fontWeight: '600' },
-  actionBorrar: { backgroundColor: '#FEE2E2' },
-  actionBorrarTxt: { color: COLORS.danger },
+  actionTxt: { color: COLORS.accentContrast, fontSize: 12, fontWeight: '600' },
+  actionBorrar: { backgroundColor: COLORS.danger },
+  actionBorrarTxt: { color: COLORS.accentContrast },
 });

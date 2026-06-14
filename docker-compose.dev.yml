@@ -1,12 +1,15 @@
 services:
   # Exponer puertos de BD al host para desarrollo local
+  # Puertos host cambiados (55432 / 27018) para no chocar con PostgreSQL y
+  # MongoDB instalados localmente en la PC (que ya ocupan 5432, 5433 y 27017).
+  # Dentro de Docker siguen siendo 5432 / 27017 (servicios y visores intactos).
   postgres:
     ports:
-      - "5432:5432"
+      - "55432:5432"
 
   mongo:
     ports:
-      - "27017:27017"
+      - "27018:27017"
 
   redis:
     ports:

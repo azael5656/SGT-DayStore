@@ -13,6 +13,7 @@ import {
   View,
 } from 'react-native';
 import ClienteFormModal from '../components/ClienteFormModal';
+import Icon from '../components/Icon';
 import { useAuth } from '../context/AuthContext';
 import { Customer, customersService } from '../services/customers.service';
 import { pedirConfirmacionYDesactivar } from '../utils/clienteActions';
@@ -157,7 +158,10 @@ export default function ClientesScreen() {
               </Text>
               <Text style={styles.cedula}>{item.cedula}</Text>
               {item.telefono && (
-                <Text style={styles.detalle}>📞 {item.telefono}</Text>
+                <View style={styles.detalleRow}>
+                  <Icon name="perfil" color={COLORS.textMuted} size={12} />
+                  <Text style={styles.detalle}>{item.telefono}</Text>
+                </View>
               )}
             </View>
             {!item.activo && (
@@ -168,7 +172,7 @@ export default function ClientesScreen() {
                 onPress={() => onDesactivar(item)}
                 hitSlop={8}
                 style={styles.delBtn}>
-                <Text style={styles.delTxt}>✕</Text>
+                <Icon name="cerrar" color={COLORS.danger} size={16} />
               </TouchableOpacity>
             )}
           </TouchableOpacity>
@@ -211,7 +215,7 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     borderRadius: 8,
   },
-  btnAddTxt: { color: '#FFF', fontWeight: '600' },
+  btnAddTxt: { color: COLORS.accentContrast, fontWeight: '600' },
   filtros: {
     flexDirection: 'row',
     paddingHorizontal: 16,
@@ -231,7 +235,7 @@ const styles = StyleSheet.create({
     borderColor: COLORS.primary,
   },
   chipTxt: { color: COLORS.textMuted, fontSize: 13, fontWeight: '600' },
-  chipTxtActivo: { color: '#FFF' },
+  chipTxtActivo: { color: COLORS.accentContrast },
   searchInput: {
     backgroundColor: COLORS.surface,
     marginHorizontal: 16,
@@ -261,12 +265,13 @@ const styles = StyleSheet.create({
     fontFamily: 'monospace',
     marginTop: 2,
   },
-  detalle: { fontSize: 12, color: COLORS.textMuted, marginTop: 2 },
+  detalleRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 },
+  detalle: { fontSize: 12, color: COLORS.textMuted },
   badgeInactivo: {
     fontSize: 11,
     fontWeight: '700',
-    color: '#374151',
-    backgroundColor: '#E5E7EB',
+    color: COLORS.textMuted,
+    backgroundColor: COLORS.surfaceAlt,
     paddingHorizontal: 6,
     paddingVertical: 3,
     borderRadius: 4,
@@ -276,11 +281,10 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: '#FEE2E2',
+    backgroundColor: COLORS.surfaceAlt,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  delTxt: { color: '#B91C1C', fontWeight: '700' },
   vacio: {
     textAlign: 'center',
     color: COLORS.textMuted,

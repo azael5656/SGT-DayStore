@@ -1,9 +1,10 @@
 import { FormEvent, useState } from 'react';
 import api from '../api/client';
 import type { Customer } from '../types';
-
-const inputCls =
-  'w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary';
+import Input from './ui/Input';
+import Field from './ui/Field';
+import Button from './ui/Button';
+import Alert from './ui/Alert';
 
 interface Props {
   cliente: Customer | null;
@@ -55,79 +56,63 @@ export default function ClienteForm({ cliente, onCerrar, onGuardado }: Props) {
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-20 p-4">
       <form
         onSubmit={submit}
-        className="bg-white rounded-xl shadow-xl p-6 w-full max-w-md">
-        <h3 className="text-lg font-bold mb-4">
+        className="bg-surface text-text border border-border rounded-2xl shadow-xl p-6 w-full max-w-md">
+        <h3 className="font-heading text-lg font-bold mb-4">
           {cliente ? 'Editar cliente' : 'Nuevo cliente'}
         </h3>
         {error && (
-          <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-md px-3 py-2 mb-3">
-            {error}
+          <div className="mb-3">
+            <Alert tone="danger">{error}</Alert>
           </div>
         )}
         <div className="space-y-3">
           <Field label="Cédula *">
-            <input
+            <Input
               value={cedula}
               onChange={(e) => setCedula(e.target.value)}
               placeholder="V-12345678"
-              className={inputCls}
               required
             />
           </Field>
           <Field label="Nombre *">
-            <input
+            <Input
               value={nombre}
               onChange={(e) => setNombre(e.target.value)}
-              className={inputCls}
               required
             />
           </Field>
           <Field label="Teléfono">
-            <input
+            <Input
               value={telefono}
               onChange={(e) => setTelefono(e.target.value)}
               placeholder="04141234567"
-              className={inputCls}
             />
           </Field>
           <Field label="Email">
-            <input
+            <Input
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className={inputCls}
             />
           </Field>
           <Field label="Notas">
             <textarea
               value={notas}
               onChange={(e) => setNotas(e.target.value)}
-              className={inputCls + ' min-h-[60px]'}
+              className="w-full bg-bg border border-border rounded-xl px-3 py-2.5 text-text placeholder:text-text-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-accent min-h-[60px]"
               maxLength={500}
             />
           </Field>
         </div>
         <div className="flex justify-end gap-2 mt-5">
-          <button type="button" onClick={onCerrar} className="px-4 py-2 text-sm">
+          <Button type="button" variant="ghost" onClick={onCerrar}>
             Cancelar
-          </button>
-          <button
-            type="submit"
-            disabled={guardando}
-            className="px-5 py-2 bg-primary text-white rounded-md text-sm font-semibold disabled:opacity-60">
+          </Button>
+          <Button type="submit" disabled={guardando}>
             {guardando ? 'Guardando...' : 'Guardar'}
-          </button>
+          </Button>
         </div>
       </form>
     </div>
-  );
-}
-
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <label className="block">
-      <span className="text-xs text-gray-600 mb-1 block">{label}</span>
-      {children}
-    </label>
   );
 }

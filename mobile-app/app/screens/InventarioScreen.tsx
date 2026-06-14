@@ -10,6 +10,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import Icon from '../components/Icon';
 import ProductCard from '../components/ProductCard';
 import ProductFormModal from '../components/ProductFormModal';
 import {
@@ -127,7 +128,8 @@ export default function InventarioScreen() {
             setEditando(null);
             setModalAbierto(true);
           }}>
-          <Text style={styles.btnAddTxt}>+ Nuevo</Text>
+          <Icon name="agregar" color={COLORS.accentContrast} size={16} />
+          <Text style={styles.btnAddTxt}>Nuevo</Text>
         </TouchableOpacity>
       </View>
 
@@ -222,12 +224,15 @@ const styles = StyleSheet.create({
   },
   subtitulo: { fontSize: 14, color: COLORS.textMuted, fontWeight: '600' },
   btnAdd: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
     backgroundColor: COLORS.primary,
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 8,
   },
-  btnAddTxt: { color: '#FFF', fontWeight: '600' },
+  btnAddTxt: { color: COLORS.accentContrast, fontWeight: '600' },
   buscador: {
     backgroundColor: COLORS.surface,
     marginHorizontal: 16,
@@ -256,7 +261,7 @@ const styles = StyleSheet.create({
   },
   chipOn: { backgroundColor: COLORS.primary, borderColor: COLORS.primary },
   chipTxt: { fontSize: 12, color: COLORS.text },
-  chipTxtOn: { color: '#FFF', fontWeight: '600' },
+  chipTxtOn: { color: COLORS.accentContrast, fontWeight: '600' },
   lista: { padding: 16, paddingTop: 4 },
   vacio: {
     textAlign: 'center',

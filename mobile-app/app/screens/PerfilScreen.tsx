@@ -18,17 +18,17 @@ import { parseApiError } from '../utils/errors';
 const ROLE_LABELS: Record<string, { label: string; color: string; desc: string }> = {
   superadmin: {
     label: 'SUPER ADMIN',
-    color: '#7C3AED',
+    color: COLORS.primary,
     desc: 'Soporte del sistema. Gestiona todos los usuarios.',
   },
   admin: {
     label: 'ADMINISTRADOR',
-    color: '#2563EB',
+    color: COLORS.primary,
     desc: 'Dueno de la tienda. Control total de operacion.',
   },
   vendedor: {
     label: 'VENDEDOR',
-    color: '#0EA5E9',
+    color: COLORS.primary,
     desc: 'Registra ventas y atiende la tienda.',
   },
 };
@@ -187,7 +187,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginBottom: 12,
   },
-  avatarText: { color: '#fff', fontSize: 28, fontWeight: 'bold' },
+  avatarText: { color: COLORS.accentContrast, fontSize: 28, fontWeight: 'bold' },
   nombre: { fontSize: 22, fontWeight: '800', color: COLORS.text },
   email: { fontSize: 14, color: COLORS.textMuted, marginTop: 4 },
   roleBadge: {
@@ -252,13 +252,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: 14,
   },
-  btnPrimarioTxt: { color: '#fff', fontWeight: '700', fontSize: 14 },
+  btnPrimarioTxt: { color: COLORS.accentContrast, fontWeight: '700', fontSize: 14 },
   btnSalir: {
     marginTop: 28,
     paddingVertical: 14,
     alignItems: 'center',
     borderRadius: 12,
-    backgroundColor: '#fff',
+    backgroundColor: COLORS.surface,
     borderWidth: 1.5,
     borderColor: COLORS.danger,
   },

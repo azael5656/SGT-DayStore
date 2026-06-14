@@ -21,9 +21,9 @@ import { COLORS } from '../utils/constants';
 import type { Role } from '../utils/storage';
 
 const ROLE_BADGE: Record<Role, { label: string; bg: string; fg: string }> = {
-  superadmin: { label: 'SUPER', bg: '#F3E8FF', fg: '#7C3AED' },
-  admin: { label: 'ADMIN', bg: '#DBEAFE', fg: '#2563EB' },
-  vendedor: { label: 'VEND', bg: '#CFFAFE', fg: '#0891B2' },
+  superadmin: { label: 'SUPER', bg: COLORS.surfaceAlt, fg: COLORS.primary },
+  admin: { label: 'ADMIN', bg: COLORS.surfaceAlt, fg: COLORS.primary },
+  vendedor: { label: 'VEND', bg: COLORS.surfaceAlt, fg: COLORS.primary },
 };
 
 /**
@@ -206,7 +206,7 @@ function UsuarioRow({ u, esSuper, esActor, onDesactivar, onActivar }: RowProps) 
           onPress={u.activo ? onDesactivar : onActivar}
           style={({ pressed }) => [
             styles.btnAccion,
-            { backgroundColor: u.activo ? '#FEE2E2' : '#DCFCE7' },
+            { backgroundColor: COLORS.surfaceAlt },
             pressed && { opacity: 0.7 },
           ]}>
           <Text
@@ -386,7 +386,7 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: 8,
   },
-  btnNuevoTxt: { color: '#fff', fontWeight: '700', fontSize: 13 },
+  btnNuevoTxt: { color: COLORS.accentContrast, fontWeight: '700', fontSize: 13 },
   input: {
     backgroundColor: COLORS.surface,
     borderColor: COLORS.border,
@@ -423,7 +423,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginRight: 12,
   },
-  avatarTxt: { color: '#fff', fontWeight: 'bold', fontSize: 14 },
+  avatarTxt: { color: COLORS.accentContrast, fontWeight: 'bold', fontSize: 14 },
   nombre: { color: COLORS.text, fontWeight: '600', fontSize: 14 },
   email: { color: COLORS.textMuted, fontSize: 12, marginTop: 2 },
   metaRow: {
@@ -442,7 +442,7 @@ const styles = StyleSheet.create({
   mismo: {
     fontSize: 10,
     color: COLORS.primary,
-    backgroundColor: '#DBEAFE',
+    backgroundColor: COLORS.surfaceAlt,
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 4,
@@ -471,7 +471,7 @@ const styles = StyleSheet.create({
   },
   modalTitulo: { fontSize: 18, fontWeight: '700', color: COLORS.text, marginBottom: 10 },
   error: {
-    backgroundColor: '#FEE2E2',
+    backgroundColor: COLORS.surfaceAlt,
     color: COLORS.danger,
     borderRadius: 8,
     padding: 8,
@@ -490,7 +490,7 @@ const styles = StyleSheet.create({
   },
   chipActive: { backgroundColor: COLORS.primary, borderColor: COLORS.primary },
   chipTxt: { color: COLORS.text, fontSize: 12 },
-  chipTxtActive: { color: '#fff', fontWeight: '700' },
+  chipTxtActive: { color: COLORS.accentContrast, fontWeight: '700' },
   nota: { fontSize: 11, color: COLORS.textMuted, fontStyle: 'italic', marginBottom: 8 },
   accionesModal: {
     flexDirection: 'row',
@@ -506,5 +506,5 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderRadius: 8,
   },
-  btnGuardarTxt: { color: '#fff', fontWeight: '700' },
+  btnGuardarTxt: { color: COLORS.accentContrast, fontWeight: '700' },
 });

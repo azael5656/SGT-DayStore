@@ -2,6 +2,7 @@ import React, { useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import type { SensorReading } from '../services/iot.service';
 import { COLORS } from '../utils/constants';
+import Icon from './Icon';
 
 interface Props {
   readings: SensorReading[];
@@ -25,10 +26,10 @@ export default function LiveStats({ readings, conectado, alertasSinRevisar }: Pr
         </View>
       </View>
       <View style={styles.grid}>
-        <Pill icono="🌡️" label="Temp" valor={r.temp} color={r.tempAlerta ? COLORS.danger : COLORS.success} />
-        <Pill icono="💧" label="Hum" valor={r.hum} color={COLORS.primary} />
-        <Pill icono="⚡" label="Luz" valor={r.corriente} color={r.corteLuz ? COLORS.danger : COLORS.success} />
-        <Pill icono="🚨" label="Alertas" valor={String(alertasSinRevisar)} color={alertasSinRevisar > 0 ? COLORS.danger : COLORS.success} />
+        <Pill icono="temperatura" label="Temp" valor={r.temp} color={r.tempAlerta ? COLORS.danger : COLORS.success} />
+        <Pill icono="humedad" label="Hum" valor={r.hum} color={COLORS.primary} />
+        <Pill icono="puerta" label="Puerta" valor={r.puerta} color={r.puertaAbierta ? COLORS.danger : COLORS.success} />
+        <Pill icono="alertas" label="Alertas" valor={String(alertasSinRevisar)} color={alertasSinRevisar > 0 ? COLORS.danger : COLORS.success} />
       </View>
     </View>
   );
@@ -43,7 +44,7 @@ interface PillProps {
 function Pill({ icono, label, valor, color }: PillProps) {
   return (
     <View style={styles.pill}>
-      <Text style={styles.pillIcono}>{icono}</Text>
+      <Icon name={icono} color={color} size={20} />
       <View style={{ flex: 1 }}>
         <Text style={styles.pillLabel}>{label}</Text>
         <Text style={[styles.pillValor, { color }]} numberOfLines={1}>
@@ -62,18 +63,13 @@ function computar(readings: SensorReading[]) {
   }
   const temp = porTipo.temperatura?.valor;
   const hum = porTipo.humedad?.valor;
-  const corriente = porTipo.corriente?.valor;
+  const puertaAbierta = readings.some((x) => x.tipo === 'puerta' && x.valor === 1);
   return {
     temp: temp !== undefined ? `${temp}°C` : '—',
     hum: hum !== undefined ? `${hum}%` : '—',
-    corriente:
-      corriente === undefined
-        ? '—'
-        : corriente === 0
-        ? 'CORTE'
-        : `${corriente}W`,
+    puerta: puertaAbierta ? 'Abierta' : 'Cerrada',
     tempAlerta: temp !== undefined && temp > 28,
-    corteLuz: corriente === 0,
+    puertaAbierta,
   };
 }
 
@@ -98,9 +94,9 @@ const styles = StyleSheet.create({
     paddingVertical: 3,
     borderRadius: 10,
   },
-  on: { backgroundColor: '#DCFCE7' },
-  off: { backgroundColor: '#FEE2E2' },
-  badgeTxt: { fontSize: 10, fontWeight: '700', letterSpacing: 0.5 },
+  on: { backgroundColor: COLORS.success },
+  off: { backgroundColor: COLORS.danger },
+  badgeTxt: { fontSize: 10, fontWeight: '700', letterSpacing: 0.5, color: COLORS.accentContrast },
   grid: { flexDirection: 'row', gap: 8, flexWrap: 'wrap' },
   pill: {
     flexDirection: 'row',
@@ -111,7 +107,6 @@ const styles = StyleSheet.create({
     gap: 8,
     width: '48%',
   },
-  pillIcono: { fontSize: 20 },
   pillLabel: {
     fontSize: 10,
     color: COLORS.textMuted,

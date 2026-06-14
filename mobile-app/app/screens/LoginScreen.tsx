@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import {
   Alert,
+  Image,
   StyleSheet,
   Text,
   TextInput,
@@ -39,8 +40,9 @@ export default function LoginScreen() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Daystore</Text>
-      <Text style={styles.subtitle}>Iniciar sesion</Text>
+      <Image source={require('../assets/logo.png')} style={styles.logo} />
+      <Text style={styles.title}>Dayisaacstore</Text>
+      <Text style={styles.subtitle}>Tienda anime · Inicia sesion</Text>
 
       <TextInput
         style={styles.input}
@@ -79,6 +81,13 @@ const styles = StyleSheet.create({
     padding: 24,
     justifyContent: 'center',
     backgroundColor: COLORS.background,
+  },
+  logo: {
+    width: 110,
+    height: 110,
+    borderRadius: 55,
+    alignSelf: 'center',
+    marginBottom: 16,
   },
   title: {
     fontSize: 32,

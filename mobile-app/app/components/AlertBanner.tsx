@@ -15,6 +15,7 @@ import {
  */
 const MAX_VIBRACION_MS = 20_000;
 import { COLORS } from '../utils/constants';
+import Icon from './Icon';
 import type { Alert, AlertSeverity } from '../services/iot.service';
 
 /**
@@ -26,7 +27,7 @@ import type { Alert, AlertSeverity } from '../services/iot.service';
 const COLOR_POR_SEVERIDAD: Record<AlertSeverity, string> = {
   baja: COLORS.textMuted,
   media: COLORS.warning,
-  alta: '#EA580C',
+  alta: COLORS.primary,
   critica: COLORS.danger,
 };
 
@@ -106,15 +107,24 @@ export default function AlertBanner({ alerta, onAcknowledge }: Props) {
           {new Date(alerta.fecha).toLocaleTimeString()}
         </Text>
       </View>
-      <Text style={styles.tipo}>
-        {alerta.tipo === 'incendio'
-          ? '🔥 Posible incendio'
-          : alerta.tipo === 'forzado'
-          ? '🚨 Intento de forzado'
-          : alerta.tipo === 'corte_luz'
-          ? '⚡ Corte de energia'
-          : alerta.tipo}
-      </Text>
+      <View style={styles.tipoRow}>
+        {alerta.tipo === 'incendio' ? (
+          <Icon name="incendio" color={color} size={18} />
+        ) : alerta.tipo === 'forzado' ? (
+          <Icon name="buzzer" color={color} size={18} />
+        ) : alerta.tipo === 'corte_luz' ? (
+          <Icon name="luz" color={color} size={18} />
+        ) : null}
+        <Text style={styles.tipo}>
+          {alerta.tipo === 'incendio'
+            ? 'Posible incendio'
+            : alerta.tipo === 'forzado'
+            ? 'Intento de forzado'
+            : alerta.tipo === 'corte_luz'
+            ? 'Corte de energia'
+            : alerta.tipo}
+        </Text>
+      </View>
       <Text style={styles.mensaje}>{alerta.mensaje}</Text>
 
       {pasos && !alerta.reconocida && (
@@ -133,19 +143,23 @@ export default function AlertBanner({ alerta, onAcknowledge }: Props) {
           <TouchableOpacity
             style={[styles.boton, { backgroundColor: color }]}
             onPress={() => onAcknowledge(alerta.id)}>
-            <Text style={styles.botonTexto}>✓  Marcar como revisada</Text>
+            <Icon name="check" color={COLORS.accentContrast} size={16} />
+            <Text style={styles.botonTexto}>Marcar como revisada</Text>
           </TouchableOpacity>
           <Text style={styles.ayuda}>
             "Revisar" significa: ya la viste y actuaste. La alarma deja de vibrar.
           </Text>
         </>
       ) : (
-        <Text style={styles.reconocida}>
-          ✓ Revisada{' '}
-          {alerta.reconocidaEn
-            ? new Date(alerta.reconocidaEn).toLocaleTimeString()
-            : ''}
-        </Text>
+        <View style={styles.reconocidaRow}>
+          <Icon name="check" color={COLORS.success} size={15} />
+          <Text style={styles.reconocida}>
+            Revisada{' '}
+            {alerta.reconocidaEn
+              ? new Date(alerta.reconocidaEn).toLocaleTimeString()
+              : ''}
+          </Text>
+        </View>
       )}
     </View>
   );
@@ -173,17 +187,22 @@ const styles = StyleSheet.create({
     borderRadius: 10,
   },
   badgeTxt: {
-    color: '#fff',
+    color: COLORS.accentContrast,
     fontSize: 11,
     fontWeight: '800',
     letterSpacing: 0.8,
   },
   fecha: { fontSize: 12, color: COLORS.textMuted },
+  tipoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 4,
+  },
   tipo: {
     fontSize: 17,
     fontWeight: '700',
     color: COLORS.text,
-    marginBottom: 4,
   },
   mensaje: {
     fontSize: 14,
@@ -192,7 +211,7 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   protocolo: {
-    backgroundColor: '#FEF3C7',
+    backgroundColor: COLORS.surfaceAlt,
     borderRadius: 8,
     padding: 10,
     marginBottom: 10,
@@ -200,24 +219,27 @@ const styles = StyleSheet.create({
   protocoloTitulo: {
     fontSize: 11,
     fontWeight: '800',
-    color: '#92400E',
+    color: COLORS.warning,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
     marginBottom: 6,
   },
   protocoloPaso: {
     fontSize: 13,
-    color: '#78350F',
+    color: COLORS.warning,
     marginTop: 3,
   },
   boton: {
     alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderRadius: 8,
   },
   botonTexto: {
-    color: '#FFFFFF',
+    color: COLORS.accentContrast,
     fontWeight: '700',
     fontSize: 14,
   },
@@ -227,10 +249,15 @@ const styles = StyleSheet.create({
     marginTop: 8,
     fontStyle: 'italic',
   },
+  reconocidaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 4,
+  },
   reconocida: {
     fontSize: 13,
     color: COLORS.success,
     fontWeight: '600',
-    marginTop: 4,
   },
 });

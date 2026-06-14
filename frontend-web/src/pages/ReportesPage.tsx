@@ -1,6 +1,20 @@
 import { useEffect, useState } from 'react';
+import {
+  BarChart3,
+  CalendarDays,
+  TrendingUp,
+  CalendarRange,
+  Target,
+} from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import api from '../api/client';
 import type { CurrentRates } from '../types';
+import Card from '../components/ui/Card';
+import Chip from '../components/ui/Chip';
+import Alert from '../components/ui/Alert';
+import PageHeader from '../components/ui/PageHeader';
+import UiKpiCard from '../components/ui/KpiCard';
+import type { Tone } from '../components/ui/variants';
 
 /**
  * Dashboard de negocio (estilo Power BI).
@@ -45,9 +59,10 @@ export default function ReportesPage() {
   const [tasas, setTasas] = useState<CurrentRates | null>(null);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState('');
+  const [dias, setDias] = useState(14);
 
-  const cargar = async () => {
-    setCargando(true);
+  const cargar = async (silent = false) => {
+    if (!silent) setCargando(true);
     try {
       const [r1, r2] = await Promise.all([
         api.get<DashboardData>('/api/negocio/sales/reports/dashboard'),
@@ -62,17 +77,21 @@ export default function ReportesPage() {
           ?.message ?? 'Error cargando dashboard',
       );
     } finally {
-      setCargando(false);
+      if (!silent) setCargando(false);
     }
   };
 
+  // App en tiempo real: en vez de un boton "Actualizar", el reporte se refresca
+  // solo en silencio cada 30s (los datos de negocio viajan por REST, no socket).
   useEffect(() => {
     cargar();
+    const id = setInterval(() => cargar(true), 30_000);
+    return () => clearInterval(id);
   }, []);
 
   if (cargando) {
     return (
-      <div className="p-8 text-center text-gray-500">
+      <div className="p-8 text-center text-text-muted">
         Cargando dashboard...
       </div>
     );
@@ -80,33 +99,24 @@ export default function ReportesPage() {
 
   if (error || !data) {
     return (
-      <div className="bg-red-50 border border-red-200 rounded-md p-4 text-red-700">
+      <Alert tone="danger" title="No se pudo cargar el dashboard">
         {error || 'Sin datos'}
-      </div>
+      </Alert>
     );
   }
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-5">
-        <div>
-          <h1 className="text-2xl font-bold">📊 Reportes del negocio</h1>
-          <p className="text-xs text-gray-500 mt-1">
-            Generado: {new Date(data.generadoEn).toLocaleString()}
-          </p>
-        </div>
-        <button
-          onClick={cargar}
-          className="px-3 py-1.5 text-sm bg-gray-100 rounded-md hover:bg-gray-200">
-          🔄 Actualizar
-        </button>
-      </div>
+      <PageHeader
+        icon={<BarChart3 size={22} strokeWidth={1.75} />}
+        title="Reportes del negocio"
+        subtitle={`Actualizado ${new Date(data.generadoEn).toLocaleTimeString()} · en vivo`}
+      />
 
       {/* KPIs grandes */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
         <KpiCard
-          color="blue"
-          icono="📅"
+          icono={<CalendarDays size={20} strokeWidth={1.75} />}
           label="Ventas hoy"
           valor={`$${data.ventas.hoy.totalUsd.toFixed(2)}`}
           sub={`${data.ventas.hoy.cantidad} ventas`}
@@ -114,8 +124,7 @@ export default function ReportesPage() {
           equivUsd={data.ventas.hoy.totalUsd}
         />
         <KpiCard
-          color="purple"
-          icono="📈"
+          icono={<TrendingUp size={20} strokeWidth={1.75} />}
           label="Últimos 7 días"
           valor={`$${data.ventas.semana.totalUsd.toFixed(2)}`}
           sub={`${data.ventas.semana.cantidad} ventas`}
@@ -123,8 +132,7 @@ export default function ReportesPage() {
           equivUsd={data.ventas.semana.totalUsd}
         />
         <KpiCard
-          color="green"
-          icono="🗓️"
+          icono={<CalendarRange size={20} strokeWidth={1.75} />}
           label="Mes actual"
           valor={`$${data.ventas.mes.totalUsd.toFixed(2)}`}
           sub={`${data.ventas.mes.cantidad} ventas`}
@@ -132,8 +140,7 @@ export default function ReportesPage() {
           equivUsd={data.ventas.mes.totalUsd}
         />
         <KpiCard
-          color="amber"
-          icono="🎯"
+          icono={<Target size={20} strokeWidth={1.75} />}
           label="Ticket promedio"
           valor={`$${data.ventas.ticketPromedio.toFixed(2)}`}
           sub="Por venta este mes"
@@ -143,8 +150,7 @@ export default function ReportesPage() {
       {/* Alertas operativas */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
         <AlertCard
-          color={data.deudas.cantidad > 0 ? 'amber' : 'green'}
-          icono={data.deudas.cantidad > 0 ? '💰' : '✅'}
+          tone={data.deudas.cantidad > 0 ? 'warning' : 'success'}
           titulo={
             data.deudas.cantidad > 0
               ? `${data.deudas.cantidad} cliente${data.deudas.cantidad === 1 ? '' : 's'} con deudas`
@@ -159,8 +165,7 @@ export default function ReportesPage() {
           ctaHref="/ventas?deudas"
         />
         <AlertCard
-          color={data.stockBajo > 0 ? 'red' : 'green'}
-          icono={data.stockBajo > 0 ? '📦' : '✅'}
+          tone={data.stockBajo > 0 ? 'danger' : 'success'}
           titulo={
             data.stockBajo > 0
               ? `${data.stockBajo} producto${data.stockBajo === 1 ? '' : 's'} con stock bajo`
@@ -176,18 +181,25 @@ export default function ReportesPage() {
         />
       </div>
 
-      {/* Tendencia 14 días */}
-      <SeccionCard titulo="📊 Tendencia últimos 14 días" subtitulo="Ventas por día (USD)">
-        <SeriesBarras data={data.serieDiaria} />
+      {/* Tendencia */}
+      <SeccionCard titulo={`Tendencia últimos ${dias} días`} subtitulo="Ventas por día (USD)">
+        <div className="flex gap-2 mb-4">
+          {[7, 14].map((n) => (
+            <Chip key={n} active={dias === n} onClick={() => setDias(n)}>
+              {n} días
+            </Chip>
+          ))}
+        </div>
+        <SeriesBarras data={padSerie(data.serieDiaria, dias)} />
       </SeccionCard>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mt-5">
         {/* Top productos */}
         <SeccionCard
-          titulo="🏆 Top productos del mes"
+          titulo="Top productos del mes"
           subtitulo="Por unidades vendidas">
           {data.topProductos.length === 0 ? (
-            <div className="text-sm text-gray-500 text-center py-6">
+            <div className="text-sm text-text-muted text-center py-6">
               Aún no hay ventas este mes.
             </div>
           ) : (
@@ -198,16 +210,16 @@ export default function ReportesPage() {
                   <div key={p.productId}>
                     <div className="flex justify-between text-sm mb-1">
                       <span className="font-medium truncate flex-1 mr-2">
-                        <span className="text-gray-400 mr-2">#{idx + 1}</span>
+                        <span className="text-text-muted mr-2">#{idx + 1}</span>
                         {p.nombre}
                       </span>
-                      <span className="text-gray-600 whitespace-nowrap">
+                      <span className="text-text-muted whitespace-nowrap">
                         <strong>{p.unidades}u</strong> · ${p.totalUsd.toFixed(2)}
                       </span>
                     </div>
-                    <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+                    <div className="h-2 bg-surface-alt rounded-full overflow-hidden">
                       <div
-                        className="h-full bg-primary"
+                        className="h-full bg-accent-fill"
                         style={{ width: `${(p.unidades / max) * 100}%` }}
                       />
                     </div>
@@ -220,7 +232,7 @@ export default function ReportesPage() {
 
         {/* Distribución por moneda */}
         <SeccionCard
-          titulo="💱 Por moneda recibida"
+          titulo="Por moneda recibida"
           subtitulo="Mes actual (en USD)">
           <DistribucionLista
             items={data.distribucion.porMoneda.map((m) => ({
@@ -228,7 +240,7 @@ export default function ReportesPage() {
               total: m.totalUsd,
               cantidad: m.cantidad,
             }))}
-            color="bg-blue-500"
+            color="bg-accent-fill"
           />
         </SeccionCard>
       </div>
@@ -236,7 +248,7 @@ export default function ReportesPage() {
       {/* Distribución por método */}
       <div className="mt-5">
         <SeccionCard
-          titulo="💳 Métodos de pago más usados"
+          titulo="Métodos de pago más usados"
           subtitulo="Mes actual (en USD)">
           <DistribucionLista
             items={data.distribucion.porMetodo.map((m) => ({
@@ -244,7 +256,7 @@ export default function ReportesPage() {
               total: m.totalUsd,
               cantidad: m.cantidad,
             }))}
-            color="bg-purple-500"
+            color="bg-accent-fill"
           />
         </SeccionCard>
       </div>
@@ -261,28 +273,7 @@ function formatMetodo(m: string) {
   return m.charAt(0).toUpperCase() + m.slice(1);
 }
 
-const COLORES = {
-  blue: { bg: 'bg-blue-50', border: 'border-blue-200', accent: 'text-blue-700' },
-  purple: {
-    bg: 'bg-purple-50',
-    border: 'border-purple-200',
-    accent: 'text-purple-700',
-  },
-  green: {
-    bg: 'bg-green-50',
-    border: 'border-green-200',
-    accent: 'text-green-700',
-  },
-  amber: {
-    bg: 'bg-amber-50',
-    border: 'border-amber-200',
-    accent: 'text-amber-700',
-  },
-  red: { bg: 'bg-red-50', border: 'border-red-200', accent: 'text-red-700' },
-};
-
 function KpiCard({
-  color,
   icono,
   label,
   valor,
@@ -290,65 +281,71 @@ function KpiCard({
   tasas,
   equivUsd,
 }: {
-  color: keyof typeof COLORES;
-  icono: string;
+  icono: React.ReactNode;
   label: string;
   valor: string;
   sub: string;
   tasas?: CurrentRates | null;
   equivUsd?: number;
 }) {
-  const c = COLORES[color];
   return (
-    <div className={`rounded-xl border p-4 ${c.bg} ${c.border}`}>
-      <div className="text-2xl">{icono}</div>
-      <div className="text-xs uppercase font-bold text-gray-600 mt-2 tracking-wide">
-        {label}
-      </div>
-      <div className={`text-2xl font-extrabold mt-1 ${c.accent}`}>{valor}</div>
-      <div className="text-xs text-gray-500 mt-1">{sub}</div>
-      {tasas?.VES && equivUsd !== undefined && equivUsd > 0 && (
-        <div className="text-[10px] text-gray-400 mt-1">
-          ≈ {(equivUsd * tasas.VES).toLocaleString()} Bs
-        </div>
-      )}
-    </div>
+    <UiKpiCard
+      icon={icono}
+      label={label}
+      value={valor}
+      sub={
+        <>
+          {sub}
+          {tasas?.VES && equivUsd !== undefined && equivUsd > 0 && (
+            <span className="block text-xs text-text-muted mt-1">
+              ≈ {(equivUsd * tasas.VES).toLocaleString()} Bs
+            </span>
+          )}
+        </>
+      }
+    />
   );
 }
 
 function AlertCard({
-  color,
-  icono,
+  tone,
   titulo,
   subtitulo,
   cta,
   ctaHref,
 }: {
-  color: keyof typeof COLORES;
-  icono: string;
+  tone: Tone;
   titulo: string;
   subtitulo: string;
   cta?: string;
   ctaHref?: string;
 }) {
-  const c = COLORES[color];
-  return (
-    <div
-      className={`rounded-xl border p-4 ${c.bg} ${c.border} flex items-center gap-3`}>
-      <div className="text-3xl">{icono}</div>
-      <div className="flex-1 min-w-0">
-        <div className={`font-bold text-sm ${c.accent}`}>{titulo}</div>
-        <div className="text-xs text-gray-600 mt-0.5">{subtitulo}</div>
+  const navigate = useNavigate();
+  const inner = (
+    <Alert tone={tone as 'success' | 'warning' | 'danger' | 'info'} title={titulo}>
+      <div className="flex items-center justify-between gap-3">
+        <span>{subtitulo}</span>
+        {cta && (
+          <span className="text-xs font-bold text-accent whitespace-nowrap shrink-0">
+            {cta} →
+          </span>
+        )}
       </div>
-      {cta && ctaHref && (
-        <a
-          href={ctaHref}
-          className="text-xs font-bold text-primary hover:underline whitespace-nowrap">
-          {cta} →
-        </a>
-      )}
-    </div>
+    </Alert>
   );
+
+  // Si hay destino, TODA la tarjeta navega (no solo el texto del CTA).
+  if (cta && ctaHref) {
+    return (
+      <button
+        type="button"
+        onClick={() => navigate(ctaHref)}
+        className="block w-full text-left rounded-xl transition hover:ring-2 hover:ring-accent focus:outline-none focus-visible:ring-2 focus-visible:ring-accent">
+        {inner}
+      </button>
+    );
+  }
+  return inner;
 }
 
 function SeccionCard({
@@ -361,16 +358,36 @@ function SeccionCard({
   children: React.ReactNode;
 }) {
   return (
-    <div className="bg-white border border-gray-200 rounded-xl p-5">
+    <Card>
       <div className="mb-3">
-        <h3 className="font-bold text-sm">{titulo}</h3>
+        <h3 className="font-heading font-bold text-sm text-text">{titulo}</h3>
         {subtitulo && (
-          <p className="text-xs text-gray-500 mt-0.5">{subtitulo}</p>
+          <p className="text-xs text-text-muted mt-0.5">{subtitulo}</p>
         )}
       </div>
       {children}
-    </div>
+    </Card>
   );
+}
+
+// Rellena la serie a los ultimos `dias` dias (dias sin ventas -> 0) para que
+// el grafico muestre una tendencia real y no una sola barra gigante.
+function padSerie(
+  serie: Array<{ fecha: string; total: number; cantidad: number }>,
+  dias: number,
+): Array<{ fecha: string; total: number; cantidad: number }> {
+  const fmt = (d: Date) =>
+    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  const map = new Map(serie.map((s) => [s.fecha.slice(0, 10), s]));
+  const hoy = new Date();
+  const out: Array<{ fecha: string; total: number; cantidad: number }> = [];
+  for (let i = dias - 1; i >= 0; i--) {
+    const d = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate() - i);
+    const key = fmt(d);
+    const found = map.get(key);
+    out.push({ fecha: key, total: found?.total ?? 0, cantidad: found?.cantidad ?? 0 });
+  }
+  return out;
 }
 
 function SeriesBarras({
@@ -380,31 +397,32 @@ function SeriesBarras({
 }) {
   if (data.length === 0) {
     return (
-      <div className="text-sm text-gray-500 text-center py-8">
+      <div className="text-sm text-text-muted text-center py-8">
         Sin ventas en los últimos 14 días.
       </div>
     );
   }
   const max = Math.max(...data.map((d) => d.total), 1);
+  const ALTO = 150; // px de la zona de barras (antes era % sobre un alto sin definir -> colapsaba a 0)
   return (
-    <div className="flex gap-1 items-end h-40">
+    <div className="flex gap-1 items-end" style={{ height: ALTO + 22 }}>
       {data.map((d) => {
-        const h = (d.total / max) * 100;
+        const h = (d.total / max) * ALTO;
         const fechaCorta = d.fecha.slice(5);
         return (
           <div
             key={d.fecha}
-            className="flex-1 flex flex-col items-center min-w-0 group relative">
+            className="flex-1 flex flex-col items-center justify-end min-w-0 group relative">
             <div
-              className="w-full bg-gradient-to-t from-primary to-blue-400 rounded-t-sm transition hover:opacity-80"
-              style={{ height: `${Math.max(h, 2)}%` }}
+              className="w-full bg-accent-fill rounded-t-sm transition hover:opacity-80"
+              style={{ height: Math.max(h, 3) }}
               title={`${d.fecha}: $${d.total.toFixed(2)} · ${d.cantidad} ventas`}
             />
-            <div className="text-[9px] text-gray-500 mt-1 truncate w-full text-center">
+            <div className="text-[9px] text-text-muted mt-1 truncate w-full text-center">
               {fechaCorta}
             </div>
             {d.total > 0 && (
-              <div className="absolute bottom-full mb-1 hidden group-hover:block bg-gray-900 text-white text-[10px] rounded px-2 py-1 whitespace-nowrap z-10">
+              <div className="absolute bottom-full mb-1 hidden group-hover:block bg-text text-bg text-[10px] rounded px-2 py-1 whitespace-nowrap z-10">
                 ${d.total.toFixed(2)} · {d.cantidad}
               </div>
             )}
@@ -424,7 +442,7 @@ function DistribucionLista({
 }) {
   if (items.length === 0) {
     return (
-      <div className="text-sm text-gray-500 text-center py-6">Sin datos.</div>
+      <div className="text-sm text-text-muted text-center py-6">Sin datos.</div>
     );
   }
   const total = items.reduce((acc, i) => acc + i.total, 0);
@@ -436,12 +454,12 @@ function DistribucionLista({
           <div key={i.label}>
             <div className="flex justify-between text-sm mb-1">
               <span className="font-semibold capitalize">{i.label}</span>
-              <span className="text-gray-600">
+              <span className="text-text-muted">
                 <strong>${i.total.toFixed(2)}</strong> · {pct.toFixed(0)}% ·{' '}
                 {i.cantidad} pago{i.cantidad === 1 ? '' : 's'}
               </span>
             </div>
-            <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+            <div className="h-2 bg-surface-alt rounded-full overflow-hidden">
               <div className={`h-full ${color}`} style={{ width: `${pct}%` }} />
             </div>
           </div>

@@ -19,7 +19,7 @@ export class CreateSensorDto {
   @IsNotEmpty()
   nombre!: string;
 
-  @IsIn(['temperatura', 'humedad', 'puerta', 'movimiento', 'vibracion', 'luz'])
+  @IsIn(['temperatura', 'humedad', 'puerta', 'buzzer'])
   tipo!: string;
 
   @IsOptional()
