@@ -22,10 +22,7 @@ import { COLORS } from '../utils/constants';
 const TIPOS = [
   { label: 'Temperatura', value: 'temperatura', unidad: '°C' },
   { label: 'Humedad', value: 'humedad', unidad: '%' },
-  { label: 'Corriente', value: 'corriente', unidad: 'W' },
   { label: 'Puerta', value: 'puerta', unidad: '' },
-  { label: 'Vibracion', value: 'vibracion', unidad: '' },
-  { label: 'Movimiento', value: 'movimiento', unidad: '' },
 ];
 
 export default function HistoricoScreen() {

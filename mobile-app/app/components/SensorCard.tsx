@@ -13,30 +13,21 @@ const ICONOS: Record<string, string> = {
   temperatura: 'temperatura',
   humedad: 'humedad',
   puerta: 'puerta',
-  movimiento: 'movimiento',
-  vibracion: 'vibracion',
-  corriente: 'corriente',
   buzzer: 'buzzer',
 };
 
 function colorValor(tipo: string, valor: number): string {
   if (tipo === 'temperatura' && valor > 28) return COLORS.danger;
   if (tipo === 'humedad' && (valor < 30 || valor > 75)) return COLORS.warning;
-  if ((tipo === 'puerta' || tipo === 'buzzer' || tipo === 'vibracion') && valor === 1) {
+  if ((tipo === 'puerta' || tipo === 'buzzer') && valor === 1) {
     return COLORS.danger;
   }
-  if (tipo === 'movimiento' && valor === 1) return COLORS.warning;
-  if (tipo === 'corriente' && valor === 0) return COLORS.danger;
-  if (tipo === 'corriente' && valor > 400) return COLORS.warning;
   return COLORS.success;
 }
 
 function formatearValor(tipo: string, valor: number, unidad: string): string {
   if (tipo === 'puerta') return valor === 1 ? 'Abierta' : 'Cerrada';
-  if (tipo === 'movimiento') return valor === 1 ? 'Detectado' : 'Sin actividad';
-  if (tipo === 'vibracion') return valor === 1 ? 'GOLPE' : 'Estable';
   if (tipo === 'buzzer') return valor === 1 ? 'Sonando' : 'Silencio';
-  if (tipo === 'corriente') return valor === 0 ? 'SIN ENERGIA' : `${valor} W`;
   return `${valor}${unidad ? ' ' + unidad : ''}`;
 }
 

@@ -220,7 +220,7 @@ export default function ConfiguracionTiendaScreen() {
             style={styles.input}
             value={config.zonaHoraria}
             onChangeText={(t) => actualizar({ zonaHoraria: t })}
-            placeholder="America/Bogota"
+            placeholder="America/Caracas"
             placeholderTextColor={COLORS.textMuted}
           />
         </View>

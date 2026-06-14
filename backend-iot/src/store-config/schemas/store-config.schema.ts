@@ -20,7 +20,7 @@ export class StoreConfig {
   @Prop({ default: '20:00' })
   horarioCierre!: string;
 
-  @Prop({ default: 'America/Bogota' })
+  @Prop({ default: 'America/Caracas' })
   zonaHoraria!: string;
 
   /** Fuerza "cerrado" ahora mismo, ignorando horario. */

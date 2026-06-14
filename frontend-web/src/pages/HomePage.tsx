@@ -12,7 +12,6 @@ import {
   Thermometer,
   TrendingUp,
   Users,
-  Zap,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
@@ -90,7 +89,6 @@ function resumen(readings: SensorReading[]) {
   return {
     temp: porTipo.temperatura?.valor,
     hum: porTipo.humedad?.valor,
-    corriente: porTipo.corriente?.valor,
     puerta: readings.some((x) => x.tipo === 'puerta' && x.valor === 1),
   };
 }
@@ -136,7 +134,7 @@ export default function HomePage() {
             Ver dashboard completo →
           </button>
         </div>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
           <LivePill
             Icon={Thermometer}
             label="Temperatura"
@@ -148,12 +146,6 @@ export default function HomePage() {
             label="Humedad"
             valor={r.hum !== undefined ? `${r.hum}%` : '—'}
             tono="info"
-          />
-          <LivePill
-            Icon={Zap}
-            label="Corriente"
-            valor={r.corriente === 0 ? 'CORTE' : r.corriente !== undefined ? `${r.corriente}W` : '—'}
-            tono={r.corriente === 0 ? 'danger' : 'success'}
           />
           <LivePill
             Icon={DoorOpen}

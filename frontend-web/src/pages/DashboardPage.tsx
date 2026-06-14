@@ -2,9 +2,7 @@ import { useMemo, ReactNode } from 'react';
 import {
   Thermometer,
   Droplet,
-  Zap,
   DoorOpen,
-  Activity,
   Siren,
   Radio,
   BellRing,
@@ -25,11 +23,6 @@ interface SensorConf {
   render: (r: SensorReading) => { valor: string; tone: KpiTone };
 }
 
-// Una lectura binaria (movimiento/vibracion) solo cuenta como "activa" si su
-// ultimo evento en 1 fue hace < 20s. Mantiene la logica original.
-const reciente = (r: SensorReading) =>
-  r.valor === 1 && Date.now() - new Date(r.fecha).getTime() < 20_000;
-
 // Config por tipo de sensor conocido. Los tipos NO listados aqui (sensores
 // nuevos que conectes despues) se muestran con un formato generico.
 const CONF: Record<string, SensorConf> = {
@@ -43,14 +36,6 @@ const CONF: Record<string, SensorConf> = {
     Icon: Droplet,
     render: (r) => ({ valor: `${r.valor}%`, tone: 'neutral' }),
   },
-  corriente: {
-    label: 'Corriente',
-    Icon: Zap,
-    render: (r) => ({
-      valor: r.valor === 0 ? 'SIN ENERGIA' : `${r.valor} W`,
-      tone: r.valor === 0 ? 'danger' : 'success',
-    }),
-  },
   puerta: {
     label: 'Puerta',
     Icon: DoorOpen,
@@ -58,16 +43,6 @@ const CONF: Record<string, SensorConf> = {
       valor: r.valor === 1 ? 'Abierta' : 'Cerrada',
       tone: r.valor === 1 ? 'danger' : 'success',
     }),
-  },
-  movimiento: {
-    label: 'Movimiento',
-    Icon: Activity,
-    render: (r) => ({ valor: reciente(r) ? 'Detectado' : 'Tranquilo', tone: reciente(r) ? 'warning' : 'success' }),
-  },
-  vibracion: {
-    label: 'Vibracion',
-    Icon: Activity,
-    render: (r) => ({ valor: reciente(r) ? 'GOLPE' : 'Estable', tone: reciente(r) ? 'danger' : 'success' }),
   },
   buzzer: {
     label: 'Buzzer',
@@ -77,7 +52,7 @@ const CONF: Record<string, SensorConf> = {
 };
 
 // Orden de aparicion de los tipos conocidos.
-const ORDEN = ['temperatura', 'humedad', 'corriente', 'puerta', 'movimiento', 'vibracion', 'buzzer'];
+const ORDEN = ['temperatura', 'humedad', 'puerta', 'buzzer'];
 
 export default function DashboardPage() {
   const { readings, alerts, conectado } = useRealtimeIoT();

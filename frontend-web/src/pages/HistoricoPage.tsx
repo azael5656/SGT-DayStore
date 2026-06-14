@@ -12,10 +12,7 @@ import { Table, THead, TBody, TR, TH, TD } from '../components/ui/Table';
 const TIPOS = [
   { label: 'Temperatura', value: 'temperatura', unidad: '°C' },
   { label: 'Humedad', value: 'humedad', unidad: '%' },
-  { label: 'Corriente', value: 'corriente', unidad: 'W' },
   { label: 'Puerta', value: 'puerta', unidad: '' },
-  { label: 'Vibracion', value: 'vibracion', unidad: '' },
-  { label: 'Movimiento', value: 'movimiento', unidad: '' },
 ];
 
 interface SparklineProps {

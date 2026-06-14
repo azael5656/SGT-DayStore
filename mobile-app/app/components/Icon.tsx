@@ -1,5 +1,4 @@
 import {
-  Activity,
   ArrowLeft,
   ArrowLeftRight,
   ArrowRight,
@@ -40,9 +39,7 @@ import {
   TrendingUp,
   Trophy,
   Users,
-  Vibrate,
   X,
-  Zap,
 } from 'lucide-react-native';
 import { COLORS } from '../utils/constants';
 
@@ -71,13 +68,9 @@ const MAP: Record<string, LucideIcon> = {
   // Sensores IoT
   temperatura: Thermometer,
   humedad: Droplet,
-  luz: Zap,
-  corriente: Zap,
   buzzer: Siren,
   puerta: DoorOpen,
   'puerta-cerrada': DoorClosed,
-  movimiento: Activity,
-  vibracion: Vibrate,
   incendio: Flame,
   // Categorías de producto
   manga: BookOpen,

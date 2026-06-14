@@ -28,7 +28,7 @@ export default function LiveStats({ readings, conectado, alertasSinRevisar }: Pr
       <View style={styles.grid}>
         <Pill icono="temperatura" label="Temp" valor={r.temp} color={r.tempAlerta ? COLORS.danger : COLORS.success} />
         <Pill icono="humedad" label="Hum" valor={r.hum} color={COLORS.primary} />
-        <Pill icono="luz" label="Luz" valor={r.corriente} color={r.corteLuz ? COLORS.danger : COLORS.success} />
+        <Pill icono="puerta" label="Puerta" valor={r.puerta} color={r.puertaAbierta ? COLORS.danger : COLORS.success} />
         <Pill icono="alertas" label="Alertas" valor={String(alertasSinRevisar)} color={alertasSinRevisar > 0 ? COLORS.danger : COLORS.success} />
       </View>
     </View>
@@ -63,18 +63,13 @@ function computar(readings: SensorReading[]) {
   }
   const temp = porTipo.temperatura?.valor;
   const hum = porTipo.humedad?.valor;
-  const corriente = porTipo.corriente?.valor;
+  const puertaAbierta = readings.some((x) => x.tipo === 'puerta' && x.valor === 1);
   return {
     temp: temp !== undefined ? `${temp}°C` : '—',
     hum: hum !== undefined ? `${hum}%` : '—',
-    corriente:
-      corriente === undefined
-        ? '—'
-        : corriente === 0
-        ? 'CORTE'
-        : `${corriente}W`,
+    puerta: puertaAbierta ? 'Abierta' : 'Cerrada',
     tempAlerta: temp !== undefined && temp > 28,
-    corteLuz: corriente === 0,
+    puertaAbierta,
   };
 }
 

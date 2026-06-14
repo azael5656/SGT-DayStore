@@ -42,8 +42,9 @@ export default function MiNegocioScreen() {
   const [tasas, setTasas] = useState<CurrentRates | null>(null);
   const [cargando, setCargando] = useState(true);
   const [refrescando, setRefrescando] = useState(false);
+  const [dias, setDias] = useState(14);
 
-  const cargar = useCallback(async () => {
+  const cargar = useCallback(async (silent = false) => {
     try {
       const [d, t] = await Promise.all([
         reportesService.getDashboard(),
@@ -52,17 +53,22 @@ export default function MiNegocioScreen() {
       setData(d);
       setTasas(t);
     } catch (err) {
-      RNAlert.alert(
-        'Error cargando dashboard',
-        err instanceof Error ? err.message : 'Error desconocido',
-      );
+      if (!silent) {
+        RNAlert.alert(
+          'Error cargando dashboard',
+          err instanceof Error ? err.message : 'Error desconocido',
+        );
+      }
     } finally {
       setCargando(false);
     }
   }, []);
 
+  // App en vivo: refresco silencioso cada 30s (el negocio viaja por REST, no socket).
   useEffect(() => {
     void cargar();
+    const id = setInterval(() => void cargar(true), 30_000);
+    return () => clearInterval(id);
   }, [cargar]);
 
   const onRefresh = async () => {
@@ -188,8 +194,24 @@ export default function MiNegocioScreen() {
       )}
 
       {/* Tendencia */}
-      <Section titulo="Tendencia 14 días" icono="tendencias">
-        <Tendencia data={data.serieDiaria} />
+      <Section titulo={`Tendencia últimos ${dias} días`} icono="tendencias">
+        <View style={styles.rangoChips}>
+          {[7, 14].map((n) => (
+            <TouchableOpacity
+              key={n}
+              style={[styles.rangoChip, dias === n && styles.rangoChipActive]}
+              onPress={() => setDias(n)}>
+              <Text
+                style={[
+                  styles.rangoChipText,
+                  dias === n && styles.rangoChipTextActive,
+                ]}>
+                {n} días
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+        <Tendencia data={padSerie(data.serieDiaria, dias)} />
       </Section>
 
       {/* Top productos */}
@@ -302,6 +324,28 @@ function Section({
       {children}
     </View>
   );
+}
+
+// Rellena la serie a los ultimos `dias` dias (sin ventas -> 0) para que el
+// grafico muestre una tendencia pareja y no una sola barra o dias sueltos.
+function padSerie(
+  serie: Array<{ fecha: string; total: number; cantidad: number }>,
+  dias: number,
+): Array<{ fecha: string; total: number; cantidad: number }> {
+  const fmt = (d: Date) =>
+    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(
+      d.getDate(),
+    ).padStart(2, '0')}`;
+  const map = new Map(serie.map((s) => [s.fecha.slice(0, 10), s]));
+  const hoy = new Date();
+  const out: Array<{ fecha: string; total: number; cantidad: number }> = [];
+  for (let i = dias - 1; i >= 0; i--) {
+    const d = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate() - i);
+    const key = fmt(d);
+    const found = map.get(key);
+    out.push({ fecha: key, total: found?.total ?? 0, cantidad: found?.cantidad ?? 0 });
+  }
+  return out;
 }
 
 function Tendencia({
@@ -506,6 +550,18 @@ const styles = StyleSheet.create({
     fontSize: 12,
   },
   // Tendencia
+  rangoChips: { flexDirection: 'row', gap: 8, marginBottom: 12 },
+  rangoChip: {
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: 16,
+    backgroundColor: COLORS.surfaceAlt,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  rangoChipActive: { backgroundColor: COLORS.primary, borderColor: COLORS.primary },
+  rangoChipText: { fontSize: 12, color: COLORS.textMuted, fontWeight: '600' },
+  rangoChipTextActive: { color: COLORS.accentContrast },
   tendCont: {
     flexDirection: 'row',
     alignItems: 'flex-end',

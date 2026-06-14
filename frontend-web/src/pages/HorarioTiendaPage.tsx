@@ -222,7 +222,7 @@ export default function HorarioTiendaPage() {
             type="text"
             value={cfg.zonaHoraria}
             onChange={(e) => actualizar({ zonaHoraria: e.target.value })}
-            placeholder="America/Bogota"
+            placeholder="America/Caracas"
           />
         </Field>
           </Card>

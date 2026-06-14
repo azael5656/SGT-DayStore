@@ -55,27 +55,6 @@ export default function DashboardScreen() {
           acento={resumen.puertaAbierta ? COLORS.danger : COLORS.success}
         />
         <Metrica
-          label="Movimiento"
-          valor={resumen.movimientoReciente ? 'Reciente' : 'Tranquilo'}
-          acento={resumen.movimientoReciente ? COLORS.warning : COLORS.success}
-        />
-        <Metrica
-          label="Vibracion"
-          valor={resumen.vibracion ? 'GOLPE' : 'Estable'}
-          acento={resumen.vibracion ? COLORS.danger : COLORS.success}
-        />
-        <Metrica
-          label="Corriente"
-          valor={resumen.corriente !== null ? (resumen.corriente === 0 ? 'SIN ENERGIA' : `${resumen.corriente} W`) : '—'}
-          acento={
-            resumen.corriente === 0
-              ? COLORS.danger
-              : resumen.corriente !== null && resumen.corriente > 400
-              ? COLORS.warning
-              : COLORS.success
-          }
-        />
-        <Metrica
           label="Buzzer"
           valor={resumen.buzzer ? 'Sonando' : 'Silencio'}
           acento={resumen.buzzer ? COLORS.danger : COLORS.success}
@@ -129,16 +108,6 @@ function computarResumen(readings: SensorReading[], _alertCount: number) {
     const previa = porTipo[r.tipo];
     if (!previa || r.fecha > previa.fecha) porTipo[r.tipo] = r;
   }
-  // Eventos discretos (vibracion, movimiento) se consideran "activos" solo
-  // durante 20s desde la ultima lectura. Suficiente para ver el burst del
-  // escenario sin quedarse en rojo para siempre.
-  const haceVentana = Date.now() - 20_000;
-  const recienteY1 = (tipo: string) => {
-    const r = porTipo[tipo];
-    return Boolean(
-      r && r.valor === 1 && new Date(r.fecha).getTime() >= haceVentana,
-    );
-  };
   // Puerta abierta = cualquier MC-38 abierto en la ultima lectura por sensor.
   const alguna = (tipo: string) =>
     readings.some((x) => x.tipo === tipo && x.valor === 1);
@@ -146,9 +115,6 @@ function computarResumen(readings: SensorReading[], _alertCount: number) {
     temperatura: porTipo.temperatura?.valor ?? null,
     humedad: porTipo.humedad?.valor ?? null,
     puertaAbierta: alguna('puerta'),
-    movimientoReciente: recienteY1('movimiento'),
-    vibracion: recienteY1('vibracion'),
-    corriente: porTipo.corriente?.valor ?? null,
     buzzer: porTipo.buzzer?.valor === 1,
   };
 }
