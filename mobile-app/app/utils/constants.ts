@@ -40,7 +40,7 @@
  *   - Teléfono en la misma WiFi: la IP LAN del PC, ej. 'http://192.168.0.103:80'.
  *   - ZeroTier/VPN: IP estable alcanzable desde cualquier red.
  */
-export const API_BASE_URL = 'http://localhost:8080';
+export const API_BASE_URL = 'http://192.168.0.101:80';
 
 /**
  * Nombres de las rutas de navegacion. Los usamos para navegar de forma

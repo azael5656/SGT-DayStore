@@ -31,12 +31,14 @@
 // -----------------------------------------------------------------------------
 // Configuracion - editar antes de flashear
 // -----------------------------------------------------------------------------
-const char* WIFI_SSID     = "Redmi 14C";
-const char* WIFI_PASSWORD = "1234567899";
+// OJO: el ESP32 SOLO soporta WiFi 2.4 GHz. "Hazel_5G" es la banda de 5 GHz y
+// no conecta. Usamos "Hazel" (misma red, banda 2.4 GHz, canal 8).
+const char* WIFI_SSID     = "Hazel";
+const char* WIFI_PASSWORD = "Pi=3.1416";
 
 // IP del PC/VPS donde corre Mosquitto. Para demo local con hotspot del celu,
 // poner aqui la IP LAN del laptop que levanta docker-compose.
-const char* MQTT_HOST = "10.147.200.40";
+const char* MQTT_HOST = "192.168.0.101";
 const int   MQTT_PORT = 1883;
 
 // Identificador unico del dispositivo. Si se agregan mas ESP32, cambiar este
@@ -96,6 +98,10 @@ void setBuzzer(bool on) {
 void conectarWifi() {
   Serial.printf("[WiFi] Conectando a %s...\n", WIFI_SSID);
   WiFi.mode(WIFI_STA);
+  // Resetea cualquier intento previo en curso. Sin esto, reintentar desde el
+  // loop mientras la STA sigue "connecting" provoca:
+  //   E wifi:sta is connecting, cannot set config
+  WiFi.disconnect(false, true);
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
 
   unsigned long inicio = millis();
