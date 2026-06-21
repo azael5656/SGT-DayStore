@@ -39,6 +39,7 @@ export function labelTipoAlerta(tipo: string): string {
     calor_peligroso: 'Calor peligroso',
     alta_temperatura: 'Temperatura alta',
     alta_humedad: 'Humedad alta',
+    sensor_desconectado: 'Sensor desconectado',
   };
   return map[tipo] ?? tipo;
 }

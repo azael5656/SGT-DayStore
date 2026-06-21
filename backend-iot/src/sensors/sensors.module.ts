@@ -3,6 +3,7 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { StoreConfigModule } from '../store-config/store-config.module';
 import { MockPublisherService } from './mock-publisher.service';
 import { SantaMariaService } from './santa-maria.service';
+import { SensorWatchdogService } from './sensor-watchdog.service';
 import { Reading, ReadingSchema } from './schemas/reading.schema';
 import {
   SensorConfig,
@@ -26,6 +27,7 @@ import { SensorsService } from './sensors.service';
     SensorsRepository,
     MockPublisherService,
     SantaMariaService,
+    SensorWatchdogService,
   ],
   exports: [SensorsService],
 })

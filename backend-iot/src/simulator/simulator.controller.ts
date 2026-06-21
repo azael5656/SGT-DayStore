@@ -8,6 +8,7 @@ const ESCENARIOS_VALIDOS: Escenario[] = [
   'corte_luz',
   'santamaria_abierta',
   'santamaria_cerrada',
+  'desconexion',
   'normal',
 ];
 

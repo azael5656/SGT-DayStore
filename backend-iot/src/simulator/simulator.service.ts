@@ -33,6 +33,7 @@ export type Escenario =
   | 'corte_luz'
   | 'santamaria_abierta'
   | 'santamaria_cerrada'
+  | 'desconexion'
   | 'normal';
 
 const DURACION_EMERGENCIA_MS = 15_000;
@@ -71,9 +72,33 @@ export class SimulatorService implements OnModuleDestroy {
         return this.santaMaria(true);
       case 'santamaria_cerrada':
         return this.santaMaria(false);
+      case 'desconexion':
+        return this.desconexion();
       case 'normal':
         return this.normal();
     }
+  }
+
+  /**
+   * Simula que el ESP32 se cae (sin energia / sin red): marca el equipo
+   * offline igual que haria el LWT del broker. SensorWatchdogService levanta
+   * la alerta 'sensor_desconectado' al instante. Se recupera con el escenario
+   * 'normal' (vuelve a 'online').
+   */
+  private desconexion() {
+    this.limpiarBurst();
+    this.store.setDeviceStatus(false);
+    try {
+      this.mqtt.publish('tienda/sistema/status', 'offline', { retain: true });
+    } catch {
+      /* silent: MQTT puede no estar disponible en demo local */
+    }
+    this.logger.warn('🔌 Escenario DESCONEXION: ESP32 marcado OFFLINE');
+    return {
+      escenario: 'desconexion',
+      mensaje:
+        'ESP32 offline; el watchdog levantara la alerta sensor_desconectado',
+    };
   }
 
   /**
@@ -205,6 +230,14 @@ export class SimulatorService implements OnModuleDestroy {
   private normal() {
     this.limpiarBurst();
     this.store.clearEmergency();
+    // Reconecta el equipo: si venia de 'desconexion', el watchdog resuelve la
+    // alerta de desconexion al ver el estado online de nuevo.
+    this.store.setDeviceStatus(true);
+    try {
+      this.mqtt.publish('tienda/sistema/status', 'online', { retain: true });
+    } catch {
+      /* silent: MQTT puede no estar disponible en demo local */
+    }
 
     const ts = new Date().toISOString();
     this.publicarLectura({
