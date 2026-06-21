@@ -18,9 +18,10 @@ import { QuerySalesDto } from './dto/query-sales.dto';
 import { RegisterAbonoDto } from './dto/register-abono.dto';
 import {
   COMBINACIONES_VALIDAS,
+  PaymentMethod,
   SalePayment,
 } from './entities/sale-payment.entity';
-import { Sale } from './entities/sale.entity';
+import { EstadoVenta, Sale, TipoVenta } from './entities/sale.entity';
 import { SaleItem } from './entities/sale-item.entity';
 import { SalesRepository } from './sales.repository';
 
@@ -28,6 +29,30 @@ interface Actor {
   sub: string;
   email?: string;
   role?: 'superadmin' | 'admin' | 'vendedor';
+}
+
+/**
+ * Venta llegada por sincronización offline (WatermelonDB). El móvil ya
+ * generó el `id` (UUID) — clave de la idempotencia: reintentar el push con
+ * el mismo id NO crea duplicados. El servidor sigue siendo la autoridad de
+ * los montos: re-congela el precio del producto y recalcula total/saldo
+ * server-side; del cliente solo se confía lo mínimo (qué producto, cuánto,
+ * con qué pagó).
+ */
+export interface SyncSaleInput {
+  id: string;
+  customerId?: string | null;
+  tipoVenta: TipoVenta;
+  /** Hora de la venta física (epoch ms) puesta por el móvil; opcional. */
+  fecha?: number;
+  notas?: string | null;
+  items: { id: string; productId: string; cantidad: number }[];
+  payments: {
+    id: string;
+    currency: 'USD' | 'VES' | 'COP';
+    method: PaymentMethod;
+    amount: number;
+  }[];
 }
 
 const FORMATO_DECIMAL = 2;
@@ -263,6 +288,173 @@ export class SalesService {
       });
     }
     return out;
+  }
+
+  // ---------------------------------------------------------------------------
+  // CREAR DESDE SINCRONIZACIÓN (venta registrada offline en el móvil)
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Aplica una venta que se registró offline y llega por `POST /sync/push`.
+   *
+   * Diferencias con `create()` (flujo online de la web):
+   *  - **Idempotente**: el `id` lo generó el móvil; si la venta ya existe la
+   *    devolvemos tal cual (un reintento del push no duplica ni re-descuenta).
+   *  - **Oversell permitido**: la venta física YA ocurrió, así que NO se
+   *    rechaza por stock insuficiente; se descuenta igual (el stock puede
+   *    quedar negativo, señal visible de inventario atrasado) y se audita.
+   *  - Persiste con los `id` que mandó el cliente (venta, items y pagos).
+   *
+   * Igual que online, el servidor es la autoridad de los montos: congela el
+   * precio actual del producto y recalcula total/subtotal/saldo/estado.
+   * NOTA (v1): los pagos en VES/COP se reconvierten con la tasa VIGENTE, no
+   * con la del momento offline; si la tasa cambió entre la venta y el sync
+   * puede haber una pequeña diferencia (raro en una tienda; mejorar luego
+   * usando la tasa efectiva a `fecha`).
+   */
+  async createFromSync(actor: Actor, input: SyncSaleInput): Promise<Sale> {
+    // Idempotencia: misma venta (mismo UUID del cliente) no se recrea.
+    const existente = await this.repo.findById(input.id, true);
+    if (existente) return existente;
+
+    if (!input.items?.length) {
+      throw new BadRequestException('La venta sincronizada no tiene items');
+    }
+    if (input.tipoVenta === 'credito' && !input.customerId) {
+      throw new BadRequestException(
+        'Venta a crédito sincronizada sin cliente registrado',
+      );
+    }
+    for (const p of input.payments) {
+      const validas = COMBINACIONES_VALIDAS[p.currency];
+      if (!validas?.includes(p.method)) {
+        throw new BadRequestException(
+          `Combinación inválida en sync: ${p.currency} no acepta ${p.method}`,
+        );
+      }
+    }
+
+    const oversold: { productId: string; stock: number; cantidad: number }[] = [];
+
+    const venta = await this.repo.runInTransaction(async (manager) => {
+      const itemsCalculados: Partial<SaleItem>[] = [];
+      let totalCentavos = 0;
+
+      for (const item of input.items) {
+        const producto = await this.products.findByIdLocked(
+          manager,
+          item.productId,
+        );
+        if (!producto) {
+          throw new NotFoundException(
+            `Producto ${item.productId} no encontrado (sync)`,
+          );
+        }
+        if (producto.precio === null || producto.precio === undefined) {
+          throw new BadRequestException(
+            `Producto "${producto.nombre}" no tiene precio (sync)`,
+          );
+        }
+
+        const precioUnitarioUsd = Number(producto.precio);
+        const subtotal = precioUnitarioUsd * item.cantidad;
+        totalCentavos += Math.round(subtotal * 100);
+
+        itemsCalculados.push({
+          id: item.id,
+          productId: producto.id,
+          productNombre: producto.nombre,
+          productCodigo: producto.codigo ?? null,
+          cantidad: item.cantidad,
+          precioUnitario: precioUnitarioUsd.toFixed(FORMATO_DECIMAL),
+          subtotal: subtotal.toFixed(FORMATO_DECIMAL),
+        });
+
+        // Oversell permitido: la venta ya ocurrió; descontamos aunque quede
+        // negativo (no lanzamos como en el flujo online).
+        if (producto.stock < item.cantidad) {
+          oversold.push({
+            productId: producto.id,
+            stock: producto.stock,
+            cantidad: item.cantidad,
+          });
+        }
+        await this.products.decrementStock(manager, producto.id, item.cantidad);
+      }
+
+      const totalUsd = totalCentavos / 100;
+
+      const paymentsCalculados =
+        input.payments.length > 0
+          ? await this.calcularPayments(input.payments)
+          : [];
+      // Conservar los ids de pago que generó el cliente.
+      paymentsCalculados.forEach((p, i) => {
+        p.id = input.payments[i].id;
+      });
+      const sumaPagosUsd = paymentsCalculados.reduce(
+        (acc, p) => acc + Number(p.amountUsd),
+        0,
+      );
+
+      const saldoUsd = Math.max(0, totalUsd - sumaPagosUsd);
+      const estado: EstadoVenta =
+        saldoUsd <= TOLERANCIA_USD ? 'completada' : 'pendiente';
+
+      const userInfo = await manager
+        .getRepository(User)
+        .findOne({ where: { id: actor.sub } });
+
+      return this.repo.createWithItemsAndPayments(
+        manager,
+        {
+          id: input.id,
+          userId: actor.sub,
+          userEmail: userInfo?.email ?? actor.email ?? null,
+          userNombre: userInfo?.nombre ?? null,
+          customerId: input.customerId ?? null,
+          tipoVenta: input.tipoVenta,
+          total: totalUsd.toFixed(FORMATO_DECIMAL),
+          saldoUsd: saldoUsd.toFixed(FORMATO_DECIMAL),
+          estado,
+          activo: true,
+          fecha: input.fecha ? new Date(input.fecha) : new Date(),
+          notas: input.notas ?? null,
+        },
+        itemsCalculados,
+        paymentsCalculados,
+      );
+    });
+
+    void this.audit.registrar({
+      userId: actor.sub,
+      userEmail: actor.email ?? null,
+      userRole: actor.role ?? null,
+      action: 'sale.create',
+      resource: 'sales',
+      resourceId: venta.id,
+      metadata: {
+        source: 'sync',
+        tipoVenta: venta.tipoVenta,
+        totalUsd: venta.total,
+        saldoUsd: venta.saldoUsd,
+        estado: venta.estado,
+        items: venta.items.length,
+      },
+    });
+    for (const o of oversold) {
+      void this.audit.registrar({
+        userId: actor.sub,
+        userEmail: actor.email ?? null,
+        userRole: actor.role ?? null,
+        action: 'sale.oversell',
+        resource: 'sales',
+        resourceId: venta.id,
+        metadata: o,
+      });
+    }
+
+    return venta;
   }
 
   // ---------------------------------------------------------------------------

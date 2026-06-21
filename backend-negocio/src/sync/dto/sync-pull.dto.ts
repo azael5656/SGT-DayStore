@@ -1,12 +1,14 @@
-import { IsDateString, IsOptional } from 'class-validator';
+import { IsInt, IsOptional, Min } from 'class-validator';
 
 /**
- * Datos de entrada para POST /sync/pull.
- * El movil envia el timestamp del ultimo sync y el servidor responde con
- * todos los cambios posteriores.
+ * Body de `POST /sync/pull` (protocolo de WatermelonDB).
+ * El móvil manda el timestamp (epoch ms) de su última sincronización; el
+ * servidor devuelve todo lo que cambió desde entonces. `null`/ausente en la
+ * primera sync (bootstrap: baja todo el catálogo).
  */
 export class SyncPullDto {
   @IsOptional()
-  @IsDateString()
-  ultimoSync?: string;
+  @IsInt()
+  @Min(0)
+  lastPulledAt?: number | null;
 }

@@ -18,9 +18,14 @@ export class SyncController {
 
   @Post('push')
   async push(
-    @CurrentUser() user: { sub: string },
+    @CurrentUser()
+    user: {
+      sub: string;
+      email?: string;
+      role?: 'superadmin' | 'admin' | 'vendedor';
+    },
     @Body() dto: SyncPushDto,
   ) {
-    return this.syncService.push(user.sub, dto);
+    return this.syncService.push(user, dto);
   }
 }
