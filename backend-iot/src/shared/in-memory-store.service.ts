@@ -27,6 +27,17 @@ export interface StoredReading {
 
 export type Severidad = 'baja' | 'media' | 'alta' | 'critica';
 
+/**
+ * Sensor que el watchdog considera sin señal. `tipos` son las lecturas que ese
+ * sensor produce (p.ej. el DHT22 => temperatura + humedad), para que la UI sepa
+ * qué tarjetas marcar como "Desconectado" sin parsear el texto de la alerta.
+ */
+export interface SensorDesconectado {
+  sensorId: string;
+  nombre: string;
+  tipos: string[];
+}
+
 export interface StoredAlert {
   id: string;
   tipo: string;
@@ -48,6 +59,9 @@ export class InMemoryStoreService {
   //   null  = aun no sabemos (no llego ningun heartbeat tras el arranque)
   //   true  = online   false = offline (LWT o "offline" explicito)
   private deviceOnline: boolean | null = null;
+  // Sensores sin señal segun SensorWatchdogService (para que la UI marque sus
+  // tarjetas como "Desconectado"). Lista vacia = todos reportando.
+  private sensoresDesconectados: SensorDesconectado[] = [];
 
   /**
    * Emisor de eventos para real-time. Los consumidores (EventsGateway)
@@ -59,6 +73,7 @@ export class InMemoryStoreService {
    *  - 'alert.ack' (StoredAlert) — alerta reconocida
    *  - 'alerts.cleared' (void)
    *  - 'device.status' (boolean) — heartbeat/LWT del ESP32 (true=online)
+   *  - 'sensors.status' (SensorDesconectado[]) — sensores sin señal (watchdog)
    */
   readonly events = new EventEmitter();
 
@@ -92,6 +107,19 @@ export class InMemoryStoreService {
   /** true=online, false=offline, null=aun sin heartbeat tras el arranque. */
   getDeviceStatus(): boolean | null {
     return this.deviceOnline;
+  }
+
+  /**
+   * Publica la lista de sensores sin señal (la calcula SensorWatchdogService).
+   * Emite 'sensors.status' para que la UI marque/limpie las tarjetas en vivo.
+   */
+  setSensoresDesconectados(lista: SensorDesconectado[]): void {
+    this.sensoresDesconectados = lista;
+    this.events.emit('sensors.status', lista);
+  }
+
+  getSensoresDesconectados(): SensorDesconectado[] {
+    return [...this.sensoresDesconectados];
   }
 
   // ---------- Lecturas ----------

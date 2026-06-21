@@ -57,6 +57,9 @@ export class EventsGateway
     this.store.events.on('alerts.cleared', () => {
       this.server.emit('alerts.cleared');
     });
+    this.store.events.on('sensors.status', (lista) => {
+      this.server.emit('sensors.status', lista);
+    });
     this.logger.log('EventsGateway suscrito al store');
   }
 
@@ -66,6 +69,7 @@ export class EventsGateway
     client.emit('snapshot', {
       readings: this.store.getReadings(),
       alerts: this.store.getAlerts(),
+      sensoresDesconectados: this.store.getSensoresDesconectados(),
     });
   }
 

@@ -18,6 +18,13 @@ export interface SensorReading {
 
 export type Severidad = 'baja' | 'media' | 'alta' | 'critica';
 
+/** Sensor sin señal segun el watchdog. `tipos` = lecturas que produce. */
+export interface SensorDesconectado {
+  sensorId: string;
+  nombre: string;
+  tipos: string[];
+}
+
 export interface IotAlert {
   id: string;
   tipo: string;

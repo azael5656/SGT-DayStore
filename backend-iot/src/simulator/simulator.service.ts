@@ -4,27 +4,26 @@ import { AuditPublisherService } from '../shared/audit-publisher.service';
 import { InMemoryStoreService } from '../shared/in-memory-store.service';
 
 /**
- * Logica de escenarios de demo, alineada al hardware real de la tienda:
+ * Logica de escenarios de demo, alineada al hardware REAL que existe hoy:
  *  - DHT22 (temperatura + humedad)
- *  - 5x MC-38 (puertas)
- *  - 3x SW-420 (vibracion en vitrinas)
- *  - PIR HC-SR501 (movimiento)
- *  - SCT-013-030 (corriente)
+ *  - MC-38 (santa maria / puerta)
  *  - Buzzer 5V
+ * No simulamos sensores que aun no se tienen: si se suma uno nuevo, su propia
+ * telemetria lo hara aparecer en el panel (registro dinamico del watchdog).
  *
- * Cada escenario dramatico sostiene valores extremos ~15s publicando cada 2s
- * y marca `emergencyUntil` en el store para que MockPublisher no sobrescriba
- * con lecturas normales mientras dura la emergencia.
+ * Los escenarios dramaticos marcan `emergencyUntil` en el store para que
+ * MockPublisher no sobrescriba con lecturas normales mientras dura la emergencia.
  *
  * Escenarios:
  *  - incendio: temperatura alta (>=38°C) + humedad baja + buzzer ON
- *  - forzado: puerta abierta + vibracion en vitrinas + movimiento + buzzer ON
- *  - corte_luz: corriente = 0 W + buzzer ON
+ *  - forzado: santa maria abierta a la fuerza + alerta critica + buzzer ON
+ *  - corte_luz: alerta critica (no hay medidor de corriente fisico) + buzzer ON
  *  - santamaria_abierta: abre la santa maria (MC-38). Si la tienda esta
  *      cerrada, SantaMariaService levanta 'puerta_fuera_horario' (alta).
  *  - santamaria_cerrada: cierra la santa maria. SantaMariaService auto-resuelve
  *      la alerta de puerta si la habia.
- *  - normal: limpia alertas, apaga buzzer, valores saludables
+ *  - desconexion: marca el ESP32 offline; el watchdog levanta sensor_desconectado.
+ *  - normal: limpia alertas, apaga buzzer, valores saludables (DHT22 + santa maria)
  */
 
 export type Escenario =
@@ -170,7 +169,7 @@ export class SimulatorService implements OnModuleDestroy {
     const alerta = this.store.pushAlert({
       tipo: 'forzado',
       severidad: 'critica',
-      mensaje: 'Intento de forzado detectado — vibracion + puerta abierta + movimiento',
+      mensaje: 'Intento de forzado detectado — santa maria abierta a la fuerza',
     });
 
     this.burstTimer = setInterval(() => {
@@ -196,30 +195,17 @@ export class SimulatorService implements OnModuleDestroy {
 
   private corteLuz() {
     this.limpiarBurst();
-    const hasta = Date.now() + DURACION_EMERGENCIA_MS;
-    this.store.setEmergencyUntil(hasta);
+    // Pausa el mock mientras "no hay luz" (sensores callados). No hay medidor de
+    // corriente fisico, asi que el escenario es solo la alerta critica.
+    this.store.setEmergencyUntil(Date.now() + DURACION_EMERGENCIA_MS);
 
-    this.publicarEmergenciaCorte();
     const alerta = this.store.pushAlert({
       tipo: 'corte_luz',
       severidad: 'critica',
-      mensaje: 'Corte de energia detectado — consumo cayo a 0 W',
+      mensaje: 'Corte de energia detectado',
     });
 
-    this.burstTimer = setInterval(() => {
-      if (Date.now() >= hasta) {
-        // Fin del burst: dejamos de sostener valores extremos, pero NO apagamos
-        // el buzzer aqui. La alarma vive mientras la alerta siga sin reconocer
-        // (la apaga MqttService.syncBuzzer al reconocerla/resolverla).
-        this.limpiarBurst();
-        return;
-      }
-      this.publicarEmergenciaCorte();
-    }, INTERVALO_BURST_MS);
-
-    this.logger.warn(
-      `⚡ Escenario CORTE DE LUZ lanzado — sostenido ${DURACION_EMERGENCIA_MS / 1000}s (${alerta.id})`,
-    );
+    this.logger.warn(`⚡ Escenario CORTE DE LUZ lanzado (${alerta.id})`);
     return {
       escenario: 'corte_luz',
       alertaId: alerta.id,
@@ -261,29 +247,8 @@ export class SimulatorService implements OnModuleDestroy {
       unidad: 'estado',
       fecha: ts,
     });
-    for (const id of ['sw420-vitrina-1', 'sw420-vitrina-2']) {
-      this.publicarLectura({
-        sensorId: id,
-        tipo: 'vibracion',
-        valor: 0,
-        unidad: 'evento',
-        fecha: ts,
-      });
-    }
-    this.publicarLectura({
-      sensorId: 'pir-hcsr501-interior',
-      tipo: 'movimiento',
-      valor: 0,
-      unidad: 'evento',
-      fecha: ts,
-    });
-    this.publicarLectura({
-      sensorId: 'sct013-030-principal',
-      tipo: 'corriente',
-      valor: 280,
-      unidad: 'W',
-      fecha: ts,
-    });
+    // Solo publicamos el hardware que existe hoy (DHT22 + santa maria). Si se
+    // suma un sensor nuevo, su propia telemetria lo hara aparecer en el panel.
     // El buzzer lo apaga MqttService.syncBuzzer al limpiarse las alertas.
     this.store.clearAlerts();
     this.logger.log('✅ Escenario NORMAL aplicado (alertas limpiadas, emergencia desactivada)');
@@ -330,45 +295,13 @@ export class SimulatorService implements OnModuleDestroy {
   }
 
   private publicarEmergenciaForzado(): void {
-    const ts = new Date().toISOString();
+    // Lo unico real de un forzado es la santa maria abierta a la fuerza.
     this.publicarLectura({
       sensorId: 'mc38-santa-maria',
       tipo: 'puerta',
       valor: 1,
       unidad: 'estado',
-      fecha: ts,
-    });
-    this.publicarLectura({
-      sensorId: 'sw420-vitrina-1',
-      tipo: 'vibracion',
-      valor: 1,
-      unidad: 'evento',
-      fecha: ts,
-    });
-    this.publicarLectura({
-      sensorId: 'sw420-vitrina-2',
-      tipo: 'vibracion',
-      valor: 1,
-      unidad: 'evento',
-      fecha: ts,
-    });
-    this.publicarLectura({
-      sensorId: 'pir-hcsr501-interior',
-      tipo: 'movimiento',
-      valor: 1,
-      unidad: 'evento',
-      fecha: ts,
-    });
-  }
-
-  private publicarEmergenciaCorte(): void {
-    const ts = new Date().toISOString();
-    this.publicarLectura({
-      sensorId: 'sct013-030-principal',
-      tipo: 'corriente',
-      valor: 0,
-      unidad: 'W',
-      fecha: ts,
+      fecha: new Date().toISOString(),
     });
   }
 
