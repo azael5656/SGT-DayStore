@@ -10,37 +10,37 @@ import {
 } from '../shared/in-memory-store.service';
 
 /**
- * Vigila que cada sensor fisico siga "vivo" y levanta una alerta cuando uno
- * deja de dar senal (sensor/equipo desconectado, sin energia o sin red).
+ * Vigila que cada sensor siga "vivo" y levanta una alerta cuando uno deja de
+ * dar senal (sensor/equipo desconectado, sin energia o sin red).
  *
- * Punto unico de decision, igual que SantaMariaService: se apoya en los
- * eventos del store, asi cubre TODAS las fuentes (hardware real via MQTT,
- * simulador y mock) sin duplicar logica.
+ * DINAMICO: no hay catalogo fijo de hardware. Un sensor entra a vigilancia en
+ * cuanto reporta su primera lectura, asi la UI solo muestra/alerta lo que
+ * realmente esta conectado (hoy DHT22 + santa maria + buzzer; manana lo que se
+ * sume, sin tocar codigo). Punto unico de decision, igual que SantaMariaService:
+ * se apoya en los eventos del store (cubre hardware real via MQTT, simulador y
+ * mock sin duplicar logica).
  *
- * Dos clases de sensor, dos formas de detectar el silencio:
- *  - CONTINUOS (DHT22): publican en loop (cada 5s segun firmware). Si pasan
- *    `timeoutMs` sin una lectura suya -> desconectado.
- *  - POR EVENTO (santa maria / MC-38): binarios, solo emiten al abrir/cerrar,
- *    pueden estar callados horas. Su senal de vida NO son sus lecturas sino el
- *    heartbeat del ESP32 (tienda/sistema/status, cada 15s) y las lecturas del
- *    resto de sensores del mismo equipo. Si el ESP32 reporta 'offline' (LWT) o
- *    el equipo queda mudo, caen junto con el.
+ * Dos formas de detectar el silencio, segun la unidad de la lectura:
+ *  - CONTINUOS (temp/humedad, unidades °C/%/W...): publican en loop. Si pasan
+ *    TIMEOUT_CONTINUO_MS sin una lectura suya -> desconectado.
+ *  - POR EVENTO/ACTUADOR (puerta, buzzer; unidad 'estado'/'evento'): binarios,
+ *    solo emiten al cambiar y pueden estar callados horas, asi que su senal de
+ *    vida NO son sus lecturas sino el heartbeat del ESP32 (tienda/sistema/status)
+ *    y la telemetria continua del mismo equipo. Si el ESP32 reporta 'offline'
+ *    (LWT) o el equipo queda mudo, caen junto con el.
  *
  * Una sola alerta `sensor_desconectado` (severidad alta, visual) que lista los
- * sensores caidos; se auto-resuelve en cuanto vuelven a dar senal. Para sumar
- * un sensor nuevo basta agregar una entrada a SENSORES.
+ * sensores caidos; se auto-resuelve en cuanto vuelven a dar senal.
  */
 
-interface SensorVigilado {
+interface SensorVisto {
   sensorId: string;
-  nombre: string;
-  /** Silencio maximo tolerado (ms) antes de marcarlo desconectado. */
-  timeoutMs: number;
-  /**
-   * true = binario/por-evento: su senal de vida es el heartbeat del equipo,
-   * no sus propias lecturas (no publica en loop).
-   */
-  porEvento?: boolean;
+  /** Tipos de lectura emitidos (para que la UI sepa qué tarjetas marcar). */
+  tipos: Set<string>;
+  /** true = binario/actuador (unidad estado/evento): vigila por heartbeat. */
+  esEvento: boolean;
+  /** Ultima lectura propia (ms). */
+  ultimaSenal: number;
 }
 
 @Injectable()
@@ -49,33 +49,23 @@ export class SensorWatchdogService implements OnModuleInit, OnModuleDestroy {
 
   static readonly TIPO_ALERTA = 'sensor_desconectado';
   private static readonly INTERVALO_CHEQUEO_MS = 5_000;
+  // Continuo: el DHT22 publica cada 5s -> 20s = 4 ciclos perdidos.
+  private static readonly TIMEOUT_CONTINUO_MS = 20_000;
+  // Por evento: heartbeat cada 15s -> 45s = 3 perdidos.
+  private static readonly TIMEOUT_EVENTO_MS = 45_000;
 
-  // Catalogo de sensores fisicos vigilados (hoy, un unico ESP32). Para agregar
-  // uno nuevo basta sumar una entrada aqui.
-  private static readonly SENSORES: SensorVigilado[] = [
-    {
-      sensorId: 'dht22-ambiente',
-      nombre: 'DHT22 (temperatura/humedad)',
-      // Firmware publica cada 5s. 20s = 4 ciclos perdidos (tolera jitter).
-      timeoutMs: 20_000,
-    },
-    {
-      sensorId: 'mc38-santa-maria',
-      nombre: 'Santa maria (puerta)',
-      // Binario: usa el heartbeat del equipo (cada 15s). 45s = 3 perdidos.
-      timeoutMs: 45_000,
-      porEvento: true,
-    },
-  ];
+  // Nombres legibles solo para el mensaje de alerta; si un sensor nuevo no esta
+  // aqui, se usa su id (sigue siendo dinamico, esto es cosmetico).
+  private static readonly NOMBRES: Record<string, string> = {
+    'dht22-ambiente': 'DHT22 (temperatura/humedad)',
+    'mc38-santa-maria': 'Santa maria (puerta)',
+    'buzzer-5v-principal': 'Buzzer (alarma)',
+  };
 
-  /** Ultima vez (ms) que vimos una lectura de cada sensor del catalogo. */
-  private readonly ultimaSenal = new Map<string, number>();
-  /** Ultima senal de vida del equipo: cualquier lectura suya o un heartbeat. */
+  /** Sensores que han reportado al menos una vez (registro dinamico). */
+  private readonly vistos = new Map<string, SensorVisto>();
+  /** Ultima senal de vida del equipo: telemetria continua o un heartbeat. */
   private ultimaSenalDispositivo = 0;
-  /** Ids que cuentan como "el equipo": solo sensores reales, no actuadores. */
-  private readonly idsDispositivo = new Set(
-    SensorWatchdogService.SENSORES.map((s) => s.sensorId),
-  );
   private timer: ReturnType<typeof setInterval> | null = null;
   /** Firma del conjunto offline ya alertado, para no re-empujar cada tick. */
   private firmaOffline = '';
@@ -83,22 +73,10 @@ export class SensorWatchdogService implements OnModuleInit, OnModuleDestroy {
   constructor(private readonly store: InMemoryStoreService) {}
 
   onModuleInit(): void {
-    const ahora = Date.now();
-    // Asumimos conectado al arrancar: sembramos timestamps para no disparar
-    // una falsa desconexion durante la primera ventana, antes de la 1a lectura.
-    this.ultimaSenalDispositivo = ahora;
-    for (const s of SensorWatchdogService.SENSORES) {
-      this.ultimaSenal.set(s.sensorId, ahora);
-    }
+    // Asumimos vivo al arrancar hasta que un sensor reporte o llegue heartbeat.
+    this.ultimaSenalDispositivo = Date.now();
 
-    this.store.events.on('reading', (r: StoredReading) => {
-      // Ignoramos actuadores (buzzer) y cualquier id ajeno: no son senal de
-      // vida del equipo y enmascararian una caida real.
-      if (!this.idsDispositivo.has(r.sensorId)) return;
-      const t = Date.now();
-      this.ultimaSenal.set(r.sensorId, t);
-      this.ultimaSenalDispositivo = t;
-    });
+    this.store.events.on('reading', (r: StoredReading) => this.registrar(r));
 
     this.store.events.on('device.status', (online: boolean) => {
       if (online) this.ultimaSenalDispositivo = Date.now();
@@ -117,22 +95,43 @@ export class SensorWatchdogService implements OnModuleInit, OnModuleDestroy {
     if (this.timer) clearInterval(this.timer);
   }
 
+  /**
+   * Registra/actualiza un sensor cada vez que reporta. La unidad define si es
+   * continuo o por-evento. Solo la telemetria continua cuenta como senal de
+   * vida del equipo: las lecturas de actuadores (buzzer) y binarios son escasas
+   * o las genera el backend, y enmascararian una caida real.
+   */
+  private registrar(r: StoredReading): void {
+    const esEvento = r.unidad === 'estado' || r.unidad === 'evento';
+    const t = Date.now();
+    let s = this.vistos.get(r.sensorId);
+    if (!s) {
+      s = { sensorId: r.sensorId, tipos: new Set(), esEvento, ultimaSenal: t };
+      this.vistos.set(r.sensorId, s);
+    }
+    s.tipos.add(r.tipo);
+    s.esEvento = esEvento;
+    s.ultimaSenal = t;
+    if (!esEvento) this.ultimaSenalDispositivo = t;
+  }
+
   private evaluar(): void {
     const ahora = Date.now();
     // El LWT del broker es la senal mas fuerte: si el ESP32 reporto 'offline',
     // todo lo que cuelga de el esta caido, sin esperar timeouts.
     const equipoCaido = this.store.getDeviceStatus() === false;
 
-    const offline: SensorVigilado[] = [];
-    for (const s of SensorWatchdogService.SENSORES) {
+    const offline: SensorVisto[] = [];
+    for (const s of this.vistos.values()) {
       if (equipoCaido) {
         offline.push(s);
         continue;
       }
-      const ultima = s.porEvento
-        ? this.ultimaSenalDispositivo
-        : (this.ultimaSenal.get(s.sensorId) ?? 0);
-      if (ahora - ultima > s.timeoutMs) offline.push(s);
+      const ultima = s.esEvento ? this.ultimaSenalDispositivo : s.ultimaSenal;
+      const timeout = s.esEvento
+        ? SensorWatchdogService.TIMEOUT_EVENTO_MS
+        : SensorWatchdogService.TIMEOUT_CONTINUO_MS;
+      if (ahora - ultima > timeout) offline.push(s);
     }
 
     // Solo actuamos cuando cambia el conjunto de caidos: evita re-empujar la
@@ -143,6 +142,16 @@ export class SensorWatchdogService implements OnModuleInit, OnModuleDestroy {
       .join(',');
     if (firma === this.firmaOffline) return;
     this.firmaOffline = firma;
+
+    // Publicamos la lista estructurada para que la UI marque las tarjetas en
+    // vivo (lista vacia = todo reconectado).
+    this.store.setSensoresDesconectados(
+      offline.map((s) => ({
+        sensorId: s.sensorId,
+        nombre: SensorWatchdogService.NOMBRES[s.sensorId] ?? s.sensorId,
+        tipos: [...s.tipos],
+      })),
+    );
 
     if (offline.length === 0) {
       const resueltas = this.store.resolveAlertsByTipo(
@@ -156,7 +165,9 @@ export class SensorWatchdogService implements OnModuleInit, OnModuleDestroy {
       return;
     }
 
-    const nombres = offline.map((s) => s.nombre).join(', ');
+    const nombres = offline
+      .map((s) => SensorWatchdogService.NOMBRES[s.sensorId] ?? s.sensorId)
+      .join(', ');
     this.store.pushAlert({
       tipo: SensorWatchdogService.TIPO_ALERTA,
       severidad: 'alta',

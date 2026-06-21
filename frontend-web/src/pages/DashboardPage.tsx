@@ -6,6 +6,7 @@ import {
   Siren,
   Radio,
   BellRing,
+  WifiOff,
   type LucideIcon,
 } from 'lucide-react';
 import { useRealtimeIoT } from '../hooks/useRealtimeIoT';
@@ -54,9 +55,36 @@ const CONF: Record<string, SensorConf> = {
 // Orden de aparicion de los tipos conocidos.
 const ORDEN = ['temperatura', 'humedad', 'puerta', 'buzzer'];
 
+/**
+ * Valor legible de una lectura. Los sensores de estado/evento (puerta, buzzer,
+ * movimiento...) NUNCA muestran el numero crudo: se traducen a palabras. Los
+ * numericos (°C, %, W) sí muestran su valor con unidad.
+ */
+function describir(r: SensorReading): { valor: string; tone: KpiTone } {
+  const conf = CONF[r.tipo];
+  if (conf) return conf.render(r);
+  if (r.unidad === 'estado' || r.unidad === 'evento') {
+    return {
+      valor: r.valor === 1 ? 'Activo' : 'Inactivo',
+      tone: r.valor === 1 ? 'warning' : 'neutral',
+    };
+  }
+  return {
+    valor: `${r.valor}${r.unidad ? ` ${r.unidad}` : ''}`,
+    tone: 'neutral',
+  };
+}
+
 export default function DashboardPage() {
-  const { readings, alerts, conectado } = useRealtimeIoT();
+  const { readings, alerts, conectado, desconectados } = useRealtimeIoT();
   const sinReconocer = alerts.filter((a) => !a.reconocida).length;
+
+  // Tipos cuyo sensor el watchdog marca sin señal: sus tarjetas muestran
+  // "Desconectado" en vez del valor (un DHT22 caido afecta temp + humedad).
+  const tiposDesconectados = useMemo(
+    () => new Set(desconectados.flatMap((s) => s.tipos)),
+    [desconectados],
+  );
 
   // Ultima lectura por tipo. Solo se muestran los sensores que REALMENTE
   // reportan datos; si conectas uno nuevo, aparece solo.
@@ -82,9 +110,19 @@ export default function DashboardPage() {
       <PageHeader
         title="Dashboard en vivo"
         actions={
-          <Badge tone={conectado ? 'success' : 'danger'}>
-            {conectado ? '● EN VIVO' : '○ desconectado'}
-          </Badge>
+          <div className="flex items-center gap-2">
+            {desconectados.length > 0 && (
+              <Badge tone="danger">
+                <WifiOff size={13} strokeWidth={2} className="inline mr-1 -mt-0.5" />
+                {desconectados.length === 1
+                  ? '1 sensor sin señal'
+                  : `${desconectados.length} sensores sin señal`}
+              </Badge>
+            )}
+            <Badge tone={conectado ? 'success' : 'danger'}>
+              {conectado ? '● EN VIVO' : '○ desconectado'}
+            </Badge>
+          </div>
         }
       />
 
@@ -92,16 +130,20 @@ export default function DashboardPage() {
         {tipos.map((tipo) => {
           const r = porTipo[tipo];
           const conf = CONF[tipo];
-          const Icon = conf?.Icon ?? Radio;
-          const out = conf
-            ? conf.render(r)
-            : { valor: `${r.valor}${r.unidad ? ` ${r.unidad}` : ''}`, tone: 'neutral' as KpiTone };
+          // Si el watchdog marco este sensor sin señal, la tarjeta avisa
+          // "Desconectado" en vez de mostrar un valor que ya no es real.
+          const off = tiposDesconectados.has(tipo);
+          const Icon = off ? WifiOff : (conf?.Icon ?? Radio);
+          const out = off
+            ? { valor: 'Desconectado', tone: 'danger' as KpiTone }
+            : describir(r);
           return (
             <KpiCard
               key={tipo}
               tone={out.tone}
               label={conf?.label ?? labelTipo(tipo)}
               value={out.valor}
+              sub={off ? 'Sin señal del sensor' : undefined}
               icon={<Icon size={18} strokeWidth={1.75} />}
             />
           );
@@ -124,14 +166,19 @@ export default function DashboardPage() {
           </div>
         ) : (
           readings.map((l) => {
-            const IconoSensor = CONF[l.tipo]?.Icon ?? Radio;
+            const off = tiposDesconectados.has(l.tipo);
+            const IconoSensor = off ? WifiOff : (CONF[l.tipo]?.Icon ?? Radio);
             return (
               <div
                 key={l.sensorId + '::' + l.tipo}
                 className="px-4 py-3 flex justify-between items-center">
                 <div>
                   <div className="text-sm font-medium flex items-center gap-1.5">
-                    <IconoSensor size={16} strokeWidth={1.75} className="text-accent" />
+                    <IconoSensor
+                      size={16}
+                      strokeWidth={1.75}
+                      className={off ? 'text-danger' : 'text-accent'}
+                    />
                     {labelSensor(l.sensorId)}
                   </div>
                   <div className="text-xs text-text-muted">
@@ -139,10 +186,19 @@ export default function DashboardPage() {
                   </div>
                 </div>
                 <div className="text-right">
-                  <div className="text-lg font-bold text-accent">
-                    {l.valor} <span className="text-xs text-text-muted">{l.unidad}</span>
-                  </div>
-                  <div className="text-xs text-text-muted">{labelTipo(l.tipo)}</div>
+                  {off ? (
+                    <Badge tone="danger">
+                      <WifiOff size={12} strokeWidth={2} className="inline mr-1 -mt-0.5" />
+                      Desconectado
+                    </Badge>
+                  ) : (
+                    <>
+                      <div className="text-lg font-bold text-accent">
+                        {describir(l).valor}
+                      </div>
+                      <div className="text-xs text-text-muted">{labelTipo(l.tipo)}</div>
+                    </>
+                  )}
                 </div>
               </div>
             );

@@ -12,6 +12,7 @@ import {
   Thermometer,
   TrendingUp,
   Users,
+  WifiOff,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
@@ -101,8 +102,12 @@ const ROL_LABEL: Record<Role, string> = {
 
 export default function HomePage() {
   const { user } = useAuth();
-  const { readings, alerts, conectado } = useRealtimeIoT();
+  const { readings, alerts, conectado, desconectados } = useRealtimeIoT();
   const r = useMemo(() => resumen(readings), [readings]);
+  const tiposDesc = useMemo(
+    () => new Set(desconectados.flatMap((s) => s.tipos)),
+    [desconectados],
+  );
   const sinRevisar = alerts.filter((a) => !a.reconocida).length;
   const nav = useNavigate();
 
@@ -120,9 +125,19 @@ export default function HomePage() {
             {ROL_LABEL[user.role]}
           </div>
         </div>
-        <Badge tone={conectado ? 'success' : 'danger'}>
-          {conectado ? '● EN VIVO' : '○ desconectado'}
-        </Badge>
+        <div className="flex items-center gap-2">
+          {desconectados.length > 0 && (
+            <Badge tone="danger">
+              <WifiOff size={13} strokeWidth={2} className="inline mr-1 -mt-0.5" />
+              {desconectados.length === 1
+                ? '1 sensor sin señal'
+                : `${desconectados.length} sensores sin señal`}
+            </Badge>
+          )}
+          <Badge tone={conectado ? 'success' : 'danger'}>
+            {conectado ? '● EN VIVO' : '○ desconectado'}
+          </Badge>
+        </div>
       </div>
 
       <div className="bg-surface rounded-2xl border border-border p-4 mb-6">
@@ -136,22 +151,46 @@ export default function HomePage() {
         </div>
         <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
           <LivePill
-            Icon={Thermometer}
+            Icon={tiposDesc.has('temperatura') ? WifiOff : Thermometer}
             label="Temperatura"
-            valor={r.temp !== undefined ? `${r.temp}°C` : '—'}
-            tono={r.temp !== undefined && r.temp > 28 ? 'danger' : 'success'}
+            valor={
+              tiposDesc.has('temperatura')
+                ? 'Desconectado'
+                : r.temp !== undefined
+                ? `${r.temp}°C`
+                : '—'
+            }
+            tono={
+              tiposDesc.has('temperatura')
+                ? 'danger'
+                : r.temp !== undefined && r.temp > 28
+                ? 'danger'
+                : 'success'
+            }
           />
           <LivePill
-            Icon={Droplet}
+            Icon={tiposDesc.has('humedad') ? WifiOff : Droplet}
             label="Humedad"
-            valor={r.hum !== undefined ? `${r.hum}%` : '—'}
-            tono="info"
+            valor={
+              tiposDesc.has('humedad')
+                ? 'Desconectado'
+                : r.hum !== undefined
+                ? `${r.hum}%`
+                : '—'
+            }
+            tono={tiposDesc.has('humedad') ? 'danger' : 'info'}
           />
           <LivePill
-            Icon={DoorOpen}
+            Icon={tiposDesc.has('puerta') ? WifiOff : DoorOpen}
             label="Puerta"
-            valor={r.puerta ? 'Abierta' : 'Cerrada'}
-            tono={r.puerta ? 'danger' : 'success'}
+            valor={
+              tiposDesc.has('puerta')
+                ? 'Desconectado'
+                : r.puerta
+                ? 'Abierta'
+                : 'Cerrada'
+            }
+            tono={tiposDesc.has('puerta') || r.puerta ? 'danger' : 'success'}
           />
         </div>
       </div>

@@ -10,7 +10,7 @@ import {
 import { io, Socket } from 'socket.io-client';
 import api from '../api/client';
 import { useAuth } from '../auth/AuthContext';
-import type { IotAlert, SensorReading } from '../types';
+import type { IotAlert, SensorDesconectado, SensorReading } from '../types';
 import { alertaVisibleParaRol } from '../utils/labels';
 
 let socket: Socket | null = null;
@@ -29,6 +29,7 @@ interface Ctx {
   readings: SensorReading[];
   alerts: IotAlert[];
   conectado: boolean;
+  desconectados: SensorDesconectado[];
 }
 
 const RealtimeCtx = createContext<Ctx | null>(null);
@@ -38,6 +39,7 @@ export function RealtimeIoTProvider({ children }: { children: ReactNode }) {
   const [readings, setReadings] = useState<SensorReading[]>([]);
   const [alerts, setAlerts] = useState<IotAlert[]>([]);
   const [conectado, setConectado] = useState(false);
+  const [desconectados, setDesconectados] = useState<SensorDesconectado[]>([]);
 
   // Filtra alertas segun rol: vendedor solo ve incendio + forzado.
   const alertasVisibles = useMemo(
@@ -70,9 +72,14 @@ export function RealtimeIoTProvider({ children }: { children: ReactNode }) {
     const s = getSocket();
     const onConnect = () => setConectado(true);
     const onDisconnect = () => setConectado(false);
-    const onSnapshot = (data: { readings: SensorReading[]; alerts: IotAlert[] }) => {
+    const onSnapshot = (data: {
+      readings: SensorReading[];
+      alerts: IotAlert[];
+      sensoresDesconectados?: SensorDesconectado[];
+    }) => {
       setReadings(data.readings);
       setAlerts(data.alerts);
+      setDesconectados(data.sensoresDesconectados ?? []);
     };
     const onReading = (r: SensorReading) => {
       // Dedupe por (sensorId + tipo) para que temp/hum del mismo sensor coexistan.
@@ -88,6 +95,8 @@ export function RealtimeIoTProvider({ children }: { children: ReactNode }) {
     const onAlertAck = (a: IotAlert) =>
       setAlerts((prev) => prev.map((x) => (x.id === a.id ? a : x)));
     const onAlertsCleared = () => setAlerts([]);
+    const onSensorsStatus = (lista: SensorDesconectado[]) =>
+      setDesconectados(lista ?? []);
 
     s.on('connect', onConnect);
     s.on('disconnect', onDisconnect);
@@ -96,6 +105,7 @@ export function RealtimeIoTProvider({ children }: { children: ReactNode }) {
     s.on('alert', onAlert);
     s.on('alert.ack', onAlertAck);
     s.on('alerts.cleared', onAlertsCleared);
+    s.on('sensors.status', onSensorsStatus);
 
     if (s.connected) setConectado(true);
     else s.connect();
@@ -108,12 +118,13 @@ export function RealtimeIoTProvider({ children }: { children: ReactNode }) {
       s.off('alert', onAlert);
       s.off('alert.ack', onAlertAck);
       s.off('alerts.cleared', onAlertsCleared);
+      s.off('sensors.status', onSensorsStatus);
     };
   }, [user]);
 
   return createElement(
     RealtimeCtx.Provider,
-    { value: { readings, alerts: alertasVisibles, conectado } },
+    { value: { readings, alerts: alertasVisibles, conectado, desconectados } },
     children,
   );
 }
