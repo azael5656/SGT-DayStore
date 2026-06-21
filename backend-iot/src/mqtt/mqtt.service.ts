@@ -89,11 +89,14 @@ export class MqttService implements OnModuleInit, OnModuleDestroy {
     this.store.events.on('alerts.cleared', () => this.syncBuzzer());
   }
 
-  // Tipos de alerta (no criticos) que igual deben sonar el buzzer fisico.
-  // La puerta (santa maria) abierta fuera de horario es severidad 'alta' pero
-  // amerita alarma sonora, no solo aviso visual.
+  // Tipos de alerta (no criticos) que igual deben sonar el buzzer fisico:
+  //  - puerta_fuera_horario: santa maria abierta con la tienda cerrada.
+  //  - alta_temperatura: 30-35 C, anormal para Tachira; amerita alarma sonora.
+  // La humedad alta NO entra a proposito: en Tachira ronda 70-85% normalmente,
+  // asi que sonaria casi siempre (queda solo como aviso visual).
   private static readonly TIPOS_BUZZER_NO_CRITICOS = new Set([
     'puerta_fuera_horario',
+    'alta_temperatura',
   ]);
 
   /**
@@ -235,7 +238,13 @@ export class MqttService implements OnModuleInit, OnModuleDestroy {
     }
 
     if (topic === 'tienda/sistema/status') {
-      this.logger.log(`Heartbeat ESP32: ${payload}`);
+      // El firmware publica "online" como heartbeat (cada 15s) y el broker
+      // publica "offline" via LWT si el ESP32 se desconecta sin avisar.
+      // SensorWatchdogService usa este estado para marcar todos los sensores
+      // del equipo como desconectados.
+      const online = payload.trim().toLowerCase() === 'online';
+      this.logger.log(`Heartbeat ESP32: ${payload} (${online ? 'online' : 'OFFLINE'})`);
+      this.store.setDeviceStatus(online);
       return;
     }
 

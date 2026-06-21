@@ -39,6 +39,13 @@ export class TelemetryService {
           new Date(movimiento.fecha).getTime() >= haceUnMinuto,
       ),
       sensoresActivos: this.store.getReadings().length,
+      // false solo si el ESP32 reporto 'offline' (LWT); null/true => en linea.
+      dispositivoEnLinea: this.store.getDeviceStatus() !== false,
+      sensoresDesconectados: this.store
+        .getAlerts()
+        .filter(
+          (a) => !a.reconocida && a.tipo === 'sensor_desconectado',
+        ).length,
       alertasSinRevisar: this.store
         .getAlerts()
         .filter((a) => !a.reconocida).length,

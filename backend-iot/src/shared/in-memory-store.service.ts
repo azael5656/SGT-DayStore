@@ -44,6 +44,10 @@ export class InMemoryStoreService {
   private readonly readings = new Map<string, StoredReading>();
   private readonly alerts: StoredAlert[] = [];
   private emergencyUntil = 0;
+  // Estado del ESP32 segun su heartbeat/LWT (tienda/sistema/status):
+  //   null  = aun no sabemos (no llego ningun heartbeat tras el arranque)
+  //   true  = online   false = offline (LWT o "offline" explicito)
+  private deviceOnline: boolean | null = null;
 
   /**
    * Emisor de eventos para real-time. Los consumidores (EventsGateway)
@@ -54,6 +58,7 @@ export class InMemoryStoreService {
    *  - 'alert'   (StoredAlert) — alerta nueva
    *  - 'alert.ack' (StoredAlert) — alerta reconocida
    *  - 'alerts.cleared' (void)
+   *  - 'device.status' (boolean) — heartbeat/LWT del ESP32 (true=online)
    */
   readonly events = new EventEmitter();
 
@@ -69,6 +74,24 @@ export class InMemoryStoreService {
 
   clearEmergency(): void {
     this.emergencyUntil = 0;
+  }
+
+  // ---------- Estado del dispositivo (heartbeat / LWT del ESP32) ----------
+
+  /**
+   * Registra el estado reportado por el ESP32 en tienda/sistema/status.
+   * Lo alimenta MqttService (heartbeat "online" cada 15s, o "offline" del
+   * Last Will & Testament del broker cuando el equipo se cae sin avisar).
+   * Emite 'device.status' para que SensorWatchdogService reaccione al instante.
+   */
+  setDeviceStatus(online: boolean): void {
+    this.deviceOnline = online;
+    this.events.emit('device.status', online);
+  }
+
+  /** true=online, false=offline, null=aun sin heartbeat tras el arranque. */
+  getDeviceStatus(): boolean | null {
+    return this.deviceOnline;
   }
 
   // ---------- Lecturas ----------
