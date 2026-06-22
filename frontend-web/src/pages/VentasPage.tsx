@@ -1521,7 +1521,9 @@ function TipoVentaSelector({
           </div>
           <button
             type="button"
-            onClick={() => onClienteChange(null)}
+            onClick={() =>
+              tipoVenta === 'credito' ? setPickerAbierto(true) : onClienteChange(null)
+            }
             className="text-xs text-danger hover:underline">
             {tipoVenta === 'credito' ? 'Cambiar' : 'Quitar'}
           </button>

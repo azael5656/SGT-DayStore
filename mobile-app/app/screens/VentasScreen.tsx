@@ -1290,7 +1290,8 @@ function Paso2Pagos({
               <Text style={paso2.clienteTel}>📞 {cliente.telefono}</Text>
             )}
           </View>
-          <TouchableOpacity onPress={onLimpiarCliente}>
+          <TouchableOpacity
+            onPress={tipoVenta === 'credito' ? onAbrirPickerCliente : onLimpiarCliente}>
             <Text style={{ color: COLORS.danger, fontSize: 12, fontWeight: '700' }}>
               {tipoVenta === 'credito' ? 'Cambiar' : 'Quitar'}
             </Text>
