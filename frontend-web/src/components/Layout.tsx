@@ -43,15 +43,16 @@ const GROUPS: NavGroup[] = [
     items: [
       { to: '/', label: 'Home', icon: Home },
       { to: '/reportes', label: 'Reportes', icon: BarChart3, roles: ['admin', 'superadmin'] },
-      { to: '/dashboard-detalle', label: 'Dashboard IoT', icon: LayoutDashboard },
+      { to: '/dashboard-detalle', label: 'Dashboard IoT', icon: LayoutDashboard, roles: ['admin', 'superadmin'] },
     ],
   },
   {
     title: 'Operacion',
     items: [
-      { to: '/inventario', label: 'Inventario', icon: Package },
+      // El vendedor solo trabaja Ventas; inventario y alertas son de gerencia.
+      { to: '/inventario', label: 'Inventario', icon: Package, roles: ['admin', 'superadmin'] },
       { to: '/ventas', label: 'Ventas', icon: ShoppingBag },
-      { to: '/alertas', label: 'Alertas', icon: BellRing },
+      { to: '/alertas', label: 'Alertas', icon: BellRing, roles: ['admin', 'superadmin'] },
     ],
   },
   {
@@ -168,7 +169,9 @@ export default function Layout({ children }: { children: ReactNode }) {
           </div>
           <ThemeToggle />
           <button
-            onClick={logout}
+            onClick={() => {
+              if (window.confirm('¿Seguro que quieres cerrar sesión?')) void logout();
+            }}
             className="text-sm text-danger hover:bg-surface-alt px-3 py-1.5 rounded-xl font-medium flex items-center gap-2 transition">
             <LogOut size={16} strokeWidth={1.75} />
             <span className="hidden sm:inline">Salir</span>

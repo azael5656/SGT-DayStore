@@ -26,6 +26,7 @@ import {
   Currency,
   CurrentRates,
   EstadoVenta,
+  ListSalesFilter,
   PaymentMethod,
   Sale,
   TipoVenta,
@@ -72,6 +73,10 @@ export default function VentasScreen() {
   const [estadoFiltro, setEstadoFiltro] = useState<EstadoVenta | 'todas'>(
     'completada',
   );
+  // VEN-2: busqueda por vendedor (solo gerencia) y por rango de total (USD).
+  const [busquedaVendedor, setBusquedaVendedor] = useState('');
+  const [montoMin, setMontoMin] = useState('');
+  const [montoMax, setMontoMax] = useState('');
 
   const [crearAbierto, setCrearAbierto] = useState(false);
   const [verDetalle, setVerDetalle] = useState<Sale | null>(null);
@@ -88,14 +93,17 @@ export default function VentasScreen() {
       } catch {
         /* ignore */
       }
-      const filtro =
+      const filtro: ListSalesFilter =
         estadoFiltro === 'todas'
           ? { incluirAnuladas: true, limit: 50 }
           : estadoFiltro === 'anulada'
-          ? { estado: 'anulada' as EstadoVenta, incluirAnuladas: true, limit: 50 }
+          ? { estado: 'anulada', incluirAnuladas: true, limit: 50 }
           : estadoFiltro === 'pendiente'
-          ? { estado: 'pendiente' as EstadoVenta, limit: 50 }
-          : { estado: 'completada' as EstadoVenta, limit: 50 };
+          ? { estado: 'pendiente', limit: 50 }
+          : { estado: 'completada', limit: 50 };
+      if (busquedaVendedor.trim()) filtro.vendedor = busquedaVendedor.trim();
+      if (montoMin) filtro.montoMin = Number(montoMin);
+      if (montoMax) filtro.montoMax = Number(montoMax);
       try {
         const page = await salesService.list(filtro);
         setVentas(page.items);
@@ -107,7 +115,7 @@ export default function VentasScreen() {
     } finally {
       setCargando(false);
     }
-  }, [estadoFiltro]);
+  }, [estadoFiltro, busquedaVendedor, montoMin, montoMax]);
 
   // Sincroniza las ventas pendientes manualmente (botón del banner).
   const sincronizarPendientes = async () => {
@@ -122,8 +130,10 @@ export default function VentasScreen() {
     }
   };
 
+  // Debounce: no pegamos al backend en cada tecla de la busqueda.
   useEffect(() => {
-    void cargar();
+    const t = setTimeout(() => void cargar(), 350);
+    return () => clearTimeout(t);
   }, [cargar]);
 
   const onRefresh = async () => {
@@ -234,6 +244,36 @@ export default function VentasScreen() {
           </Text>
         </TouchableOpacity>
       )}
+
+      <View style={styles.buscador}>
+        {esGerencia && (
+          <TextInput
+            style={styles.buscadorInput}
+            value={busquedaVendedor}
+            onChangeText={setBusquedaVendedor}
+            placeholder="Buscar por vendedor (nombre o email)"
+            placeholderTextColor={COLORS.textMuted}
+          />
+        )}
+        <View style={styles.buscadorMontos}>
+          <TextInput
+            style={[styles.buscadorInput, { flex: 1 }]}
+            value={montoMin}
+            onChangeText={setMontoMin}
+            keyboardType="numeric"
+            placeholder="Total desde ($)"
+            placeholderTextColor={COLORS.textMuted}
+          />
+          <TextInput
+            style={[styles.buscadorInput, { flex: 1 }]}
+            value={montoMax}
+            onChangeText={setMontoMax}
+            keyboardType="numeric"
+            placeholder="Total hasta ($)"
+            placeholderTextColor={COLORS.textMuted}
+          />
+        </View>
+      </View>
 
       <View style={styles.chipsRow}>
         {(['completada', 'pendiente', 'anulada', 'todas'] as const).map((opt) => {
@@ -373,6 +413,11 @@ function VentaCard({
           <Text style={styles.cardSub}>
             {fecha.toLocaleDateString()} · {fecha.toLocaleTimeString()}
           </Text>
+          {esGerencia && (venta.userNombre || venta.userEmail) && (
+            <Text style={styles.cardSub}>
+              Vendedor: {venta.userNombre ?? venta.userEmail}
+            </Text>
+          )}
           {saldo > 0.01 && (
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 }}>
               <Icon name="clientes" color={COLORS.warning} size={13} />
@@ -502,6 +547,18 @@ function fromUsd(usd: number, currency: Currency, tasas: CurrentRates | null): n
   const rate = currency === 'VES' ? tasas?.VES : tasas?.COP;
   if (!rate) return null;
   return usd * rate;
+}
+
+/**
+ * Formatea un monto para el input de pago, lo mas legible por moneda:
+ *  - USD: siempre 2 decimales (12.50).
+ *  - COP: entero, los pesos no usan centavos (45000).
+ *  - VES: numero natural sin ceros de relleno (4000, o 480.5 si hace falta).
+ */
+function formatMonto(valor: number, currency: Currency): string {
+  if (currency === 'USD') return valor.toFixed(2);
+  if (currency === 'COP') return String(Math.round(valor));
+  return String(Number(valor.toFixed(2)));
 }
 
 function CrearVentaModal({
@@ -639,7 +696,7 @@ function CrearVentaModal({
             usdObjetivo = Math.max(0, totalUsd - otrosUsd);
           }
           const nuevo = fromUsd(usdObjetivo, patch.currency, tasas);
-          if (nuevo !== null) merged.amount = nuevo.toFixed(2);
+          if (nuevo !== null) merged.amount = formatMonto(nuevo, patch.currency);
         }
         return merged;
       }),
@@ -1290,7 +1347,8 @@ function Paso2Pagos({
               <Text style={paso2.clienteTel}>📞 {cliente.telefono}</Text>
             )}
           </View>
-          <TouchableOpacity onPress={onLimpiarCliente}>
+          <TouchableOpacity
+            onPress={tipoVenta === 'credito' ? onAbrirPickerCliente : onLimpiarCliente}>
             <Text style={{ color: COLORS.danger, fontSize: 12, fontWeight: '700' }}>
               {tipoVenta === 'credito' ? 'Cambiar' : 'Quitar'}
             </Text>
@@ -1733,7 +1791,7 @@ function RegistrarAbonoModal({
     const usd = toUsd(Number(amount), currency, tasas);
     setCurrency(c);
     const nuevo = fromUsd(usd, c, tasas);
-    if (nuevo !== null) setAmount(nuevo.toFixed(2));
+    if (nuevo !== null) setAmount(formatMonto(nuevo, c));
   };
 
   const submit = async () => {
@@ -2023,6 +2081,22 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     flexWrap: 'wrap',
   },
+  buscador: {
+    paddingHorizontal: 16,
+    paddingTop: 10,
+    gap: 8,
+  },
+  buscadorInput: {
+    backgroundColor: COLORS.surface,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    fontSize: 14,
+    color: COLORS.text,
+  },
+  buscadorMontos: { flexDirection: 'row', gap: 8 },
   chip: {
     paddingHorizontal: 10,
     paddingVertical: 6,

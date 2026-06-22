@@ -56,6 +56,11 @@ export class ProductsRepository {
     return this.orm.count({ where: { activo: true } });
   }
 
+  /** ¿Ya existe un producto (activo o no) con este código? Para unicidad. */
+  async codigoExiste(codigo: string): Promise<boolean> {
+    return (await this.orm.count({ where: { codigo } })) > 0;
+  }
+
   countLowStock() {
     return this.orm
       .createQueryBuilder('p')

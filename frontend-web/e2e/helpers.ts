@@ -13,8 +13,8 @@ export async function login(
   await page.locator('input[type="email"]').fill(email);
   await page.locator('input[type="password"]').fill(password);
   await page.getByRole('button', { name: 'Entrar' }).click();
-  // El boton "Cerrar sesion" del header solo existe con sesion iniciada.
-  await expect(page.getByRole('button', { name: /Cerrar sesion/ })).toBeVisible();
+  // El boton "Salir" (logout) del header solo existe con sesion iniciada.
+  await expect(page.getByRole('button', { name: 'Salir' })).toBeVisible();
 }
 
 /** Dispara un escenario del simulador (endpoint @Public, sin token). */

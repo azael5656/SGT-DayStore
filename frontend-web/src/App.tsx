@@ -39,7 +39,7 @@ export default function App() {
       <Route
         path="/dashboard-detalle"
         element={
-          <ProtectedRoute>
+          <ProtectedRoute roles={['admin', 'superadmin']}>
             <Layout>
               <DashboardPage />
             </Layout>
@@ -49,7 +49,7 @@ export default function App() {
       <Route
         path="/inventario"
         element={
-          <ProtectedRoute>
+          <ProtectedRoute roles={['admin', 'superadmin']}>
             <Layout>
               <InventarioPage />
             </Layout>
@@ -59,7 +59,7 @@ export default function App() {
       <Route
         path="/alertas"
         element={
-          <ProtectedRoute>
+          <ProtectedRoute roles={['admin', 'superadmin']}>
             <Layout>
               <AlertasPage />
             </Layout>

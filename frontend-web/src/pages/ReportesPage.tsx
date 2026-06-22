@@ -194,16 +194,16 @@ export default function ReportesPage() {
       </SeccionCard>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mt-5">
-        {/* Top productos */}
+        {/* Productos vendidos (todos, VEN-6) */}
         <SeccionCard
-          titulo="Top productos del mes"
-          subtitulo="Por unidades vendidas">
+          titulo="Productos vendidos del mes"
+          subtitulo={`Por unidades vendidas · ${data.topProductos.length} producto${data.topProductos.length === 1 ? '' : 's'}`}>
           {data.topProductos.length === 0 ? (
             <div className="text-sm text-text-muted text-center py-6">
               Aún no hay ventas este mes.
             </div>
           ) : (
-            <div className="space-y-3">
+            <div className="space-y-3 max-h-96 overflow-y-auto pr-1">
               {(() => {
                 const max = Math.max(...data.topProductos.map((p) => p.unidades));
                 return data.topProductos.map((p, idx) => (

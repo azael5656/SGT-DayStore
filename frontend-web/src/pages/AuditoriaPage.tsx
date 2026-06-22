@@ -3,7 +3,7 @@ import { ScrollText, FileText } from 'lucide-react';
 import api from '../api/client';
 import type { AuditLog, Page } from '../types';
 import { downloadPdf } from '../utils/downloadPdf';
-import { labelAccion } from '../utils/labels';
+import { labelAccion, labelRecurso } from '../utils/labels';
 import PageHeader from '../components/ui/PageHeader';
 import Button from '../components/ui/Button';
 import Chip from '../components/ui/Chip';
@@ -198,7 +198,7 @@ export default function AuditoriaPage() {
                   </Badge>
                 </TD>
                 <TD className="text-xs text-text-muted">
-                  {it.resource ?? '-'}
+                  {labelRecurso(it.resource)}
                 </TD>
                 <TD className="text-xs text-text-muted">
                   {it.ip ?? '-'}

@@ -11,8 +11,13 @@ import Input from '../components/ui/Input';
 import Alert from '../components/ui/Alert';
 import PageHeader from '../components/ui/PageHeader';
 import { useConfirm } from '../components/ui/ConfirmProvider';
+import { useAuth } from '../auth/AuthContext';
 
 export default function UsuariosPage() {
+  const { user: actor } = useAuth();
+  // El superadmin es unico: solo el superadmin puede cambiar roles y crear
+  // admin. Nunca se ofrece crear otro superadmin desde la UI.
+  const esSuper = actor?.role === 'superadmin';
   const [items, setItems] = useState<(User & { activo: boolean; createdAt: string })[]>([]);
   const [creando, setCreando] = useState(false);
   const [cargando, setCargando] = useState(false);
@@ -91,9 +96,12 @@ export default function UsuariosPage() {
               <TD>
                 <select
                   value={u.role}
+                  disabled={!esSuper}
                   onChange={(e) => cambiarRol(u.id, e.target.value as Role)}
-                  className="text-xs font-semibold px-2 py-1 rounded-xl border border-border bg-bg text-text focus:outline-none focus-visible:ring-2 focus-visible:ring-accent">
-                  <option value="superadmin">superadmin</option>
+                  className="text-xs font-semibold px-2 py-1 rounded-xl border border-border bg-bg text-text focus:outline-none focus-visible:ring-2 focus-visible:ring-accent disabled:opacity-60">
+                  {u.role === 'superadmin' && (
+                    <option value="superadmin">superadmin</option>
+                  )}
                   <option value="admin">admin</option>
                   <option value="vendedor">vendedor</option>
                 </select>
@@ -121,6 +129,7 @@ export default function UsuariosPage() {
 
       {creando && (
         <CrearUsuario
+          esSuper={esSuper}
           onCerrar={() => setCreando(false)}
           onCreado={() => {
             setCreando(false);
@@ -133,11 +142,12 @@ export default function UsuariosPage() {
 }
 
 interface CrearProps {
+  esSuper: boolean;
   onCerrar: () => void;
   onCreado: () => void;
 }
 
-function CrearUsuario({ onCerrar, onCreado }: CrearProps) {
+function CrearUsuario({ esSuper, onCerrar, onCreado }: CrearProps) {
   const [email, setEmail] = useState('');
   const [nombre, setNombre] = useState('');
   const [password, setPassword] = useState('');
@@ -198,8 +208,9 @@ function CrearUsuario({ onCerrar, onCreado }: CrearProps) {
               onChange={(e) => setRole(e.target.value as Role)}
               className="w-full bg-bg border border-border rounded-xl px-3 py-2.5 text-text focus:outline-none focus-visible:ring-2 focus-visible:ring-accent">
               <option value="vendedor">vendedor</option>
-              <option value="admin">admin</option>
-              <option value="superadmin">superadmin</option>
+              {/* Solo el superadmin puede crear admin. Nunca se crea otro
+                  superadmin desde la UI (es unico). */}
+              {esSuper && <option value="admin">admin</option>}
             </select>
           </Field>
         </div>

@@ -79,12 +79,26 @@ export default function HorarioTiendaPage() {
     setCfg((prev) => (prev ? { ...prev, ...patch } : prev));
   };
 
-  const toggleDia = (dia: number) => {
+  // Los dias cerrados se guardan al instante (igual que "Abrir/Cerrar ahora"),
+  // sin esperar al boton "Guardar": asi marcar/desmarcar un dia nunca se pierde
+  // por olvidar guardar.
+  const toggleDia = async (dia: number) => {
     if (!cfg) return;
     const set = new Set(cfg.diasCerrados);
     if (set.has(dia)) set.delete(dia);
     else set.add(dia);
-    actualizar({ diasCerrados: [...set].sort() });
+    const nuevos = [...set].sort((a, b) => a - b);
+    actualizar({ diasCerrados: nuevos });
+    try {
+      const { data } = await api.put<StoreConfig>('/api/iot/store/config', {
+        diasCerrados: nuevos,
+      });
+      setCfg(data);
+      await refrescarEstado();
+    } catch {
+      // Si falla (sin conexion), el cambio queda local y el boton "Guardar"
+      // sigue disponible para reintentar.
+    }
   };
 
   const guardar = async () => {

@@ -9,6 +9,11 @@ export default function PerfilPage() {
   if (!user) return null;
   const rol = ROLE_VARIANT[user.role] ?? { tone: 'neutral' as const, label: user.role };
 
+  // Igual que en mobile: confirmar antes de cerrar sesión.
+  const confirmarSalir = () => {
+    if (window.confirm('¿Seguro que quieres cerrar sesión?')) void logout();
+  };
+
   return (
     <div className="max-w-md">
       <h1 className="font-heading text-2xl font-extrabold mb-6">Mi perfil</h1>
@@ -30,7 +35,7 @@ export default function PerfilPage() {
           <Row label="ID">{user.id}</Row>
         </div>
 
-        <Button variant="danger" className="mt-6 w-full" leftIcon={<LogOut size={16} />} onClick={logout}>
+        <Button variant="danger" className="mt-6 w-full" leftIcon={<LogOut size={16} />} onClick={confirmarSalir}>
           Cerrar sesion
         </Button>
       </div>

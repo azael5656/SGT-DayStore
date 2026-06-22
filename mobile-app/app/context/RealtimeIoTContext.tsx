@@ -5,12 +5,17 @@ import React, {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from 'react';
 import { iotService, type Alert, type SensorReading } from '../services/iot.service';
 import { getRealtimeSocket } from '../services/realtime.service';
 import { loadIotSnapshot, saveIotSnapshot } from '../services/iotSnapshot';
 import { alertaVisibleParaRol } from '../utils/labels';
+import {
+  initLocalNotifications,
+  notificarLocal,
+} from '../services/localNotifications';
 import { useAuth } from './AuthContext';
 
 /**
@@ -38,6 +43,19 @@ export function RealtimeIoTProvider({ children }: { children: ReactNode }) {
   const [readings, setReadings] = useState<SensorReading[]>([]);
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [conectado, setConectado] = useState(false);
+
+  // Rol actual leido dentro del handler del socket sin re-suscribir el socket.
+  const roleRef = useRef(user?.role);
+  useEffect(() => {
+    roleRef.current = user?.role;
+  }, [user?.role]);
+  // IDs ya notificados para no repetir la notificacion de la misma alerta.
+  const notificadosRef = useRef<Set<string>>(new Set());
+
+  // Pide permiso y crea el canal de notificaciones una vez (NOT-1).
+  useEffect(() => {
+    void initLocalNotifications();
+  }, []);
 
   /**
    * Vendedor no ve alertas de corte_luz ni movimiento; solo las que afectan
@@ -106,6 +124,15 @@ export function RealtimeIoTProvider({ children }: { children: ReactNode }) {
     };
     const onAlert = (a: Alert) => {
       setAlerts((prev) => [a, ...prev.filter((x) => x.id !== a.id)]);
+      // Notificacion local al celular solo para alertas que el rol ve y que
+      // no hayamos notificado ya (evita repetir la misma).
+      if (
+        alertaVisibleParaRol(a.tipo, roleRef.current) &&
+        !notificadosRef.current.has(a.id)
+      ) {
+        notificadosRef.current.add(a.id);
+        void notificarLocal(`Alerta: ${a.tipo}`, a.mensaje);
+      }
     };
     const onAlertAck = (a: Alert) => {
       setAlerts((prev) => prev.map((x) => (x.id === a.id ? a : x)));

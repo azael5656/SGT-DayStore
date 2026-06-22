@@ -28,6 +28,17 @@ export default function ClienteForm({ cliente, onCerrar, onGuardado }: Props) {
   const submit = async (e: FormEvent) => {
     e.preventDefault();
     setError('');
+    // Validar cédula (6-10 dígitos, ignorando prefijo V-/E- y guiones) y
+    // teléfono (solo números) antes de enviar.
+    const digitosCedula = cedula.replace(/\D/g, '');
+    if (digitosCedula.length < 6 || digitosCedula.length > 10) {
+      setError('La cédula debe tener entre 6 y 10 dígitos.');
+      return;
+    }
+    if (telefono.trim() && !/^[0-9+\s-]{7,15}$/.test(telefono.trim())) {
+      setError('El teléfono solo debe contener números (7 a 15 dígitos).');
+      return;
+    }
     setGuardando(true);
     try {
       const payload = {

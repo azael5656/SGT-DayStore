@@ -21,14 +21,14 @@ interface UsuarioJwt {
 }
 
 /**
- * Reglas de gestion de usuarios (alineadas al modelo de 1 superadmin +
- * 1 admin + N vendedores):
+ * Reglas de gestion de usuarios (modelo de 1 superadmin unico +
+ * N admin + N vendedores):
  *
  *  - Listar / ver: admin + superadmin.
  *  - Crear vendedor: admin + superadmin.
- *  - Crear admin: SOLO superadmin, y si no existe otro admin activo.
+ *  - Crear admin: SOLO superadmin (pueden existir varios admin).
  *  - Crear superadmin: SOLO superadmin, y si no existe otro activo
- *    (rara vez se usa — unico escenario: sustituir al actual).
+ *    (el superadmin es unico — unico escenario: sustituir al actual).
  *  - Cambiar rol / desactivar / activar: solo superadmin.
  *  - No puedes desactivar tu propia cuenta.
  */
@@ -51,21 +51,12 @@ export class UsersController {
         'Solo el super admin puede crear usuarios con rol admin o superadmin',
       );
     }
-    // Superadmin unico.
+    // Superadmin unico (los admin pueden ser varios).
     if (dto.role === 'superadmin') {
       const existentes = await this.usersService.contarActivosPorRol('superadmin');
       if (existentes >= 1) {
         throw new BadRequestException(
           'Ya existe un superadmin activo. Desactiva el actual antes de crear otro.',
-        );
-      }
-    }
-    // Admin unico.
-    if (dto.role === 'admin') {
-      const existentes = await this.usersService.contarActivosPorRol('admin');
-      if (existentes >= 1) {
-        throw new BadRequestException(
-          'Ya existe un administrador activo. Desactiva el actual antes de crear otro.',
         );
       }
     }
@@ -83,15 +74,7 @@ export class UsersController {
     if (actor.role !== 'superadmin') {
       throw new ForbiddenException('Solo un superadmin puede cambiar roles');
     }
-    // Si ascendemos a admin o superadmin, respetamos el limite de uno.
-    if (dto.role === 'admin') {
-      const existentes = await this.usersService.contarActivosPorRol('admin');
-      if (existentes >= 1) {
-        throw new BadRequestException(
-          'Ya existe un administrador activo. Desactiva el actual antes de asignar este rol.',
-        );
-      }
-    }
+    // El superadmin es unico; los admin pueden ser varios.
     if (dto.role === 'superadmin') {
       const existentes = await this.usersService.contarActivosPorRol('superadmin');
       if (existentes >= 1) {
@@ -127,12 +110,13 @@ export class UsersController {
       throw new ForbiddenException('Solo un superadmin puede activar usuarios');
     }
     const objetivo = await this.usersService.findById(id);
-    // Activar un admin/superadmin inactivo no debe violar el limite de uno.
-    if (objetivo.role === 'admin' || objetivo.role === 'superadmin') {
-      const existentes = await this.usersService.contarActivosPorRol(objetivo.role);
+    // El superadmin es unico: activar uno inactivo no debe crear un segundo.
+    // Los admin pueden ser varios, asi que no se limitan.
+    if (objetivo.role === 'superadmin') {
+      const existentes = await this.usersService.contarActivosPorRol('superadmin');
       if (existentes >= 1) {
         throw new BadRequestException(
-          `Ya existe un ${objetivo.role} activo. Desactivalo primero.`,
+          'Ya existe un superadmin activo. Desactivalo primero.',
         );
       }
     }

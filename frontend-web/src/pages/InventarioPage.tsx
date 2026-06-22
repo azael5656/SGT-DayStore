@@ -24,26 +24,40 @@ export default function InventarioPage() {
   const [catsAbierto, setCatsAbierto] = useState(false);
   const [cargando, setCargando] = useState(false);
 
-  const cargar = async () => {
+  const cargarProductos = async (search: string) => {
     setCargando(true);
     try {
-      const [prodResp, catResp] = await Promise.all([
-        api.get<Page<Producto> | Producto[]>('/api/negocio/products', {
-          params: busqueda ? { search: busqueda } : {},
-        }),
-        api.get<Categoria[]>('/api/negocio/categories'),
-      ]);
-      setItems(Array.isArray(prodResp.data) ? prodResp.data : prodResp.data.items ?? []);
-      setCategorias(catResp.data);
+      const resp = await api.get<Page<Producto> | Producto[]>('/api/negocio/products', {
+        params: search ? { search } : {},
+      });
+      setItems(Array.isArray(resp.data) ? resp.data : resp.data.items ?? []);
     } finally {
       setCargando(false);
     }
   };
 
+  const cargarCategorias = async () => {
+    const resp = await api.get<Categoria[]>('/api/negocio/categories');
+    setCategorias(resp.data);
+  };
+
+  // Categorias: una sola vez al entrar.
   useEffect(() => {
-    cargar();
+    cargarCategorias();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Buscador automatico: recarga mientras se escribe (con un respiro de 350 ms).
+  useEffect(() => {
+    const t = setTimeout(() => cargarProductos(busqueda), 350);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [busqueda]);
+
+  const recargar = () => {
+    cargarProductos(busqueda);
+    cargarCategorias();
+  };
 
   const eliminar = async (id: string) => {
     const ok = await confirm({
@@ -54,7 +68,7 @@ export default function InventarioPage() {
     });
     if (!ok) return;
     await api.delete(`/api/negocio/products/${id}`);
-    cargar();
+    recargar();
   };
 
   return (
@@ -79,18 +93,14 @@ export default function InventarioPage() {
         }
       />
 
-      <div className="flex gap-2 mb-4 max-w-xl">
+      <div className="mb-4 max-w-xl">
         <Input
           type="text"
           placeholder="Buscar por nombre o codigo (ej. JOY)…"
           value={busqueda}
           onChange={(e) => setBusqueda(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && cargar()}
-          className="flex-1"
+          className="w-full"
         />
-        <Button variant="secondary" onClick={cargar}>
-          Buscar
-        </Button>
       </div>
 
       <Table className="min-w-[720px]">
@@ -168,7 +178,7 @@ export default function InventarioPage() {
           onGuardado={() => {
             setCreando(false);
             setEditando(null);
-            cargar();
+            recargar();
           }}
         />
       )}
@@ -177,7 +187,7 @@ export default function InventarioPage() {
         <CategoriasModal
           categorias={categorias}
           onClose={() => setCatsAbierto(false)}
-          onChanged={cargar}
+          onChanged={recargar}
         />
       )}
     </div>
@@ -252,12 +262,34 @@ function ProductoForm({ producto, categorias, onCerrar, onGuardado }: FormProps)
               ))}
             </select>
           </Field>
-          <div className="flex gap-2">
-            <div className="flex-1">
-              <Field label="Precio">
-                <Input type="number" min={0} step="0.01" value={precio} onChange={(e) => setPrecio(e.target.value)} required />
-              </Field>
+          <Field label="Precio">
+            <div className="flex items-stretch gap-2">
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => setPrecio(String(Math.max(0, Number(((Number(precio) || 0) - 1).toFixed(2)))))}
+                aria-label="Bajar precio">
+                −
+              </Button>
+              <Input
+                type="number"
+                min={0}
+                step="0.01"
+                value={precio}
+                onChange={(e) => setPrecio(e.target.value)}
+                required
+                className="flex-1 text-center"
+              />
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => setPrecio(String(Number(((Number(precio) || 0) + 1).toFixed(2))))}
+                aria-label="Subir precio">
+                +
+              </Button>
             </div>
+          </Field>
+          <div className="flex gap-2">
             <div className="flex-1">
               <Field label="Stock">
                 <Input type="number" min={0} value={stock} onChange={(e) => setStock(e.target.value)} required />
@@ -270,7 +302,11 @@ function ProductoForm({ producto, categorias, onCerrar, onGuardado }: FormProps)
             </div>
           </div>
           <Field label="Codigo">
-            <Input value={codigo} onChange={(e) => setCodigo(e.target.value)} />
+            <Input
+              value={codigo}
+              onChange={(e) => setCodigo(e.target.value)}
+              placeholder="Se genera solo si lo dejas vacio (ej. PRD-0001)"
+            />
           </Field>
         </div>
         <div className="flex justify-end gap-2 mt-6">
@@ -332,7 +368,7 @@ function CategoriasModal({ categorias, onClose, onChanged }: CatsProps) {
   const borrar = async (c: Categoria) => {
     const ok = await confirm({
       title: 'Borrar categoría',
-      message: `¿Borrar "${c.nombre}"? Los productos de esta categoría podrían quedar sin clasificar.`,
+      message: `¿Borrar "${c.nombre}"? Se ocultará de la lista, pero los productos que ya la usan la conservan.`,
       danger: true,
       confirmText: 'Borrar',
     });

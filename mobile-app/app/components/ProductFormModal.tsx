@@ -11,6 +11,7 @@ import {
   View,
 } from 'react-native';
 import { COLORS } from '../utils/constants';
+import { parseApiError } from '../utils/errors';
 import {
   categoriesService,
   type Category,
@@ -72,8 +73,9 @@ export default function ProductFormModal({
     const nuevosErrores: Errores = {
       nombre: !nombre.trim(),
       categoryId: !categoryId,
-      precio: !precio || isNaN(Number(precio)),
-      stock: !stock || isNaN(parseInt(stock, 10)),
+      // No se permiten negativos ni valores no numericos.
+      precio: !precio || isNaN(Number(precio)) || Number(precio) < 0,
+      stock: !stock || isNaN(parseInt(stock, 10)) || parseInt(stock, 10) < 0,
     };
     setErrores(nuevosErrores);
     return !Object.values(nuevosErrores).some(Boolean);
@@ -96,7 +98,7 @@ export default function ProductFormModal({
         codigo: codigo.trim() || undefined,
       });
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Error al guardar');
+      setError(parseApiError(e, 'Error al guardar'));
     } finally {
       setSaving(false);
     }
@@ -191,17 +193,36 @@ export default function ProductFormModal({
             </View>
 
             <Label text="Precio (COP)" required error={errores.precio} />
-            <TextInput
-              style={inputStyle(errores.precio)}
-              value={precio}
-              onChangeText={(t) => {
-                setPrecio(t);
-                if (errores.precio) setErrores({ ...errores, precio: false });
-              }}
-              keyboardType="numeric"
-              placeholder="15000"
-              placeholderTextColor={COLORS.textMuted}
-            />
+            <View style={styles.stepperRow}>
+              <TouchableOpacity
+                style={styles.stepBtn}
+                onPress={() => {
+                  setPrecio(String(Math.max(0, Number(((Number(precio) || 0) - 1).toFixed(2)))));
+                  if (errores.precio) setErrores({ ...errores, precio: false });
+                }}>
+                <Text style={styles.stepBtnTxt}>−</Text>
+              </TouchableOpacity>
+              <TextInput
+                style={[inputStyle(errores.precio), styles.stepInput]}
+                value={precio}
+                onChangeText={(t) => {
+                  setPrecio(t);
+                  if (errores.precio) setErrores({ ...errores, precio: false });
+                }}
+                keyboardType="numeric"
+                placeholder="15000"
+                placeholderTextColor={COLORS.textMuted}
+                textAlign="center"
+              />
+              <TouchableOpacity
+                style={styles.stepBtn}
+                onPress={() => {
+                  setPrecio(String(Number(((Number(precio) || 0) + 1).toFixed(2))));
+                  if (errores.precio) setErrores({ ...errores, precio: false });
+                }}>
+                <Text style={styles.stepBtnTxt}>+</Text>
+              </TouchableOpacity>
+            </View>
 
             <View style={styles.rowCols}>
               <View style={{ flex: 1 }}>
@@ -234,7 +255,8 @@ export default function ProductFormModal({
 
             <Label text="Codigo interno o de barras (opcional)" />
             <Text style={styles.hint}>
-              Sirve para buscar el producto rapido al cobrar.
+              Sirve para buscar el producto al cobrar. Si lo dejas vacio se
+              genera uno solo (ej. PRD-0001).
             </Text>
             <TextInput
               style={styles.input}
@@ -414,6 +436,18 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
   },
   rowCols: { flexDirection: 'row' },
+  stepperRow: { flexDirection: 'row', alignItems: 'stretch', gap: 8 },
+  stepInput: { flex: 1 },
+  stepBtn: {
+    width: 48,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: 10,
+    backgroundColor: COLORS.surface,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  stepBtnTxt: { fontSize: 22, fontWeight: '700', color: COLORS.text },
   error: {
     color: COLORS.danger,
     fontSize: 13,
