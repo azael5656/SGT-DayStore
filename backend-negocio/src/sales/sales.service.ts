@@ -751,7 +751,7 @@ export class SalesService {
    * Incluye:
    *  - ventasHoy, ventasSemana, ventasMes (total USD + cantidad).
    *  - ticketPromedio del mes.
-   *  - topProductos del mes (top 5 por unidades vendidas).
+   *  - topProductos del mes (TODOS los vendidos, por unidades vendidas).
    *  - resumen de deudas (cantidad de pendientes + suma de saldos).
    *  - stockBajo (productos con stock < stockMinimo).
    *  - distribución de pagos por moneda y por método en el mes.
@@ -782,7 +782,8 @@ export class SalesService {
       this.repo.sumarVentasEnRango(inicioHoy, finHoy),
       this.repo.sumarVentasEnRango(inicioSemana, ahora),
       this.repo.sumarVentasEnRango(inicioMes, ahora),
-      this.repo.topProductos(inicioMes, ahora, 5),
+      // Todos los productos vendidos en el mes (VEN-6), no solo el top 5.
+      this.repo.topProductos(inicioMes, ahora),
       this.repo.resumenDeudas(),
       this.products.countLowStock(),
       this.repo.distribucionPagos(inicioMes, ahora),

@@ -214,8 +214,8 @@ export default function MiNegocioScreen() {
         <Tendencia data={padSerie(data.serieDiaria, dias)} />
       </Section>
 
-      {/* Top productos */}
-      <Section titulo="Top productos del mes" icono="figura">
+      {/* Productos vendidos (todos, VEN-6) */}
+      <Section titulo="Productos vendidos del mes" icono="figura">
         {data.topProductos.length === 0 ? (
           <Text style={styles.vacio}>Aún no hay ventas este mes.</Text>
         ) : (
