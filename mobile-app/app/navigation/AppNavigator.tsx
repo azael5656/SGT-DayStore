@@ -1,6 +1,7 @@
 import React from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import BuzzerVibrator from '../components/BuzzerVibrator';
+import OfflineBanner from '../components/OfflineBanner';
 import { useAuth } from '../context/AuthContext';
 import { RealtimeIoTProvider } from '../context/RealtimeIoTContext';
 import { SyncProvider } from '../context/SyncContext';
@@ -28,10 +29,16 @@ export default function AppNavigator() {
   return isAuthenticated ? (
     <SyncProvider>
       <RealtimeIoTProvider>
+        <View style={styles.flex}>
+          {/* Indicador global de modo offline / sincronización. */}
+          <OfflineBanner />
+          <View style={styles.flex}>
+            <TabNavigator />
+          </View>
+        </View>
         {/* Alarma global: suena en cualquier pantalla mientras el buzzer este
             activo, no solo en Home. */}
         <BuzzerVibrator />
-        <TabNavigator />
       </RealtimeIoTProvider>
     </SyncProvider>
   ) : (
@@ -40,6 +47,7 @@ export default function AppNavigator() {
 }
 
 const styles = StyleSheet.create({
+  flex: { flex: 1 },
   splash: {
     flex: 1,
     alignItems: 'center',
