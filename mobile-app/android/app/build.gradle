@@ -105,6 +105,12 @@ android {
             proguardFiles getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro"
         }
     }
+
+    // WatermelonDB (adaptador SQLite JSI) trae su propio libc++_shared.so;
+    // pickFirst evita el choque de .so duplicados al empacar el APK.
+    packagingOptions {
+        pickFirst '**/libc++_shared.so'
+    }
 }
 
 dependencies {
