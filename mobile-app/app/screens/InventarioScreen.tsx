@@ -24,6 +24,7 @@ import { database } from '../database';
 import ProductModel from '../database/models/Product';
 import CategoryModel from '../database/models/Category';
 import { sync } from '../database/sync';
+import { notificarStockBajoUnaVez } from '../services/localNotifications';
 import { COLORS } from '../utils/constants';
 
 /**
@@ -53,6 +54,13 @@ export default function InventarioScreen() {
         .get<ProductModel>('products')
         .query(Q.where('activo', true))
         .fetch();
+
+      // Stock bajo/agotado sobre TODO el inventario activo (no el filtrado):
+      // notifica una sola vez por sesion (NOT-1).
+      const enStockBajo = prodModels.filter(
+        (p) => p.stock <= p.stockMinimo,
+      ).length;
+      void notificarStockBajoUnaVez(enStockBajo);
 
       const catNombre = new Map(cats.map((c) => [c.id, c.nombre]));
       let prods: Product[] = prodModels.map((p) => ({
