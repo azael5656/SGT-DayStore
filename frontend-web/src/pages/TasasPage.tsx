@@ -72,7 +72,7 @@ export default function TasasPage() {
 
       {/* Tasas vigentes */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-6">
-        <KpiCard label="USD" value="1.0000" sub="Moneda base del sistema" />
+        <KpiCard label="USD" value="1" sub="Moneda base del sistema" />
         <KpiCard
           label="VES"
           value={vigentes?.VES?.toLocaleString() ?? '—'}
