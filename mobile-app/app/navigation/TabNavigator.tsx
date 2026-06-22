@@ -6,14 +6,16 @@ import InventarioScreen from '../screens/InventarioScreen';
 import PerfilScreen from '../screens/PerfilScreen';
 import { COLORS, ROUTES } from '../utils/constants';
 import HomeStack from './HomeStack';
+import { useAuth } from '../context/AuthContext';
 
 /**
- * Bottom nav principal con 4 tabs fijos (no cambian por rol):
+ * Bottom nav principal:
  *  - Home (hub): resumen + cards a secciones secundarias (filtradas por rol)
- *  - Inventario: CRUD de productos
- *  - Alertas: alertas IoT en vivo
+ *  - Inventario: CRUD de productos (solo gerencia)
+ *  - Alertas: alertas IoT en vivo (solo gerencia)
  *  - Perfil: datos del usuario + logout
  *
+ * El vendedor solo trabaja Ventas: no ve los tabs de Inventario ni Alertas.
  * Ventas, Auditoria, Historico, Usuarios se navegan dentro del HomeStack.
  */
 const Tab = createBottomTabNavigator();
@@ -23,6 +25,8 @@ const icono = (name: string) => ({ color, size }: { color: string; size: number 
 );
 
 export default function TabNavigator() {
+  const { user } = useAuth();
+  const esGerencia = user?.role === 'admin' || user?.role === 'superadmin';
   return (
     <Tab.Navigator
       screenOptions={{
@@ -37,16 +41,20 @@ export default function TabNavigator() {
         component={HomeStack}
         options={{ title: 'Home', tabBarIcon: icono('home') }}
       />
-      <Tab.Screen
-        name={ROUTES.Inventario}
-        component={InventarioScreen}
-        options={{ tabBarIcon: icono('inventario'), headerShown: true }}
-      />
-      <Tab.Screen
-        name={ROUTES.Alertas}
-        component={AlertsScreen}
-        options={{ tabBarIcon: icono('alertas'), headerShown: true }}
-      />
+      {esGerencia && (
+        <Tab.Screen
+          name={ROUTES.Inventario}
+          component={InventarioScreen}
+          options={{ tabBarIcon: icono('inventario'), headerShown: true }}
+        />
+      )}
+      {esGerencia && (
+        <Tab.Screen
+          name={ROUTES.Alertas}
+          component={AlertsScreen}
+          options={{ tabBarIcon: icono('alertas'), headerShown: true }}
+        />
+      )}
       <Tab.Screen
         name={ROUTES.Perfil}
         component={PerfilScreen}
