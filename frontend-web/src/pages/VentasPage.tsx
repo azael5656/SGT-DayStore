@@ -112,6 +112,9 @@ function ListaVentas({
   const [desde, setDesde] = useState('');
   const [hasta, setHasta] = useState('');
   const [incluirAnuladas, setIncluirAnuladas] = useState(false);
+  const [vendedor, setVendedor] = useState('');
+  const [montoMin, setMontoMin] = useState('');
+  const [montoMax, setMontoMax] = useState('');
   const [crearAbierto, setCrearAbierto] = useState(false);
   const [verDetalle, setVerDetalle] = useState<Sale | null>(null);
   const [anulando, setAnulando] = useState<Sale | null>(null);
@@ -128,6 +131,9 @@ function ListaVentas({
       if (desde) params.desde = desde;
       if (hasta) params.hasta = hasta;
       if (incluirAnuladas) params.incluirAnuladas = 'true';
+      if (vendedor.trim()) params.vendedor = vendedor.trim();
+      if (montoMin) params.montoMin = montoMin;
+      if (montoMax) params.montoMax = montoMax;
       const { data } = await api.get<Page<Sale>>('/api/negocio/sales', {
         params,
       });
@@ -139,10 +145,13 @@ function ListaVentas({
     }
   };
 
+  // Recarga al cambiar cualquier filtro. Pequeño debounce para no pegarle al
+  // backend en cada tecla de los campos de texto/monto.
   useEffect(() => {
-    cargar(1);
+    const t = setTimeout(() => cargar(1), 300);
+    return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [estado, desde, hasta, incluirAnuladas]);
+  }, [estado, desde, hasta, incluirAnuladas, vendedor, montoMin, montoMax]);
 
   const softDelete = async (s: Sale) => {
     const ok = await confirm({
@@ -167,6 +176,9 @@ function ListaVentas({
           desde: desde || undefined,
           hasta: hasta || undefined,
           incluirAnuladas: incluirAnuladas ? 'true' : undefined,
+          vendedor: vendedor.trim() || undefined,
+          montoMin: montoMin || undefined,
+          montoMax: montoMax || undefined,
         },
         'historial-ventas.pdf',
       );
@@ -179,6 +191,8 @@ function ListaVentas({
   };
 
   const totalPaginas = Math.max(1, Math.ceil(total / limit));
+  // Columnas de la tabla: la de "Vendedor" solo se muestra a gerencia.
+  const colSpan = esGerencia ? 8 : 7;
 
   return (
     <>
@@ -199,6 +213,37 @@ function ListaVentas({
         </Field>
         <Field label="Hasta">
           <DatePicker value={hasta} onChange={setHasta} placeholder="Hasta" className="w-40" />
+        </Field>
+        {esGerencia && (
+          <Field label="Vendedor">
+            <input
+              type="text"
+              value={vendedor}
+              onChange={(e) => setVendedor(e.target.value)}
+              placeholder="Nombre o email"
+              className={`${inputCls} w-44`}
+            />
+          </Field>
+        )}
+        <Field label="Total desde ($)">
+          <input
+            type="number"
+            min={0}
+            value={montoMin}
+            onChange={(e) => setMontoMin(e.target.value)}
+            placeholder="0"
+            className={`${inputCls} w-28`}
+          />
+        </Field>
+        <Field label="Total hasta ($)">
+          <input
+            type="number"
+            min={0}
+            value={montoMax}
+            onChange={(e) => setMontoMax(e.target.value)}
+            placeholder="∞"
+            className={`${inputCls} w-28`}
+          />
         </Field>
         <Checkbox
           className="pb-2"
@@ -222,6 +267,7 @@ function ListaVentas({
           <tr className="text-left">
             <TH>Fecha</TH>
             <TH>Cliente</TH>
+            {esGerencia && <TH>Vendedor</TH>}
             <TH>Tipo</TH>
             <TH className="text-right">Total</TH>
             <TH className="text-right">Saldo</TH>
@@ -232,14 +278,14 @@ function ListaVentas({
         <TBody>
           {cargando && (
             <tr>
-              <TD colSpan={7} className="py-6 text-center text-text-muted">
+              <TD colSpan={colSpan} className="py-6 text-center text-text-muted">
                 Cargando...
               </TD>
             </tr>
           )}
           {!cargando && ventas.length === 0 && (
             <tr>
-              <TD colSpan={7} className="py-6 text-center text-text-muted">
+              <TD colSpan={colSpan} className="py-6 text-center text-text-muted">
                 Sin ventas en este filtro.
               </TD>
             </tr>
@@ -261,6 +307,13 @@ function ListaVentas({
                   <span className="text-xs text-text-muted">—</span>
                 )}
               </TD>
+              {esGerencia && (
+                <TD>
+                  <span className="text-sm">
+                    {s.userNombre ?? s.userEmail ?? '—'}
+                  </span>
+                </TD>
+              )}
               <TD>
                 {s.tipoVenta === 'credito' ? (
                   <Badge tone="warning">CRÉDITO</Badge>

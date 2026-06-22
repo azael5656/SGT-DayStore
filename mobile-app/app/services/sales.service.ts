@@ -113,6 +113,11 @@ export interface ListSalesFilter {
   desde?: string;
   hasta?: string;
   incluirAnuladas?: boolean;
+  /** Busca por nombre o email del vendedor (parcial). */
+  vendedor?: string;
+  /** Rango del total de la venta en USD. */
+  montoMin?: number;
+  montoMax?: number;
 }
 
 export interface CurrentRates {
@@ -138,6 +143,9 @@ export const salesService = {
     if (filter.desde) params.desde = filter.desde;
     if (filter.hasta) params.hasta = filter.hasta;
     if (filter.incluirAnuladas) params.incluirAnuladas = 'true';
+    if (filter.vendedor) params.vendedor = filter.vendedor;
+    if (filter.montoMin !== undefined) params.montoMin = filter.montoMin;
+    if (filter.montoMax !== undefined) params.montoMax = filter.montoMax;
     const { data } = await api.get<SalesPage>('/api/negocio/sales', { params });
     return data;
   },

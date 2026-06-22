@@ -9,6 +9,9 @@ interface ListFilter {
   desde?: Date;
   hasta?: Date;
   userId?: string;
+  vendedor?: string;
+  montoMin?: number;
+  montoMax?: number;
   customerId?: string;
   tipoVenta?: 'contado' | 'credito';
   estado?: 'pendiente' | 'completada' | 'anulada';
@@ -152,6 +155,20 @@ export class SalesRepository {
     }
 
     if (filter.userId) qb.andWhere('s.user_id = :userId', { userId: filter.userId });
+    if (filter.vendedor) {
+      // Busca por nombre O email del vendedor (snapshot), parcial e
+      // insensible a mayusculas.
+      qb.andWhere(
+        '(s.user_nombre ILIKE :vend OR s.user_email ILIKE :vend)',
+        { vend: `%${filter.vendedor}%` },
+      );
+    }
+    if (filter.montoMin !== undefined) {
+      qb.andWhere('s.total >= :montoMin', { montoMin: filter.montoMin });
+    }
+    if (filter.montoMax !== undefined) {
+      qb.andWhere('s.total <= :montoMax', { montoMax: filter.montoMax });
+    }
     if (filter.customerId) qb.andWhere('s.customer_id = :cid', { cid: filter.customerId });
     if (filter.tipoVenta) qb.andWhere('s.tipo_venta = :tv', { tv: filter.tipoVenta });
 

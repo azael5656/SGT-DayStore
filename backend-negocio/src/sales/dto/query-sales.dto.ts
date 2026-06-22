@@ -4,9 +4,12 @@ import {
   IsDateString,
   IsIn,
   IsInt,
+  IsNumber,
   IsOptional,
+  IsString,
   IsUUID,
   Max,
+  MaxLength,
   Min,
 } from 'class-validator';
 
@@ -16,6 +19,8 @@ import {
  *  - `desde` / `hasta`: rango de `fecha` (ISO 8601, ej. `2026-04-01`).
  *  - `userId`: filtrar por vendedor (los vendedores normales solo ven las
  *    suyas — el service ignora este filtro y lo fuerza a `user.sub`).
+ *  - `vendedor`: busca por nombre o email del vendedor (texto parcial).
+ *  - `montoMin` / `montoMax`: rango del total de la venta en USD.
  *  - `estado`: completada / anulada.
  *  - `incluirAnuladas`: si es `'true'`, incluye las anuladas en el listado
  *    (default: `false` — solo completadas).
@@ -35,6 +40,23 @@ export class QuerySalesDto {
   @IsOptional()
   @IsUUID('4')
   userId?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(120)
+  vendedor?: string;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0)
+  montoMin?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0)
+  montoMax?: number;
 
   @IsOptional()
   @IsIn(['pendiente', 'completada', 'anulada'])

@@ -26,6 +26,7 @@ import {
   Currency,
   CurrentRates,
   EstadoVenta,
+  ListSalesFilter,
   PaymentMethod,
   Sale,
   TipoVenta,
@@ -72,6 +73,10 @@ export default function VentasScreen() {
   const [estadoFiltro, setEstadoFiltro] = useState<EstadoVenta | 'todas'>(
     'completada',
   );
+  // VEN-2: busqueda por vendedor (solo gerencia) y por rango de total (USD).
+  const [busquedaVendedor, setBusquedaVendedor] = useState('');
+  const [montoMin, setMontoMin] = useState('');
+  const [montoMax, setMontoMax] = useState('');
 
   const [crearAbierto, setCrearAbierto] = useState(false);
   const [verDetalle, setVerDetalle] = useState<Sale | null>(null);
@@ -88,14 +93,17 @@ export default function VentasScreen() {
       } catch {
         /* ignore */
       }
-      const filtro =
+      const filtro: ListSalesFilter =
         estadoFiltro === 'todas'
           ? { incluirAnuladas: true, limit: 50 }
           : estadoFiltro === 'anulada'
-          ? { estado: 'anulada' as EstadoVenta, incluirAnuladas: true, limit: 50 }
+          ? { estado: 'anulada', incluirAnuladas: true, limit: 50 }
           : estadoFiltro === 'pendiente'
-          ? { estado: 'pendiente' as EstadoVenta, limit: 50 }
-          : { estado: 'completada' as EstadoVenta, limit: 50 };
+          ? { estado: 'pendiente', limit: 50 }
+          : { estado: 'completada', limit: 50 };
+      if (busquedaVendedor.trim()) filtro.vendedor = busquedaVendedor.trim();
+      if (montoMin) filtro.montoMin = Number(montoMin);
+      if (montoMax) filtro.montoMax = Number(montoMax);
       try {
         const page = await salesService.list(filtro);
         setVentas(page.items);
@@ -107,7 +115,7 @@ export default function VentasScreen() {
     } finally {
       setCargando(false);
     }
-  }, [estadoFiltro]);
+  }, [estadoFiltro, busquedaVendedor, montoMin, montoMax]);
 
   // Sincroniza las ventas pendientes manualmente (botón del banner).
   const sincronizarPendientes = async () => {
@@ -122,8 +130,10 @@ export default function VentasScreen() {
     }
   };
 
+  // Debounce: no pegamos al backend en cada tecla de la busqueda.
   useEffect(() => {
-    void cargar();
+    const t = setTimeout(() => void cargar(), 350);
+    return () => clearTimeout(t);
   }, [cargar]);
 
   const onRefresh = async () => {
@@ -234,6 +244,36 @@ export default function VentasScreen() {
           </Text>
         </TouchableOpacity>
       )}
+
+      <View style={styles.buscador}>
+        {esGerencia && (
+          <TextInput
+            style={styles.buscadorInput}
+            value={busquedaVendedor}
+            onChangeText={setBusquedaVendedor}
+            placeholder="Buscar por vendedor (nombre o email)"
+            placeholderTextColor={COLORS.textMuted}
+          />
+        )}
+        <View style={styles.buscadorMontos}>
+          <TextInput
+            style={[styles.buscadorInput, { flex: 1 }]}
+            value={montoMin}
+            onChangeText={setMontoMin}
+            keyboardType="numeric"
+            placeholder="Total desde ($)"
+            placeholderTextColor={COLORS.textMuted}
+          />
+          <TextInput
+            style={[styles.buscadorInput, { flex: 1 }]}
+            value={montoMax}
+            onChangeText={setMontoMax}
+            keyboardType="numeric"
+            placeholder="Total hasta ($)"
+            placeholderTextColor={COLORS.textMuted}
+          />
+        </View>
+      </View>
 
       <View style={styles.chipsRow}>
         {(['completada', 'pendiente', 'anulada', 'todas'] as const).map((opt) => {
@@ -373,6 +413,11 @@ function VentaCard({
           <Text style={styles.cardSub}>
             {fecha.toLocaleDateString()} · {fecha.toLocaleTimeString()}
           </Text>
+          {esGerencia && (venta.userNombre || venta.userEmail) && (
+            <Text style={styles.cardSub}>
+              Vendedor: {venta.userNombre ?? venta.userEmail}
+            </Text>
+          )}
           {saldo > 0.01 && (
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 }}>
               <Icon name="clientes" color={COLORS.warning} size={13} />
@@ -2036,6 +2081,22 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     flexWrap: 'wrap',
   },
+  buscador: {
+    paddingHorizontal: 16,
+    paddingTop: 10,
+    gap: 8,
+  },
+  buscadorInput: {
+    backgroundColor: COLORS.surface,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    fontSize: 14,
+    color: COLORS.text,
+  },
+  buscadorMontos: { flexDirection: 'row', gap: 8 },
   chip: {
     paddingHorizontal: 10,
     paddingVertical: 6,
