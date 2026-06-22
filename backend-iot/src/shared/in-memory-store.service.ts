@@ -207,6 +207,17 @@ export class InMemoryStoreService {
     return [...this.alerts];
   }
 
+  /**
+   * Inserta alertas al arrancar (hidratación desde Mongo tras un reinicio) sin
+   * re-emitir eventos: solo repuebla el estado en memoria para que la API y el
+   * dashboard las vean. No dispara buzzer ni sockets (no hay clientes aún).
+   */
+  seedAlerts(alerts: StoredAlert[]): void {
+    for (const a of alerts) {
+      if (!this.alerts.some((x) => x.id === a.id)) this.alerts.push(a);
+    }
+  }
+
   getAlert(id: string): StoredAlert | undefined {
     return this.alerts.find((a) => a.id === id);
   }
