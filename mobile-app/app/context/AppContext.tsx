@@ -2,16 +2,19 @@ import React, {
   createContext,
   ReactNode,
   useContext,
+  useEffect,
   useMemo,
   useState,
 } from 'react';
+import NetInfo from '@react-native-community/netinfo';
 
 /**
- * Context general de la app. Aqui ponemos estado compartido que no es de
- * auth, por ejemplo si estamos sin internet.
+ * Context general de la app. Estado compartido que no es de auth, p.ej. si
+ * estamos sin internet (offline-first).
  *
- * Por ahora isOffline es un placeholder. Cuando conectemos con
- * NetInfo (@react-native-community/netinfo) lo actualizaremos de verdad.
+ * `isOffline` se alimenta de NetInfo: el SyncProvider lo observa para
+ * disparar la sincronización cuando vuelve la conexión, y la UI lo usa para
+ * el indicador de modo offline.
  */
 
 interface AppContextValue {
@@ -28,8 +31,17 @@ interface ProviderProps {
 export function AppProvider({ children }: ProviderProps) {
   const [isOffline, setIsOffline] = useState(false);
 
-  // TODO: suscribirse a NetInfo.addEventListener para actualizar isOffline
-  // automaticamente cuando cambie la conexion.
+  useEffect(() => {
+    const unsub = NetInfo.addEventListener((state) => {
+      // isInternetReachable puede ser null al arrancar; lo tratamos como online
+      // para no mostrar un falso "offline" antes de la primera medición.
+      const offline = !(
+        state.isConnected && state.isInternetReachable !== false
+      );
+      setIsOffline(offline);
+    });
+    return () => unsub();
+  }, []);
 
   const value = useMemo<AppContextValue>(
     () => ({ isOffline, setIsOffline }),

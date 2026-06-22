@@ -10,16 +10,20 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { Q } from '@nozbe/watermelondb';
 import Icon from '../components/Icon';
 import ProductCard from '../components/ProductCard';
 import ProductFormModal from '../components/ProductFormModal';
 import {
-  categoriesService,
   Category,
   CreateProductInput,
   Product,
   productsService,
 } from '../services/negocio.service';
+import { database } from '../database';
+import ProductModel from '../database/models/Product';
+import CategoryModel from '../database/models/Category';
+import { sync } from '../database/sync';
 import { COLORS } from '../utils/constants';
 
 /**
@@ -36,17 +40,55 @@ export default function InventarioScreen() {
   const [modalAbierto, setModalAbierto] = useState(false);
   const [editando, setEditando] = useState<Product | null>(null);
 
+  // Offline-first: el listado se lee de WatermelonDB (BD local), así funciona
+  // con o sin conexión. El catálogo lo baja el SyncProvider por pull; aquí solo
+  // leemos y filtramos en memoria.
   const cargar = useCallback(async () => {
     try {
-      const [lista, cats] = await Promise.all([
-        productsService.list(
-          busqueda || undefined,
-          categoriaFiltro ?? undefined,
-        ),
-        categoriesService.list(),
-      ]);
-      setProductos(lista);
-      setCategorias(cats);
+      const cats = await database
+        .get<CategoryModel>('categories')
+        .query()
+        .fetch();
+      const prodModels = await database
+        .get<ProductModel>('products')
+        .query(Q.where('activo', true))
+        .fetch();
+
+      const catNombre = new Map(cats.map((c) => [c.id, c.nombre]));
+      let prods: Product[] = prodModels.map((p) => ({
+        id: p.id,
+        nombre: p.nombre,
+        descripcion: p.descripcion ?? null,
+        categoryId: p.categoryId,
+        category: catNombre.has(p.categoryId)
+          ? { id: p.categoryId, nombre: catNombre.get(p.categoryId)!, descripcion: null }
+          : undefined,
+        precio: p.precio,
+        stock: p.stock,
+        stockMinimo: p.stockMinimo,
+        codigo: p.codigo ?? null,
+        activo: p.activo,
+      }));
+
+      if (categoriaFiltro) {
+        prods = prods.filter((p) => p.categoryId === categoriaFiltro);
+      }
+      if (busqueda) {
+        const q = busqueda.toLowerCase();
+        prods = prods.filter(
+          (p) =>
+            p.nombre.toLowerCase().includes(q) ||
+            (p.codigo ?? '').toLowerCase().includes(q),
+        );
+      }
+      prods.sort((a, b) => a.nombre.localeCompare(b.nombre));
+
+      setProductos(prods);
+      setCategorias(
+        cats
+          .map((c) => ({ id: c.id, nombre: c.nombre, descripcion: null }))
+          .sort((a, b) => a.nombre.localeCompare(b.nombre)),
+      );
     } catch (err) {
       RNAlert.alert(
         'Error cargando inventario',
@@ -63,23 +105,31 @@ export default function InventarioScreen() {
 
   const onRefresh = async () => {
     setRefrescando(true);
+    // Pull-to-refresh: baja lo último del servidor (si hay red) y re-lee local.
+    try {
+      await sync();
+    } catch {
+      /* sin conexión: igual mostramos lo que haya en local */
+    }
     await cargar();
     setRefrescando(false);
   };
 
+  // El CRUD de catálogo es online (axios). Tras escribir en el servidor,
+  // sincronizamos para que el cambio baje a la BD local y se vea en la lista.
   const guardar = async (input: CreateProductInput) => {
     if (editando) {
-      const actualizado = await productsService.update(editando.id, input);
-      setProductos((prev) =>
-        prev.map((p) => (p.id === actualizado.id ? actualizado : p)),
-      );
+      await productsService.update(editando.id, input);
     } else {
-      const nuevo = await productsService.create(input);
-      setProductos((prev) => [nuevo, ...prev]);
+      await productsService.create(input);
     }
     setModalAbierto(false);
     setEditando(null);
-    // Refresca para incluir la relacion category eager-loaded.
+    try {
+      await sync();
+    } catch {
+      /* el siguiente sync reflejará el cambio */
+    }
     void cargar();
   };
 
@@ -95,7 +145,12 @@ export default function InventarioScreen() {
           onPress: async () => {
             try {
               await productsService.remove(p.id);
-              setProductos((prev) => prev.filter((x) => x.id !== p.id));
+              try {
+                await sync();
+              } catch {
+                /* el siguiente sync reflejará el borrado */
+              }
+              void cargar();
             } catch (err) {
               RNAlert.alert(
                 'No se pudo eliminar',
