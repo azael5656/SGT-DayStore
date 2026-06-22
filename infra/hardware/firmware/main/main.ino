@@ -31,14 +31,15 @@
 // -----------------------------------------------------------------------------
 // Configuracion - editar antes de flashear
 // -----------------------------------------------------------------------------
-// OJO: el ESP32 SOLO soporta WiFi 2.4 GHz. "Hazel_5G" es la banda de 5 GHz y
-// no conecta. Usamos "Hazel" (misma red, banda 2.4 GHz, canal 8).
-const char* WIFI_SSID     = "Hazel";
-const char* WIFI_PASSWORD = "Pi=3.1416";
+// OJO: el ESP32 SOLO soporta WiFi 2.4 GHz. Asegurate de que el hotspot del
+// celular este en banda 2.4 GHz (no 5 GHz / no "auto"), o no conecta.
+const char* WIFI_SSID     = "Redmi 14C";
+const char* WIFI_PASSWORD = "1234567899";
 
-// IP del PC/VPS donde corre Mosquitto. Para demo local con hotspot del celu,
-// poner aqui la IP LAN del laptop que levanta docker-compose.
-const char* MQTT_HOST = "192.168.0.101";
+// IP del PC donde corre Mosquitto (la IP LAN del laptop en el hotspot,
+// `ipconfig` -> Wi-Fi IPv4). OJO: el hotspot del celular puede CAMBIAR esta IP
+// cada vez que te reconectas; si el ESP32 da rc=-2, revisa la IP y actualizala.
+const char* MQTT_HOST = "10.126.93.40";
 const int   MQTT_PORT = 1883;
 
 // Identificador unico del dispositivo. Si se agregan mas ESP32, cambiar este
