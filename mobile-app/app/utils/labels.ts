@@ -67,10 +67,21 @@ export function labelAccion(action: string): string {
     'categories.create': 'Creo una categoria',
     'categories.update': 'Edito una categoria',
     'categories.delete': 'Elimino una categoria',
+    'customers.create': 'Registro un cliente',
+    'customers.update': 'Edito un cliente',
+    'customers.delete': 'Elimino un cliente',
     'users.create': 'Creo una cuenta de usuario',
     'users.update': 'Actualizo una cuenta',
     'users.delete': 'Elimino una cuenta',
+    // El backend registra las ventas en singular (sale.*).
+    'sale.create': 'Registro una venta',
     'sales.create': 'Registro una venta',
+    'sale.abono': 'Registro un abono',
+    'sale.cancel': 'Anulo una venta',
+    'sale.delete': 'Elimino una venta',
+    'sale.oversell': 'Venta sin stock (offline)',
+    'exchange-rate.create': 'Subio una tasa de cambio',
+    'exchange-rates.create': 'Subio una tasa de cambio',
     'alert.ack': 'Reconocio una alerta',
     'iot.scenario.run': 'Lanzo un escenario IoT',
     'alerts.update': 'Actualizo una alerta',
@@ -85,13 +96,41 @@ export function labelAccion(action: string): string {
   };
   const recursos: Record<string, string> = {
     products: 'un producto',
+    product: 'un producto',
     categories: 'una categoria',
+    category: 'una categoria',
+    customers: 'un cliente',
     users: 'un usuario',
     sales: 'una venta',
+    sale: 'una venta',
     alerts: 'una alerta',
   };
   if (verbos[verbo]) {
     return `${verbos[verbo]} ${recursos[recurso] ?? recurso}`;
   }
   return action;
+}
+
+/** Nombre legible del `resource` de un evento de auditoria. */
+export function labelRecurso(resource: string | null | undefined): string {
+  if (!resource) return '-';
+  const map: Record<string, string> = {
+    sales: 'Ventas',
+    sale: 'Ventas',
+    products: 'Productos',
+    product: 'Productos',
+    categories: 'Categorias',
+    category: 'Categorias',
+    customers: 'Clientes',
+    customer: 'Clientes',
+    users: 'Usuarios',
+    usuarios: 'Usuarios',
+    'exchange-rates': 'Tasas de cambio',
+    exchange_rates: 'Tasas de cambio',
+    alerts: 'Alertas',
+    simulator: 'Simulador IoT',
+    'store-config': 'Configuracion de tienda',
+    auth: 'Sesion',
+  };
+  return map[resource] ?? resource;
 }
