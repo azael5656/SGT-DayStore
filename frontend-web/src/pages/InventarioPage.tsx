@@ -368,7 +368,7 @@ function CategoriasModal({ categorias, onClose, onChanged }: CatsProps) {
   const borrar = async (c: Categoria) => {
     const ok = await confirm({
       title: 'Borrar categoría',
-      message: `¿Borrar "${c.nombre}"? Los productos de esta categoría podrían quedar sin clasificar.`,
+      message: `¿Borrar "${c.nombre}"? Se ocultará de la lista, pero los productos que ya la usan la conservan.`,
       danger: true,
       confirmText: 'Borrar',
     });

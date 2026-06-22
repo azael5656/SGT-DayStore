@@ -87,6 +87,7 @@ export class SyncService {
             server_created_at: c.createdAt.getTime(),
             server_updated_at: c.updatedAt.getTime(),
           }),
+          (c) => !c.activo,
         ),
         products: this.split(
           productos,

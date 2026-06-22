@@ -14,12 +14,18 @@ export class CategoriesRepository {
     @InjectRepository(Category) private readonly orm: Repository<Category>,
   ) {}
 
+  /** Solo categorias activas (las soft-deleted quedan ocultas). */
   findAllOrderedByName() {
-    return this.orm.find({ order: { nombre: 'ASC' } });
+    return this.orm.find({ where: { activo: true }, order: { nombre: 'ASC' } });
   }
 
   findById(id: string) {
     return this.orm.findOne({ where: { id } });
+  }
+
+  /** Busca por nombre exacto (activa o no) para reactivar al recrear. */
+  findByNombre(nombre: string) {
+    return this.orm.findOne({ where: { nombre } });
   }
 
   create(data: Pick<Category, 'nombre' | 'descripcion'>) {
@@ -29,9 +35,5 @@ export class CategoriesRepository {
 
   save(cat: Category) {
     return this.orm.save(cat);
-  }
-
-  remove(cat: Category) {
-    return this.orm.remove(cat);
   }
 }

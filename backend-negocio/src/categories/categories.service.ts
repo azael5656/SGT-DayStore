@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { CategoriesRepository } from './categories.repository';
 import { CreateCategoryDto } from './dto/create-category.dto';
 import { UpdateCategoryDto } from './dto/update-category.dto';
@@ -21,7 +25,20 @@ export class CategoriesService {
     return cat;
   }
 
-  create(dto: CreateCategoryDto) {
+  async create(dto: CreateCategoryDto) {
+    // Si ya existe una con ese nombre la reusamos: si estaba borrada
+    // (soft-delete) la reactivamos en vez de fallar por el unique de nombre.
+    const existente = await this.repo.findByNombre(dto.nombre);
+    if (existente) {
+      if (existente.activo) {
+        throw new ConflictException(
+          `Ya existe una categoria llamada "${dto.nombre}"`,
+        );
+      }
+      existente.activo = true;
+      existente.descripcion = dto.descripcion ?? existente.descripcion;
+      return this.repo.save(existente);
+    }
     return this.repo.create({
       nombre: dto.nombre,
       descripcion: dto.descripcion ?? null,
@@ -35,8 +52,11 @@ export class CategoriesService {
   }
 
   async remove(id: string) {
+    // Soft-delete: la categoria se marca inactiva pero la fila permanece,
+    // para no romper los productos que ya la referencian.
     const cat = await this.findOne(id);
-    await this.repo.remove(cat);
+    cat.activo = false;
+    await this.repo.save(cat);
     return { mensaje: `Categoria ${id} eliminada` };
   }
 }

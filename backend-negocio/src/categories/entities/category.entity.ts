@@ -26,6 +26,14 @@ export class Category {
   @OneToMany(() => Product, (product) => product.category)
   products!: Product[];
 
+  /**
+   * Soft-delete: al "borrar" una categoria solo la marcamos inactiva.
+   * La fila nunca se elimina, asi los productos que ya la usan conservan
+   * su referencia historica y no rompen la relacion.
+   */
+  @Column({ type: 'boolean', default: true })
+  activo!: boolean;
+
   @CreateDateColumn({ name: 'created_at' })
   createdAt!: Date;
 
