@@ -33,6 +33,12 @@ import {
 } from '../services/sales.service';
 import { COLORS } from '../utils/constants';
 import Icon from '../components/Icon';
+import { Q } from '@nozbe/watermelondb';
+import { database } from '../database';
+import ProductModel from '../database/models/Product';
+import ExchangeRateModel from '../database/models/ExchangeRate';
+import { contarVentasPendientes, crearVentaLocal } from '../database/writers/createSale';
+import { sync } from '../database/sync';
 
 /**
  * Pantalla de Ventas (mobile).
@@ -71,9 +77,17 @@ export default function VentasScreen() {
   const [verDetalle, setVerDetalle] = useState<Sale | null>(null);
   const [anularAbierto, setAnularAbierto] = useState<Sale | null>(null);
   const [abonarAbierto, setAbonarAbierto] = useState<Sale | null>(null);
+  // Ventas registradas offline aún no subidas al servidor.
+  const [pendientes, setPendientes] = useState(0);
+  const [sincronizando, setSincronizando] = useState(false);
 
   const cargar = useCallback(async () => {
     try {
+      try {
+        setPendientes(await contarVentasPendientes());
+      } catch {
+        /* ignore */
+      }
       const filtro =
         estadoFiltro === 'todas'
           ? { incluirAnuladas: true, limit: 50 }
@@ -82,17 +96,31 @@ export default function VentasScreen() {
           : estadoFiltro === 'pendiente'
           ? { estado: 'pendiente' as EstadoVenta, limit: 50 }
           : { estado: 'completada' as EstadoVenta, limit: 50 };
-      const page = await salesService.list(filtro);
-      setVentas(page.items);
-    } catch (err) {
-      RNAlert.alert(
-        'Error cargando ventas',
-        err instanceof Error ? err.message : 'Error desconocido',
-      );
+      try {
+        const page = await salesService.list(filtro);
+        setVentas(page.items);
+      } catch {
+        // Sin conexión / backend caído: no alertamos. El historial del servidor
+        // no está disponible, pero las ventas offline se ven por el banner de
+        // pendientes y se subirán al reconectar.
+      }
     } finally {
       setCargando(false);
     }
   }, [estadoFiltro]);
+
+  // Sincroniza las ventas pendientes manualmente (botón del banner).
+  const sincronizarPendientes = async () => {
+    setSincronizando(true);
+    try {
+      await sync();
+    } catch {
+      RNAlert.alert('Sin conexión', 'No se pudieron subir las ventas todavía.');
+    } finally {
+      setSincronizando(false);
+      await cargar();
+    }
+  };
 
   useEffect(() => {
     void cargar();
@@ -182,6 +210,30 @@ export default function VentasScreen() {
           </TouchableOpacity>
         </View>
       </View>
+
+      {pendientes > 0 && (
+        <TouchableOpacity
+          onPress={sincronizarPendientes}
+          disabled={sincronizando}
+          style={{
+            marginHorizontal: 16,
+            marginTop: 10,
+            paddingHorizontal: 12,
+            paddingVertical: 10,
+            borderRadius: 10,
+            backgroundColor: COLORS.warning,
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+          }}>
+          <Text style={{ color: '#fff', fontWeight: '700', flex: 1 }}>
+            {pendientes} {pendientes === 1 ? 'venta' : 'ventas'} sin subir
+          </Text>
+          <Text style={{ color: '#fff', fontWeight: '700' }}>
+            {sincronizando ? 'Subiendo…' : 'Sincronizar ↑'}
+          </Text>
+        </TouchableOpacity>
+      )}
 
       <View style={styles.chipsRow}>
         {(['completada', 'pendiente', 'anulada', 'todas'] as const).map((opt) => {
@@ -459,6 +511,7 @@ function CrearVentaModal({
   onCerrar: () => void;
   onCreada: () => void;
 }) {
+  const { user } = useAuth();
   const [paso, setPaso] = useState<1 | 2>(1);
   const [productos, setProductos] = useState<Product[]>([]);
   const [items, setItems] = useState<ItemCarrito[]>([]);
@@ -471,18 +524,55 @@ function CrearVentaModal({
   const [pickerCliente, setPickerCliente] = useState(false);
   const [guardando, setGuardando] = useState(false);
 
+  // Offline-first: el POS lee productos y tasas de la BD local, así se puede
+  // vender con o sin conexión. El catálogo lo mantiene al día el SyncProvider.
   useEffect(() => {
-    Promise.all([productsService.list(), exchangeRatesService.getCurrent()])
-      .then(([lista, t]) => {
-        setProductos(lista.filter((p) => p.activo && p.stock > 0));
-        setTasas(t);
-      })
-      .catch((err) =>
+    (async () => {
+      try {
+        const prodModels = await database
+          .get<ProductModel>('products')
+          .query(Q.where('activo', true))
+          .fetch();
+        const prods: Product[] = prodModels
+          .filter((p) => p.stock > 0)
+          .map((p) => ({
+            id: p.id,
+            nombre: p.nombre,
+            descripcion: p.descripcion ?? null,
+            categoryId: p.categoryId,
+            precio: p.precio,
+            stock: p.stock,
+            stockMinimo: p.stockMinimo,
+            codigo: p.codigo ?? null,
+            activo: p.activo,
+          }))
+          .sort((a, b) => a.nombre.localeCompare(b.nombre));
+        setProductos(prods);
+
+        // Última tasa por moneda (mayor effective_from) → CurrentRates.
+        const rateModels = await database
+          .get<ExchangeRateModel>('exchange_rates')
+          .query()
+          .fetch();
+        const masReciente: Record<string, { rate: number; at: number }> = {};
+        for (const r of rateModels) {
+          if (!masReciente[r.currency] || r.effectiveFrom > masReciente[r.currency].at) {
+            masReciente[r.currency] = { rate: r.rate, at: r.effectiveFrom };
+          }
+        }
+        setTasas({
+          USD: 1,
+          VES: masReciente.VES?.rate ?? null,
+          COP: masReciente.COP?.rate ?? null,
+          at: new Date().toISOString(),
+        });
+      } catch (err) {
         RNAlert.alert(
           'Error cargando',
           err instanceof Error ? err.message : 'Error',
-        ),
-      );
+        );
+      }
+    })();
   }, []);
 
   const totalUsd = useMemo(
@@ -575,31 +665,60 @@ function CrearVentaModal({
     }
     setGuardando(true);
     try {
-      const itemsPayload: CreateSaleItemInput[] = items.map((i) => ({
+      // Offline-first: la venta se guarda en la BD local (con precio congelado
+      // y montos calculados con la última tasa). Se sube al sincronizar; el
+      // backend recalcula como autoridad usando el mismo id (idempotencia).
+      const itemsArgs = items.map((i) => ({
         productId: i.productId,
+        productNombre: i.nombre,
         cantidad: i.cantidad,
+        precioUnitario: i.precioUsd,
+        subtotal: i.precioUsd * i.cantidad,
       }));
-      const paymentsPayload: CreateSalePaymentInput[] = pagos
+      const paymentsArgs = pagos
         .filter((p) => Number(p.amount) > 0)
-        .map((p) => ({
-          currency: p.currency,
-          method: p.method,
-          amount: Number(p.amount),
-        }));
-      await salesService.create({
-        items: itemsPayload,
-        payments: paymentsPayload,
+        .map((p) => {
+          const amount = Number(p.amount);
+          const rate =
+            p.currency === 'USD'
+              ? 1
+              : (p.currency === 'VES' ? tasas?.VES : tasas?.COP) ?? 1;
+          return {
+            currency: p.currency,
+            method: p.method,
+            amountOriginal: amount,
+            exchangeRate: rate,
+            amountUsd: toUsd(amount, p.currency, tasas),
+          };
+        });
+      const estado: 'completada' | 'pendiente' =
+        tipoVenta === 'contado'
+          ? 'completada'
+          : saldoUsd > 0.01
+          ? 'pendiente'
+          : 'completada';
+
+      await crearVentaLocal({
+        userId: user?.id ?? '',
         tipoVenta,
-        customerId: cliente?.id,
-        notas: notas.trim() || undefined,
+        customerId: cliente?.id ?? null,
+        notas: notas.trim() || null,
+        totalUsd,
+        saldoUsd,
+        estado,
+        items: itemsArgs,
+        payments: paymentsArgs,
       });
+
+      // Si hay conexión sube de una vez; si no, queda pendiente y el
+      // SyncProvider la sube al reconectar.
+      void sync().catch(() => {});
+
       onCreada();
     } catch (err) {
-      const e = err as { response?: { data?: { message?: string } } };
       RNAlert.alert(
         'No se pudo registrar',
-        e.response?.data?.message ??
-          (err instanceof Error ? err.message : 'Error'),
+        err instanceof Error ? err.message : 'Error',
       );
     } finally {
       setGuardando(false);
