@@ -40,9 +40,33 @@ export class StoreConfigService implements OnModuleInit {
   private async getFresh(): Promise<StoreConfigDocument> {
     if (this.cacheDoc && Date.now() < this.cacheExpires) return this.cacheDoc;
     const doc = await this.ensureExists();
+    await this.limpiarVencidos(doc);
     this.cacheDoc = doc;
     this.cacheExpires = Date.now() + this.CACHE_TTL_MS;
     return doc;
+  }
+
+  /**
+   * Resetea solos los cierres temporales que ya vencieron, para que no
+   * queden "pegados":
+   *  - Vacaciones cuya fecha ya paso (vacacionesHasta < hoy) -> se limpian.
+   *  - Cierre temprano de un dia anterior (cerrarHoyFecha != hoy) -> se limpia.
+   * Asi, al terminar las vacaciones la tienda vuelve sola a su horario normal
+   * sin tener que entrar a "limpiar" a mano.
+   */
+  private async limpiarVencidos(doc: StoreConfigDocument): Promise<void> {
+    const hoy = this.hoyISO(doc.zonaHoraria);
+    let cambio = false;
+    if (doc.vacacionesHasta && doc.vacacionesHasta < hoy) {
+      doc.vacacionesHasta = null;
+      cambio = true;
+    }
+    if (doc.cerrarHoyFecha && doc.cerrarHoyFecha !== hoy) {
+      doc.cerrarHoyA = null;
+      doc.cerrarHoyFecha = null;
+      cambio = true;
+    }
+    if (cambio) await doc.save();
   }
 
   async get() {
