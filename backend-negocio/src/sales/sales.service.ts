@@ -58,6 +58,26 @@ export interface SyncSaleInput {
 const FORMATO_DECIMAL = 2;
 const TOLERANCIA_USD = 0.01;
 
+/** `desde` como inicio del dia. Solo-fecha ("YYYY-MM-DD") => medianoche. */
+function parseDesde(s?: string): Date | undefined {
+  return s ? new Date(s) : undefined;
+}
+
+/**
+ * `hasta` como FIN del dia cuando viene solo como "YYYY-MM-DD".
+ *
+ * Antes se usaba `new Date("2026-06-21")` = medianoche, asi que el filtro
+ * "hasta hoy" dejaba fuera todas las ventas del propio dia (bug de
+ * calendario). Llevamos el limite a las 23:59:59.999 para incluir el dia
+ * completo. Si llega un ISO con hora, se respeta tal cual.
+ */
+function parseHasta(s?: string): Date | undefined {
+  if (!s) return undefined;
+  const d = new Date(s);
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) d.setUTCHours(23, 59, 59, 999);
+  return d;
+}
+
 /**
  * Servicio de ventas.
  *
@@ -580,8 +600,8 @@ export class SalesService {
       actor.role === 'superadmin' && query.incluirInactivas === 'true';
 
     return this.repo.findAllPaginated({
-      desde: query.desde ? new Date(query.desde) : undefined,
-      hasta: query.hasta ? new Date(query.hasta) : undefined,
+      desde: parseDesde(query.desde),
+      hasta: parseHasta(query.hasta),
       userId,
       customerId: query.customerId,
       tipoVenta: query.tipoVenta,
@@ -803,10 +823,10 @@ export class SalesService {
   }
 
   private resolverRango(query: QueryReportDto, dias: number) {
-    const hasta = query.hasta ? new Date(query.hasta) : new Date();
-    const desde = query.desde
-      ? new Date(query.desde)
-      : new Date(hasta.getTime() - dias * 24 * 60 * 60 * 1000);
+    const hasta = parseHasta(query.hasta) ?? new Date();
+    const desde =
+      parseDesde(query.desde) ??
+      new Date(hasta.getTime() - dias * 24 * 60 * 60 * 1000);
     return { desde, hasta };
   }
 }

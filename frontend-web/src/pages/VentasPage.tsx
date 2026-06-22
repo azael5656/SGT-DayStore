@@ -414,6 +414,18 @@ function fromUsd(usd: number, currency: Currency, tasas: CurrentRates | null): n
   return usd * rate;
 }
 
+/**
+ * Formatea un monto para el input de pago, lo mas legible por moneda:
+ *  - USD: siempre 2 decimales (12.50).
+ *  - COP: entero, los pesos no usan centavos (45000).
+ *  - VES: numero natural sin ceros de relleno (4000, o 480.5 si hace falta).
+ */
+function formatMonto(valor: number, currency: Currency): string {
+  if (currency === 'USD') return valor.toFixed(2);
+  if (currency === 'COP') return String(Math.round(valor));
+  return String(Number(valor.toFixed(2)));
+}
+
 function CrearVentaForm({
   onCerrar,
   onCreada,
@@ -552,7 +564,8 @@ function CrearVentaForm({
             usdObjetivo = Math.max(0, totalUsd - otrosUsd);
           }
           const nuevoMonto = fromUsd(usdObjetivo, patch.currency, tasas);
-          if (nuevoMonto !== null) merged.amount = nuevoMonto.toFixed(2);
+          if (nuevoMonto !== null)
+            merged.amount = formatMonto(nuevoMonto, patch.currency);
         }
         return merged;
       }),
@@ -1773,7 +1786,7 @@ export function RegistrarAbonoForm({
     if (!validos.includes(method)) {
       setMethod(COMBINACIONES_VALIDAS[c][0]);
     }
-    if (nuevo !== null) setAmount(nuevo.toFixed(2));
+    if (nuevo !== null) setAmount(formatMonto(nuevo, c));
   };
 
   const submit = async (e: FormEvent) => {

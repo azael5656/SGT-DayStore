@@ -504,6 +504,18 @@ function fromUsd(usd: number, currency: Currency, tasas: CurrentRates | null): n
   return usd * rate;
 }
 
+/**
+ * Formatea un monto para el input de pago, lo mas legible por moneda:
+ *  - USD: siempre 2 decimales (12.50).
+ *  - COP: entero, los pesos no usan centavos (45000).
+ *  - VES: numero natural sin ceros de relleno (4000, o 480.5 si hace falta).
+ */
+function formatMonto(valor: number, currency: Currency): string {
+  if (currency === 'USD') return valor.toFixed(2);
+  if (currency === 'COP') return String(Math.round(valor));
+  return String(Number(valor.toFixed(2)));
+}
+
 function CrearVentaModal({
   onCerrar,
   onCreada,
@@ -639,7 +651,7 @@ function CrearVentaModal({
             usdObjetivo = Math.max(0, totalUsd - otrosUsd);
           }
           const nuevo = fromUsd(usdObjetivo, patch.currency, tasas);
-          if (nuevo !== null) merged.amount = nuevo.toFixed(2);
+          if (nuevo !== null) merged.amount = formatMonto(nuevo, patch.currency);
         }
         return merged;
       }),
@@ -1734,7 +1746,7 @@ function RegistrarAbonoModal({
     const usd = toUsd(Number(amount), currency, tasas);
     setCurrency(c);
     const nuevo = fromUsd(usd, c, tasas);
-    if (nuevo !== null) setAmount(nuevo.toFixed(2));
+    if (nuevo !== null) setAmount(formatMonto(nuevo, c));
   };
 
   const submit = async () => {
