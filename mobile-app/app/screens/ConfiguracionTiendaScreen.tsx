@@ -119,12 +119,23 @@ export default function ConfiguracionTiendaScreen() {
     }
   };
 
-  const toggleDia = (dia: number) => {
+  // Los dias cerrados se guardan al instante (igual que "Abrir/Cerrar ahora"),
+  // sin esperar al boton "Guardar": asi marcar/desmarcar un dia nunca se pierde
+  // por olvidar guardar.
+  const toggleDia = async (dia: number) => {
     if (!config) return;
     const set = new Set(config.diasCerrados);
     if (set.has(dia)) set.delete(dia);
     else set.add(dia);
-    actualizar({ diasCerrados: [...set].sort() });
+    const nuevos = [...set].sort((a, b) => a - b);
+    actualizar({ diasCerrados: nuevos });
+    try {
+      const saved = await storeConfigService.update({ diasCerrados: nuevos });
+      setConfig(saved);
+      await refrescarEstado();
+    } catch {
+      // Sin conexion: queda local y el boton "Guardar" sigue disponible.
+    }
   };
 
   if (cargando || !config || !estado) {
