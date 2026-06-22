@@ -9,6 +9,7 @@ import React, {
 } from 'react';
 import { iotService, type Alert, type SensorReading } from '../services/iot.service';
 import { getRealtimeSocket } from '../services/realtime.service';
+import { loadIotSnapshot, saveIotSnapshot } from '../services/iotSnapshot';
 import { alertaVisibleParaRol } from '../utils/labels';
 import { useAuth } from './AuthContext';
 
@@ -61,6 +62,26 @@ export function RealtimeIoTProvider({ children }: { children: ReactNode }) {
       /* el socket luego rellena */
     }
   }, []);
+
+  // Offline-first: rehidrata el último estado guardado para que el dashboard
+  // muestre los últimos valores aunque arranque sin conexión. Solo hidrata si
+  // aún no llegó nada fresco (no pisa datos en vivo).
+  useEffect(() => {
+    void loadIotSnapshot().then((snap) => {
+      if (!snap) return;
+      setReadings((prev) => (prev.length ? prev : snap.readings));
+      setAlerts((prev) => (prev.length ? prev : snap.alerts));
+    });
+  }, []);
+
+  // Persiste el último snapshot (debounced) para tenerlo disponible offline.
+  useEffect(() => {
+    if (readings.length === 0 && alerts.length === 0) return;
+    const t = setTimeout(() => {
+      void saveIotSnapshot({ readings, alerts });
+    }, 3000);
+    return () => clearTimeout(t);
+  }, [readings, alerts]);
 
   useEffect(() => {
     void fetchSeed();
