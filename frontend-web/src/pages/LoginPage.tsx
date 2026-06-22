@@ -15,8 +15,8 @@ const FEATURES = [
 export default function LoginPage() {
   const { login } = useAuth();
   const navigate = useNavigate();
-  const [email, setEmail] = useState('owner@daystore.local');
-  const [password, setPassword] = useState('123456');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState('');
 
@@ -120,15 +120,6 @@ export default function LoginPage() {
             leftIcon={cargando ? undefined : <LogIn size={16} />}>
             {cargando ? 'Entrando…' : 'Entrar'}
           </Button>
-
-          <details className="mt-6 text-xs text-text-muted">
-            <summary className="cursor-pointer hover:text-text">Cuentas demo</summary>
-            <ul className="mt-2 space-y-1 pl-4">
-              <li><code className="text-text">super@daystore.local</code> / super1234 (super admin)</li>
-              <li><code className="text-text">owner@daystore.local</code> / 123456 (admin)</li>
-              <li><code className="text-text">vendedor@daystore.local</code> / 123456 (vendedor)</li>
-            </ul>
-          </details>
         </form>
       </div>
     </div>
