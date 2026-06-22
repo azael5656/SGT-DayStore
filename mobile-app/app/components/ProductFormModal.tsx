@@ -73,8 +73,9 @@ export default function ProductFormModal({
     const nuevosErrores: Errores = {
       nombre: !nombre.trim(),
       categoryId: !categoryId,
-      precio: !precio || isNaN(Number(precio)),
-      stock: !stock || isNaN(parseInt(stock, 10)),
+      // No se permiten negativos ni valores no numericos.
+      precio: !precio || isNaN(Number(precio)) || Number(precio) < 0,
+      stock: !stock || isNaN(parseInt(stock, 10)) || parseInt(stock, 10) < 0,
     };
     setErrores(nuevosErrores);
     return !Object.values(nuevosErrores).some(Boolean);
