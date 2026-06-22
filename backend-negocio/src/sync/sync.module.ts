@@ -1,13 +1,17 @@
 import { Module } from '@nestjs/common';
+import { SalesModule } from '../sales/sales.module';
 import { SyncController } from './sync.controller';
 import { SyncService } from './sync.service';
 
 /**
- * Modulo de sincronizacion offline-first con la app movil.
- * No registra entidades propias: se apoya en los repositorios de los
- * otros modulos (products, categories, sales).
+ * Módulo de sincronización offline-first con la app móvil.
+ *
+ * - `DataSource` (TypeORM, global) para el pull de catálogo.
+ * - `SalesModule` aporta `SalesService.createFromSync` para aplicar las
+ *   ventas creadas offline (idempotente, oversell permitido).
  */
 @Module({
+  imports: [SalesModule],
   controllers: [SyncController],
   providers: [SyncService],
 })
