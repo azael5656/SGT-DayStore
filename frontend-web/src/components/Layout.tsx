@@ -168,7 +168,9 @@ export default function Layout({ children }: { children: ReactNode }) {
           </div>
           <ThemeToggle />
           <button
-            onClick={logout}
+            onClick={() => {
+              if (window.confirm('¿Seguro que quieres cerrar sesión?')) void logout();
+            }}
             className="text-sm text-danger hover:bg-surface-alt px-3 py-1.5 rounded-xl font-medium flex items-center gap-2 transition">
             <LogOut size={16} strokeWidth={1.75} />
             <span className="hidden sm:inline">Salir</span>
