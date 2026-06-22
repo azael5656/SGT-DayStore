@@ -135,7 +135,7 @@ services:
 
   # --- Visores de base de datos (inspeccion / documentacion) ---
   # No requieren instalar nada: se abren desde el navegador.
-  #   Adminer (PostgreSQL):  http://localhost:8081
+  #   Adminer (PostgreSQL):  http://localhost:8083  (8081 lo usa Metro de React Native)
   #   mongo-express (Mongo): http://localhost:8082  (login visor: admin / admin)
   adminer:
     image: adminer:latest
@@ -143,7 +143,7 @@ services:
     environment:
       ADMINER_DEFAULT_SERVER: postgres
     ports:
-      - "8081:8080"
+      - "8083:8080"
     depends_on:
       postgres:
         condition: service_healthy
