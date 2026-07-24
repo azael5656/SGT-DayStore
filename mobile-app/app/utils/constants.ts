@@ -40,7 +40,29 @@
  *   - Teléfono en la misma WiFi: la IP LAN del PC, ej. 'http://192.168.0.103:80'.
  *   - ZeroTier/VPN: IP estable alcanzable desde cualquier red.
  */
-export const API_BASE_URL = 'http://10.126.93.40:80';
+// ============================================================================
+// URL DEL BACKEND — cómo cambiar de red para probar
+// ============================================================================
+//
+// Solo edita la línea de `API_BASE_URL` de más abajo: apúntala a la red que
+// vas a usar. Recuerda que cada IP se saca con `ipconfig` en el PC (campo
+// "Wi-Fi IPv4 Address") según a qué red esté conectado el PC en ese momento.
+
+/** WiFi de casa (Anjobus): el PC y el dispositivo en la misma red. */
+export const API_RED_ACTUAL = 'http://192.168.1.111:80';
+
+/**
+ * Hotspot del teléfono Redmi 14C: prende el hotspot del Redmi, conecta el PC
+ * a ese hotspot, corre `ipconfig` y pon aquí la IPv4 que te dé el PC.
+ * (Android suele repartir en 192.168.x.x — reemplaza los XXX.)
+ */
+export const API_RED_REDMI = 'http://192.168.XXX.XXX:80';
+
+/** Emulador de Android Studio (alias fijo al localhost del PC). */
+export const API_EMULADOR = 'http://10.0.2.2:80';
+
+// 👇 CAMBIA SOLO ESTA LÍNEA para elegir la red, y recompila:
+export const API_BASE_URL = API_RED_ACTUAL;
 
 /**
  * Nombres de las rutas de navegacion. Los usamos para navegar de forma

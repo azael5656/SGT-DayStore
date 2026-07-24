@@ -61,7 +61,14 @@ Una vez arriba, **siembra los datos demo** (solo la primera vez o tras un `docke
 npm run docker:seed
 ```
 
-Crea las cuentas demo (`super@daystore.local / super1234`, `owner@daystore.local / 123456`, `vendedor@daystore.local / 123456`) y los productos de inventario.
+Crea el catálogo de productos e inventario demo. **No crea usuarios** — para eso:
+
+```bash
+docker compose exec backend-negocio npm run admin:create
+# Pide email, password y nombre por prompts (o con flags --email --password --nombre).
+```
+
+Crea el primer superadmin. Los usuarios admin/vendedor adicionales se crean después desde la pantalla Usuarios de la app (o `POST /users`), ya logueado como superadmin.
 
 Verifica que esté todo arriba:
 

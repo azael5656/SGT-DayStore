@@ -13,7 +13,7 @@
     "docker:down": "docker compose down",
     "docker:logs": "docker compose logs -f",
     "docker:reset": "docker compose down -v",
-    "docker:seed": "docker compose exec -T backend-negocio node dist/seeds/seed-users.js && docker compose exec -T backend-negocio node dist/seeds/seed-inventario.js"
+    "docker:seed": "docker compose exec -T backend-negocio node dist/seeds/seed-inventario.js"
   }
 }
 
