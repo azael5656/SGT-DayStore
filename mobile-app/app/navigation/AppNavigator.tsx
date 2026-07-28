@@ -4,7 +4,6 @@ import BuzzerVibrator from '../components/BuzzerVibrator';
 import OfflineBanner from '../components/OfflineBanner';
 import { useAuth } from '../context/AuthContext';
 import { RealtimeIoTProvider } from '../context/RealtimeIoTContext';
-import { SyncProvider } from '../context/SyncContext';
 import { COLORS } from '../utils/constants';
 import AuthNavigator from './AuthNavigator';
 import TabNavigator from './TabNavigator';
@@ -27,20 +26,18 @@ export default function AppNavigator() {
   }
 
   return isAuthenticated ? (
-    <SyncProvider>
-      <RealtimeIoTProvider>
+    <RealtimeIoTProvider>
+      <View style={styles.flex}>
+        {/* Indicador global de modo offline (sin conexión a internet). */}
+        <OfflineBanner />
         <View style={styles.flex}>
-          {/* Indicador global de modo offline / sincronización. */}
-          <OfflineBanner />
-          <View style={styles.flex}>
-            <TabNavigator />
-          </View>
+          <TabNavigator />
         </View>
-        {/* Alarma global: suena en cualquier pantalla mientras el buzzer este
-            activo, no solo en Home. */}
-        <BuzzerVibrator />
-      </RealtimeIoTProvider>
-    </SyncProvider>
+      </View>
+      {/* Alarma global: suena en cualquier pantalla mientras el buzzer este
+          activo, no solo en Home. */}
+      <BuzzerVibrator />
+    </RealtimeIoTProvider>
   ) : (
     <AuthNavigator />
   );

@@ -31,14 +31,15 @@
 // -----------------------------------------------------------------------------
 // Configuracion - editar antes de flashear
 // -----------------------------------------------------------------------------
-// OJO: el ESP32 SOLO soporta WiFi 2.4 GHz. "Hazel_5G" es la banda de 5 GHz y
-// no conecta. Usamos "Hazel" (misma red, banda 2.4 GHz, canal 8).
-const char* WIFI_SSID     = "Hazel";
-const char* WIFI_PASSWORD = "Pi=3.1416";
+// OJO: el ESP32 SOLO soporta WiFi 2.4 GHz. Asegurate de que el hotspot del
+// celular este en banda 2.4 GHz (no 5 GHz / no "auto"), o no conecta.
+const char* WIFI_SSID     = "Anjobus";
+const char* WIFI_PASSWORD = "31386540";
 
-// IP del PC/VPS donde corre Mosquitto. Para demo local con hotspot del celu,
-// poner aqui la IP LAN del laptop que levanta docker-compose.
-const char* MQTT_HOST = "192.168.0.101";
+// IP del PC donde corre Mosquitto (la IP LAN del laptop en el hotspot,
+// `ipconfig` -> Wi-Fi IPv4). OJO: el hotspot del celular puede CAMBIAR esta IP
+// cada vez que te reconectas; si el ESP32 da rc=-2, revisa la IP y actualizala.
+const char* MQTT_HOST = "192.168.1.111";
 const int   MQTT_PORT = 1883;
 
 // Identificador unico del dispositivo. Si se agregan mas ESP32, cambiar este
@@ -165,12 +166,24 @@ void conectarMqtt() {
   }
 }
 
-void publicarLectura() {
-  float temp = dht.readTemperature();
-  float hum  = dht.readHumidity();
+// Lee el DHT22 con reintentos. En el ESP32 la lectura es sensible al timing:
+// las tareas de WiFi/MQTT pueden interrumpir el bit-bang del sensor y devolver
+// NaN de forma intermitente. Reintentamos hasta 3 veces con una pausa corta
+// antes de darla por invalida (antes se rendia al primer NaN).
+bool leerDHT(float& temp, float& hum) {
+  for (int intento = 0; intento < 3; intento++) {
+    temp = dht.readTemperature();
+    hum  = dht.readHumidity();
+    if (!isnan(temp) && !isnan(hum)) return true;
+    delay(60);
+  }
+  return false;
+}
 
-  if (isnan(temp) || isnan(hum)) {
-    Serial.println("[DHT] Lectura invalida (NaN)");
+void publicarLectura() {
+  float temp, hum;
+  if (!leerDHT(temp, hum)) {
+    Serial.println("[DHT] Lectura invalida (NaN) tras 3 intentos");
     return;
   }
 
@@ -234,9 +247,8 @@ void loop() {
     // En modo offline igual leemos DHT para poder alarmar localmente.
     if (millis() - ultimaLectura > INTERVALO_LECTURA) {
       ultimaLectura = millis();
-      float temp = dht.readTemperature();
-      float hum  = dht.readHumidity();
-      if (!isnan(temp) && !isnan(hum)) {
+      float temp, hum;
+      if (leerDHT(temp, hum)) {
         bool alarma = (temp > UMBRAL_TEMP_LOCAL) || (hum > UMBRAL_HUM_LOCAL);
         setBuzzer(alarma);
         Serial.printf("[OFFLINE] temp=%.2f hum=%.2f alarma=%d\n",

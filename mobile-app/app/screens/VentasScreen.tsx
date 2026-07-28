@@ -15,6 +15,7 @@ import {
   View,
 } from 'react-native';
 import { useAuth } from '../context/AuthContext';
+import { CACHE_KEYS, cacheGet, cacheSet } from '../services/cache';
 import { Customer, customersService } from '../services/customers.service';
 import { exchangeRatesService } from '../services/exchangeRates.service';
 import { Product, productsService } from '../services/negocio.service';
@@ -29,17 +30,13 @@ import {
   ListSalesFilter,
   PaymentMethod,
   Sale,
+  SaleItem,
+  SalePayment,
   TipoVenta,
   salesService,
 } from '../services/sales.service';
 import { COLORS } from '../utils/constants';
 import Icon from '../components/Icon';
-import { Q } from '@nozbe/watermelondb';
-import { database } from '../database';
-import ProductModel from '../database/models/Product';
-import ExchangeRateModel from '../database/models/ExchangeRate';
-import { contarVentasPendientes, crearVentaLocal } from '../database/writers/createSale';
-import { sync } from '../database/sync';
 
 /**
  * Pantalla de Ventas (mobile).
@@ -60,6 +57,14 @@ import { sync } from '../database/sync';
 type PDFNav = StackNavigationProp<{
   PDFViewer: { url: string; baseFilename: string; title: string };
 }>;
+
+/** Rangos de precio predefinidos para filtrar ventas por total (USD). */
+const RANGOS: { label: string; min: string; max: string }[] = [
+  { label: '< $50', min: '', max: '50' },
+  { label: '$50–200', min: '50', max: '200' },
+  { label: '$200–1000', min: '200', max: '1000' },
+  { label: '$1000+', min: '1000', max: '' },
+];
 
 export default function VentasScreen() {
   const { user } = useAuth();
@@ -82,17 +87,9 @@ export default function VentasScreen() {
   const [verDetalle, setVerDetalle] = useState<Sale | null>(null);
   const [anularAbierto, setAnularAbierto] = useState<Sale | null>(null);
   const [abonarAbierto, setAbonarAbierto] = useState<Sale | null>(null);
-  // Ventas registradas offline aún no subidas al servidor.
-  const [pendientes, setPendientes] = useState(0);
-  const [sincronizando, setSincronizando] = useState(false);
 
   const cargar = useCallback(async () => {
     try {
-      try {
-        setPendientes(await contarVentasPendientes());
-      } catch {
-        /* ignore */
-      }
       const filtro: ListSalesFilter =
         estadoFiltro === 'todas'
           ? { incluirAnuladas: true, limit: 50 }
@@ -107,28 +104,18 @@ export default function VentasScreen() {
       try {
         const page = await salesService.list(filtro);
         setVentas(page.items);
+        void cacheSet(CACHE_KEYS.sales, page.items);
       } catch {
-        // Sin conexión / backend caído: no alertamos. El historial del servidor
-        // no está disponible, pero las ventas offline se ven por el banner de
-        // pendientes y se subirán al reconectar.
+        // Sin conexión / backend caído: mostramos el último historial cacheado
+        // (el OfflineBanner ya avisa la falta de internet). El caché ignora los
+        // filtros; al recuperar la red, pull-to-refresh trae el filtro real.
+        const cached = await cacheGet<Sale[]>(CACHE_KEYS.sales);
+        if (cached) setVentas(cached);
       }
     } finally {
       setCargando(false);
     }
   }, [estadoFiltro, busquedaVendedor, montoMin, montoMax]);
-
-  // Sincroniza las ventas pendientes manualmente (botón del banner).
-  const sincronizarPendientes = async () => {
-    setSincronizando(true);
-    try {
-      await sync();
-    } catch {
-      RNAlert.alert('Sin conexión', 'No se pudieron subir las ventas todavía.');
-    } finally {
-      setSincronizando(false);
-      await cargar();
-    }
-  };
 
   // Debounce: no pegamos al backend en cada tecla de la busqueda.
   useEffect(() => {
@@ -221,30 +208,6 @@ export default function VentasScreen() {
         </View>
       </View>
 
-      {pendientes > 0 && (
-        <TouchableOpacity
-          onPress={sincronizarPendientes}
-          disabled={sincronizando}
-          style={{
-            marginHorizontal: 16,
-            marginTop: 10,
-            paddingHorizontal: 12,
-            paddingVertical: 10,
-            borderRadius: 10,
-            backgroundColor: COLORS.warning,
-            flexDirection: 'row',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-          }}>
-          <Text style={{ color: '#fff', fontWeight: '700', flex: 1 }}>
-            {pendientes} {pendientes === 1 ? 'venta' : 'ventas'} sin subir
-          </Text>
-          <Text style={{ color: '#fff', fontWeight: '700' }}>
-            {sincronizando ? 'Subiendo…' : 'Sincronizar ↑'}
-          </Text>
-        </TouchableOpacity>
-      )}
-
       <View style={styles.buscador}>
         {esGerencia && (
           <TextInput
@@ -255,23 +218,37 @@ export default function VentasScreen() {
             placeholderTextColor={COLORS.textMuted}
           />
         )}
-        <View style={styles.buscadorMontos}>
-          <TextInput
-            style={[styles.buscadorInput, { flex: 1 }]}
-            value={montoMin}
-            onChangeText={setMontoMin}
-            keyboardType="numeric"
-            placeholder="Total desde ($)"
-            placeholderTextColor={COLORS.textMuted}
-          />
-          <TextInput
-            style={[styles.buscadorInput, { flex: 1 }]}
-            value={montoMax}
-            onChangeText={setMontoMax}
-            keyboardType="numeric"
-            placeholder="Total hasta ($)"
-            placeholderTextColor={COLORS.textMuted}
-          />
+        <View style={styles.filtroHead}>
+          <Text style={styles.filtroLabel}>Rango de precio</Text>
+          {(montoMin !== '' || montoMax !== '') && (
+            <TouchableOpacity
+              onPress={() => {
+                setMontoMin('');
+                setMontoMax('');
+              }}>
+              <Text style={styles.filtroLimpiar}>✕ Limpiar</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+        <View style={styles.rangosRow}>
+          {RANGOS.map((r) => {
+            const on = montoMin === r.min && montoMax === r.max;
+            return (
+              <TouchableOpacity
+                key={r.label}
+                style={[styles.rangoChip, on && styles.rangoChipOn]}
+                onPress={() => {
+                  // Toggle: si ya está activo, lo limpia; si no, lo aplica.
+                  setMontoMin(on ? '' : r.min);
+                  setMontoMax(on ? '' : r.max);
+                }}>
+                <Text
+                  style={[styles.rangoChipTxt, on && styles.rangoChipTxtOn]}>
+                  {r.label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
         </View>
       </View>
 
@@ -372,6 +349,35 @@ export default function VentasScreen() {
 // CARD DE LA LISTA
 // ============================================================================
 
+const METODO_LABEL: Record<PaymentMethod, string> = {
+  efectivo: 'Efectivo',
+  zelle: 'Zelle',
+  pago_movil: 'Pago móvil',
+  transferencia: 'Transferencia',
+};
+
+/** Resumen legible de qué se compró: "Camisa ×2" o "3 productos: A, B, +1". */
+function resumenItems(items: SaleItem[]): string {
+  if (!items || items.length === 0) return 'Sin productos';
+  if (items.length === 1) {
+    return `${items[0].productNombre} ×${items[0].cantidad}`;
+  }
+  const nombres = items.slice(0, 2).map((i) => i.productNombre).join(', ');
+  const resto = items.length - 2;
+  return resto > 0
+    ? `${items.length} productos: ${nombres}, +${resto}`
+    : `${items.length} productos: ${nombres}`;
+}
+
+/** Métodos de pago usados, sin repetir: "Efectivo" o "Efectivo + Zelle". */
+function resumenPagos(payments: SalePayment[]): string {
+  if (!payments || payments.length === 0) return '—';
+  const metodos = Array.from(
+    new Set(payments.map((p) => METODO_LABEL[p.method] ?? p.method)),
+  );
+  return metodos.join(' + ');
+}
+
 function VentaCard({
   venta,
   esGerencia,
@@ -402,14 +408,31 @@ function VentaCard({
             </Text>
             <TipoBadge tipo={venta.tipoVenta} />
           </View>
-          {venta.customer && (
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 }}>
-              <Icon name="clientes" color={COLORS.text} size={13} />
-              <Text style={styles.cardCliente}>
-                {venta.customer.nombre} ({venta.customer.cedula})
-              </Text>
-            </View>
-          )}
+
+          {/* Qué se compró */}
+          <View style={styles.cardLinea}>
+            <Icon name="inventario" color={COLORS.textMuted} size={13} />
+            <Text style={styles.cardProductos} numberOfLines={2}>
+              {resumenItems(venta.items)}
+            </Text>
+          </View>
+
+          {/* Cliente (siempre visible; "Cliente general" si no hay) */}
+          <View style={styles.cardLinea}>
+            <Icon name="usuarios" color={COLORS.textMuted} size={13} />
+            <Text style={styles.cardCliente}>
+              {venta.customer
+                ? `${venta.customer.nombre} (${venta.customer.cedula})`
+                : 'Cliente general'}
+            </Text>
+          </View>
+
+          {/* Método de pago */}
+          <View style={styles.cardLinea}>
+            <Icon name="contado" color={COLORS.textMuted} size={13} />
+            <Text style={styles.cardSub}>{resumenPagos(venta.payments)}</Text>
+          </View>
+
           <Text style={styles.cardSub}>
             {fecha.toLocaleDateString()} · {fecha.toLocaleTimeString()}
           </Text>
@@ -419,7 +442,7 @@ function VentaCard({
             </Text>
           )}
           {saldo > 0.01 && (
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 }}>
+            <View style={styles.cardLinea}>
               <Icon name="clientes" color={COLORS.warning} size={13} />
               <Text style={styles.cardSaldo}>
                 Saldo pendiente: ${saldo.toFixed(2)} USD
@@ -498,8 +521,8 @@ function EstadoBadge({
     : estado === 'anulada'
     ? { txt: 'ANULADA', fg: COLORS.danger }
     : estado === 'pendiente'
-    ? { txt: 'PENDIENTE', fg: COLORS.warning }
-    : { txt: 'OK', fg: COLORS.success };
+    ? { txt: 'DEBE', fg: COLORS.warning }
+    : { txt: 'PAGADA', fg: COLORS.success };
   return (
     <View
       style={{
@@ -568,7 +591,6 @@ function CrearVentaModal({
   onCerrar: () => void;
   onCreada: () => void;
 }) {
-  const { user } = useAuth();
   const [paso, setPaso] = useState<1 | 2>(1);
   const [productos, setProductos] = useState<Product[]>([]);
   const [items, setItems] = useState<ItemCarrito[]>([]);
@@ -581,53 +603,42 @@ function CrearVentaModal({
   const [pickerCliente, setPickerCliente] = useState(false);
   const [guardando, setGuardando] = useState(false);
 
-  // Offline-first: el POS lee productos y tasas de la BD local, así se puede
-  // vender con o sin conexión. El catálogo lo mantiene al día el SyncProvider.
+  // Online-only: el POS pide productos y tasas al backend al abrir el modal.
   useEffect(() => {
     (async () => {
       try {
-        const prodModels = await database
-          .get<ProductModel>('products')
-          .query(Q.where('activo', true))
-          .fetch();
-        const prods: Product[] = prodModels
-          .filter((p) => p.stock > 0)
-          .map((p) => ({
-            id: p.id,
-            nombre: p.nombre,
-            descripcion: p.descripcion ?? null,
-            categoryId: p.categoryId,
-            precio: p.precio,
-            stock: p.stock,
-            stockMinimo: p.stockMinimo,
-            codigo: p.codigo ?? null,
-            activo: p.activo,
-          }))
+        const [todos, rates] = await Promise.all([
+          productsService.list(),
+          exchangeRatesService.getCurrent(),
+        ]);
+        void cacheSet(CACHE_KEYS.products, todos);
+        void cacheSet(CACHE_KEYS.rates, rates);
+        const prods = todos
+          .filter((p) => p.activo && p.stock > 0)
           .sort((a, b) => a.nombre.localeCompare(b.nombre));
         setProductos(prods);
-
-        // Última tasa por moneda (mayor effective_from) → CurrentRates.
-        const rateModels = await database
-          .get<ExchangeRateModel>('exchange_rates')
-          .query()
-          .fetch();
-        const masReciente: Record<string, { rate: number; at: number }> = {};
-        for (const r of rateModels) {
-          if (!masReciente[r.currency] || r.effectiveFrom > masReciente[r.currency].at) {
-            masReciente[r.currency] = { rate: r.rate, at: r.effectiveFrom };
-          }
-        }
-        setTasas({
-          USD: 1,
-          VES: masReciente.VES?.rate ?? null,
-          COP: masReciente.COP?.rate ?? null,
-          at: new Date().toISOString(),
-        });
+        setTasas(rates);
       } catch (err) {
-        RNAlert.alert(
-          'Error cargando',
-          err instanceof Error ? err.message : 'Error',
-        );
+        // Sin conexión: usamos el último catálogo/tasas cacheados para que el
+        // POS renderice. OJO: confirmar la venta sí exige backend.
+        const [cProds, cRates] = await Promise.all([
+          cacheGet<Product[]>(CACHE_KEYS.products),
+          cacheGet<CurrentRates>(CACHE_KEYS.rates),
+        ]);
+        if (cProds) {
+          setProductos(
+            cProds
+              .filter((p) => p.activo && p.stock > 0)
+              .sort((a, b) => a.nombre.localeCompare(b.nombre)),
+          );
+        }
+        if (cRates) setTasas(cRates);
+        if (!cProds && !cRates) {
+          RNAlert.alert(
+            'Error cargando',
+            err instanceof Error ? err.message : 'Error',
+          );
+        }
       }
     })();
   }, []);
@@ -722,54 +733,28 @@ function CrearVentaModal({
     }
     setGuardando(true);
     try {
-      // Offline-first: la venta se guarda en la BD local (con precio congelado
-      // y montos calculados con la última tasa). Se sube al sincronizar; el
-      // backend recalcula como autoridad usando el mismo id (idempotencia).
-      const itemsArgs = items.map((i) => ({
+      // Online-only: el backend es la autoridad. Le mandamos solo el carrito y
+      // los pagos en su moneda original; el servidor recalcula precios, total,
+      // saldo y estado con la tasa vigente.
+      const itemsArgs: CreateSaleItemInput[] = items.map((i) => ({
         productId: i.productId,
-        productNombre: i.nombre,
         cantidad: i.cantidad,
-        precioUnitario: i.precioUsd,
-        subtotal: i.precioUsd * i.cantidad,
       }));
-      const paymentsArgs = pagos
+      const paymentsArgs: CreateSalePaymentInput[] = pagos
         .filter((p) => Number(p.amount) > 0)
-        .map((p) => {
-          const amount = Number(p.amount);
-          const rate =
-            p.currency === 'USD'
-              ? 1
-              : (p.currency === 'VES' ? tasas?.VES : tasas?.COP) ?? 1;
-          return {
-            currency: p.currency,
-            method: p.method,
-            amountOriginal: amount,
-            exchangeRate: rate,
-            amountUsd: toUsd(amount, p.currency, tasas),
-          };
-        });
-      const estado: 'completada' | 'pendiente' =
-        tipoVenta === 'contado'
-          ? 'completada'
-          : saldoUsd > 0.01
-          ? 'pendiente'
-          : 'completada';
+        .map((p) => ({
+          currency: p.currency,
+          method: p.method,
+          amount: Number(p.amount),
+        }));
 
-      await crearVentaLocal({
-        userId: user?.id ?? '',
-        tipoVenta,
-        customerId: cliente?.id ?? null,
-        notas: notas.trim() || null,
-        totalUsd,
-        saldoUsd,
-        estado,
+      await salesService.create({
         items: itemsArgs,
         payments: paymentsArgs,
+        tipoVenta,
+        customerId: cliente?.id ?? undefined,
+        notas: notas.trim() || undefined,
       });
-
-      // Si hay conexión sube de una vez; si no, queda pendiente y el
-      // SyncProvider la sube al reconectar.
-      void sync().catch(() => {});
 
       onCreada();
     } catch (err) {
@@ -2097,6 +2082,25 @@ const styles = StyleSheet.create({
     color: COLORS.text,
   },
   buscadorMontos: { flexDirection: 'row', gap: 8 },
+  filtroHead: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  filtroLabel: { fontSize: 12, color: COLORS.textMuted, fontWeight: '600' },
+  filtroLimpiar: { fontSize: 12, color: COLORS.danger, fontWeight: '700' },
+  rangosRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+  rangoChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 14,
+    backgroundColor: COLORS.surface,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  rangoChipOn: { backgroundColor: COLORS.primary, borderColor: COLORS.primary },
+  rangoChipTxt: { fontSize: 12, color: COLORS.text, fontWeight: '600' },
+  rangoChipTxtOn: { color: COLORS.accentContrast },
   chip: {
     paddingHorizontal: 10,
     paddingVertical: 6,
@@ -2117,8 +2121,20 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: COLORS.border,
   },
-  cardRow: { flexDirection: 'row' },
+  cardRow: { flexDirection: 'row', alignItems: 'flex-start' },
   cardTotal: { fontSize: 20, fontWeight: '700', color: COLORS.text },
+  cardLinea: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    marginTop: 4,
+  },
+  cardProductos: {
+    flex: 1,
+    fontSize: 12,
+    color: COLORS.text,
+    fontWeight: '600',
+  },
   cardCliente: {
     fontSize: 12,
     color: COLORS.text,

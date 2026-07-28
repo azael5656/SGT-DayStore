@@ -10,7 +10,6 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { Q } from '@nozbe/watermelondb';
 import Icon from '../components/Icon';
 import ProductCard from '../components/ProductCard';
 import ProductFormModal from '../components/ProductFormModal';
@@ -18,12 +17,10 @@ import {
   Category,
   CreateProductInput,
   Product,
+  categoriesService,
   productsService,
 } from '../services/negocio.service';
-import { database } from '../database';
-import ProductModel from '../database/models/Product';
-import CategoryModel from '../database/models/Category';
-import { sync } from '../database/sync';
+import { CACHE_KEYS, cacheGet, cacheSet } from '../services/cache';
 import { notificarStockBajoUnaVez } from '../services/localNotifications';
 import { COLORS } from '../utils/constants';
 
@@ -41,42 +38,40 @@ export default function InventarioScreen() {
   const [modalAbierto, setModalAbierto] = useState(false);
   const [editando, setEditando] = useState<Product | null>(null);
 
-  // Offline-first: el listado se lee de WatermelonDB (BD local), así funciona
-  // con o sin conexión. El catálogo lo baja el SyncProvider por pull; aquí solo
-  // leemos y filtramos en memoria.
+  // Online-only con caché de lectura: pedimos el catálogo al backend y lo
+  // guardamos. Si no hay conexión, rehidratamos el último snapshot para que la
+  // pantalla no rompa ni quede vacía. Filtramos en memoria para que buscador y
+  // chips respondan al instante.
   const cargar = useCallback(async () => {
     try {
-      const cats = await database
-        .get<CategoryModel>('categories')
-        .query()
-        .fetch();
-      const prodModels = await database
-        .get<ProductModel>('products')
-        .query(Q.where('activo', true))
-        .fetch();
+      let cats: Category[];
+      let todos: Product[];
+      try {
+        [cats, todos] = await Promise.all([
+          categoriesService.list(),
+          productsService.list(),
+        ]);
+        void cacheSet(CACHE_KEYS.categories, cats);
+        void cacheSet(CACHE_KEYS.products, todos);
+      } catch (netErr) {
+        // Sin conexión: caemos al último snapshot guardado.
+        const [cCats, cProds] = await Promise.all([
+          cacheGet<Category[]>(CACHE_KEYS.categories),
+          cacheGet<Product[]>(CACHE_KEYS.products),
+        ]);
+        if (!cProds && !cCats) throw netErr; // sin caché tampoco: error real
+        cats = cCats ?? [];
+        todos = cProds ?? [];
+      }
+
+      let prods = todos.filter((p) => p.activo);
 
       // Stock bajo/agotado sobre TODO el inventario activo (no el filtrado):
       // notifica una sola vez por sesion (NOT-1).
-      const enStockBajo = prodModels.filter(
+      const enStockBajo = prods.filter(
         (p) => p.stock <= p.stockMinimo,
       ).length;
       void notificarStockBajoUnaVez(enStockBajo);
-
-      const catNombre = new Map(cats.map((c) => [c.id, c.nombre]));
-      let prods: Product[] = prodModels.map((p) => ({
-        id: p.id,
-        nombre: p.nombre,
-        descripcion: p.descripcion ?? null,
-        categoryId: p.categoryId,
-        category: catNombre.has(p.categoryId)
-          ? { id: p.categoryId, nombre: catNombre.get(p.categoryId)!, descripcion: null }
-          : undefined,
-        precio: p.precio,
-        stock: p.stock,
-        stockMinimo: p.stockMinimo,
-        codigo: p.codigo ?? null,
-        activo: p.activo,
-      }));
 
       if (categoriaFiltro) {
         prods = prods.filter((p) => p.categoryId === categoriaFiltro);
@@ -89,13 +84,11 @@ export default function InventarioScreen() {
             (p.codigo ?? '').toLowerCase().includes(q),
         );
       }
-      prods.sort((a, b) => a.nombre.localeCompare(b.nombre));
+      prods = [...prods].sort((a, b) => a.nombre.localeCompare(b.nombre));
 
       setProductos(prods);
       setCategorias(
-        cats
-          .map((c) => ({ id: c.id, nombre: c.nombre, descripcion: null }))
-          .sort((a, b) => a.nombre.localeCompare(b.nombre)),
+        [...cats].sort((a, b) => a.nombre.localeCompare(b.nombre)),
       );
     } catch (err) {
       RNAlert.alert(
@@ -113,18 +106,12 @@ export default function InventarioScreen() {
 
   const onRefresh = async () => {
     setRefrescando(true);
-    // Pull-to-refresh: baja lo último del servidor (si hay red) y re-lee local.
-    try {
-      await sync();
-    } catch {
-      /* sin conexión: igual mostramos lo que haya en local */
-    }
     await cargar();
     setRefrescando(false);
   };
 
   // El CRUD de catálogo es online (axios). Tras escribir en el servidor,
-  // sincronizamos para que el cambio baje a la BD local y se vea en la lista.
+  // recargamos la lista para reflejar el cambio.
   const guardar = async (input: CreateProductInput) => {
     if (editando) {
       await productsService.update(editando.id, input);
@@ -133,11 +120,6 @@ export default function InventarioScreen() {
     }
     setModalAbierto(false);
     setEditando(null);
-    try {
-      await sync();
-    } catch {
-      /* el siguiente sync reflejará el cambio */
-    }
     void cargar();
   };
 
@@ -153,11 +135,6 @@ export default function InventarioScreen() {
           onPress: async () => {
             try {
               await productsService.remove(p.id);
-              try {
-                await sync();
-              } catch {
-                /* el siguiente sync reflejará el borrado */
-              }
               void cargar();
             } catch (err) {
               RNAlert.alert(
